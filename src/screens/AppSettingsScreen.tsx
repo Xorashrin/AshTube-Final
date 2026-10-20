@@ -68,8 +68,7 @@ export default function AppSettingsScreen({ navigation }: Props) {
           icon="log-out-outline"
           label="Sign Out"
           onPress={() => {
-            signOut();
-            navigation.reset({ index: 0, routes: [{ name: 'Landing' }] });
+            signOut().then(() => navigation.reset({ index: 0, routes: [{ name: 'Landing' }] }));
           }}
         />
       </ScrollView>

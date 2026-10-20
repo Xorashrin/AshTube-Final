@@ -3,6 +3,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { MAIN_PROFILE_ID, PROFILE_COLOR, findEpisode, getTitle, type Profile } from '../data/mock';
 import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo } from '../services/downloads';
+import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
 export type Rating = 'down' | 'up' | 'love';
 
@@ -42,8 +43,10 @@ export interface Settings {
 
 interface State {
   hydrated: boolean;
+  authReady: boolean;
   signedIn: boolean;
   userName: string;
+  email: string;
   creditSeen: boolean;
   data: ProfileData;
   settings: Settings;
@@ -52,8 +55,8 @@ interface State {
 
 type Action =
   | { type: 'HYDRATE'; saved: Partial<State> | null }
-  | { type: 'SIGN_IN'; name: string }
-  | { type: 'SIGN_OUT' }
+  | { type: 'AUTH'; user: AccountUser | null }
+  | { type: 'SET_NAME'; name: string }
   | { type: 'CREDIT_SEEN' }
   | { type: 'TOGGLE_MY_LIST'; id: string }
   | { type: 'RATE'; id: string; rating: Rating | null }
@@ -86,8 +89,10 @@ const starterData: ProfileData = {
 
 const initialState: State = {
   hydrated: false,
+  authReady: false,
   signedIn: false,
   userName: '',
+  email: '',
   creditSeen: false,
   data: starterData,
   settings: { wifiOnly: true, smartDownloads: true, notifications: true, autoplayNext: true, autoplayPreviews: true },
@@ -109,7 +114,8 @@ function reducer(state: State, action: Action): State {
   switch (action.type) {
     case 'HYDRATE': {
       const saved = action.saved ?? {};
-      const merged: State = { ...state, ...saved, toast: null, hydrated: true };
+      // Sign-in state comes from Firebase, never from local storage.
+      const merged: State = { ...state, ...saved, signedIn: state.signedIn, userName: state.userName, email: state.email, authReady: state.authReady, toast: null, hydrated: true };
       // Downloads interrupted by an app restart cannot resume; mark them failed.
       merged.data = {
         ...merged.data,
@@ -117,10 +123,12 @@ function reducer(state: State, action: Action): State {
       };
       return merged;
     }
-    case 'SIGN_IN':
-      return { ...state, signedIn: true, userName: action.name };
-    case 'SIGN_OUT':
-      return { ...state, signedIn: false };
+    case 'AUTH':
+      return action.user
+        ? { ...state, authReady: true, signedIn: true, userName: action.user.name, email: action.user.email }
+        : { ...state, authReady: true, signedIn: false, userName: '', email: '' };
+    case 'SET_NAME':
+      return { ...state, userName: action.name };
     case 'CREDIT_SEEN':
       return { ...state, creditSeen: true };
     case 'TOGGLE_MY_LIST':
@@ -178,8 +186,8 @@ interface AppContextValue {
   state: State;
   activeProfile: Profile | null;
   profileData: ProfileData;
-  signIn: (name: string) => void;
-  signOut: () => void;
+  setDisplayName: (name: string) => void;
+  signOut: () => Promise<void>;
   markCreditSeen: () => void;
   toggleMyList: (id: string) => void;
   rate: (id: string, rating: Rating | null) => void;
@@ -208,9 +216,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!state.hydrated) return;
-    const { signedIn, userName, creditSeen, data, settings } = state;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ signedIn, userName, creditSeen, data, settings })).catch(() => undefined);
+    const { creditSeen, data, settings } = state;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ creditSeen, data, settings })).catch(() => undefined);
   }, [state]);
+
+  useEffect(() => watchAuth((user) => dispatch({ type: 'AUTH', user })), []);
 
   const showToast = useCallback((message: string) => dispatch({ type: 'TOAST', message }), []);
 
@@ -260,8 +270,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       state,
       activeProfile,
       profileData: state.data,
-      signIn: (name) => dispatch({ type: 'SIGN_IN', name }),
-      signOut: () => dispatch({ type: 'SIGN_OUT' }),
+      setDisplayName: (name) => dispatch({ type: 'SET_NAME', name }),
+      signOut: () => signOutAccount().catch(() => undefined),
       markCreditSeen: () => dispatch({ type: 'CREDIT_SEEN' }),
       toggleMyList: (id) => dispatch({ type: 'TOGGLE_MY_LIST', id }),
       rate: (id, rating) => dispatch({ type: 'RATE', id, rating }),

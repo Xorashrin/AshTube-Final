@@ -8,6 +8,7 @@ import { Button } from '../components/Buttons';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
 import type { RootStackParamList } from '../navigation/types';
+import { authErrorMessage, signUpWithEmail } from '../services/firebase';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
 import { Field } from './SignInScreen';
@@ -18,7 +19,8 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function SignUpScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { signIn } = useApp();
+  const { setDisplayName } = useApp();
+  const [error, setError] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,14 +33,19 @@ export default function SignUpScreen({ navigation }: Props) {
   const passwordOk = password.length >= 6;
   const valid = nameOk && emailOk && passwordOk;
 
-  const submit = () => {
+  const submit = async () => {
     setTouched(true);
+    setError(null);
     if (!valid) return;
     setLoading(true);
-    setTimeout(() => {
-      signIn(name.trim());
+    try {
+      const user = await signUpWithEmail(name, email, password);
+      setDisplayName(user.name);
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    }, 700);
+    } catch (e) {
+      setError(authErrorMessage(e));
+      setLoading(false);
+    }
   };
 
   return (
@@ -57,6 +64,11 @@ export default function SignUpScreen({ navigation }: Props) {
         <Txt size={14} color={colors.textMuted} style={{ marginBottom: 24 }}>
           Unlimited movies, TV shows & more. Cancel anytime.
         </Txt>
+        {error ? (
+          <View style={styles.errorBox}>
+            <Txt size={14} color="#000000">{error}</Txt>
+          </View>
+        ) : null}
         <Field label="Your name" value={name} onChangeText={setName} />
         {touched && !nameOk ? <Txt size={12} color={colors.redLight} style={styles.error}>Please enter your name.</Txt> : null}
         <Field label="Email" value={email} onChangeText={setEmail} />
@@ -79,4 +91,5 @@ const styles = StyleSheet.create({
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
   form: { paddingHorizontal: 20, paddingTop: 28, paddingBottom: 40 },
   error: { marginTop: -8, marginBottom: 12 },
+  errorBox: { backgroundColor: '#E87C03', borderRadius: 4, padding: 12, marginBottom: 14 },
 });

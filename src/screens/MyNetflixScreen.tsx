@@ -86,8 +86,7 @@ export default function MyNetflixScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: () => {
-          signOut();
-          nav.reset({ index: 0, routes: [{ name: 'Landing' }] });
+          signOut().then(() => nav.reset({ index: 0, routes: [{ name: 'Landing' }] }));
         },
       },
     ]);

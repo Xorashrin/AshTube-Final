@@ -8,6 +8,7 @@ import { Button } from '../components/Buttons';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
 import type { RootStackParamList } from '../navigation/types';
+import { authErrorMessage, resetPassword, signInWithEmail } from '../services/firebase';
 import { useApp } from '../state/AppState';
 import { colors, font, radius } from '../theme/tokens';
 
@@ -46,20 +47,37 @@ export function Field({ label, value, onChangeText, secure, onToggleSecure }: { 
 
 export default function SignInScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
-  const { signIn, showToast } = useApp();
+  const { showToast } = useApp();
+  const [error, setError] = useState<string | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [secure, setSecure] = useState(true);
   const [loading, setLoading] = useState(false);
-  const valid = email.trim().length >= 3 && password.length >= 4;
+  const valid = email.trim().length >= 3 && password.length >= 6;
 
-  const submit = () => {
+  const submit = async () => {
+    setError(null);
     setLoading(true);
-    setTimeout(() => {
-      const handle = email.trim().split('@')[0];
-      signIn(handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : 'You');
+    try {
+      await signInWithEmail(email, password);
       navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
-    }, 700);
+    } catch (e) {
+      setError(authErrorMessage(e));
+      setLoading(false);
+    }
+  };
+
+  const forgot = async () => {
+    if (!email.trim()) {
+      setError('Enter your email above, then tap Forgot password.');
+      return;
+    }
+    try {
+      await resetPassword(email);
+      showToast('Password reset email sent. Check your inbox.');
+    } catch (e) {
+      setError(authErrorMessage(e));
+    }
   };
 
   return (
@@ -72,14 +90,15 @@ export default function SignInScreen({ navigation }: Props) {
         <View style={{ width: 24 }} />
       </View>
       <ScrollView contentContainerStyle={styles.form} keyboardShouldPersistTaps="handled">
-        <Field label="Email or phone number" value={email} onChangeText={setEmail} />
+        {error ? (
+          <View style={styles.errorBox}>
+            <Txt size={14} color="#000000">{error}</Txt>
+          </View>
+        ) : null}
+        <Field label="Email" value={email} onChangeText={setEmail} />
         <Field label="Password" value={password} onChangeText={setPassword} secure={secure} onToggleSecure={() => setSecure((s) => !s)} />
         <Button label="Sign In" variant={valid ? 'red' : 'outline'} height={50} disabled={!valid} loading={loading} onPress={submit} style={{ marginTop: 18 }} />
-        <Txt size={14} color={colors.textMuted} align="center" style={{ marginVertical: 18 }}>
-          OR
-        </Txt>
-        <Button label="Use a Sign-In Code" variant="gray" height={50} onPress={() => showToast('Sign-in codes are not part of this demo')} />
-        <Pressable onPress={() => showToast('Any email and a 4+ character password works')} style={{ marginTop: 24 }}>
+        <Pressable onPress={forgot} style={{ marginTop: 24 }}>
           <Txt weight="medium" size={15} align="center">
             Forgot password?
           </Txt>
@@ -95,6 +114,7 @@ export default function SignInScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+  errorBox: { backgroundColor: '#E87C03', borderRadius: 4, padding: 12, marginBottom: 14 },
   root: { flex: 1, backgroundColor: colors.bg },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingBottom: 8 },
   form: { paddingHorizontal: 20, paddingTop: 40 },
