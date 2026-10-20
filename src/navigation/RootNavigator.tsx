@@ -10,6 +10,7 @@ import LivePlayerScreen from '../screens/LivePlayerScreen';
 import MyListScreen from '../screens/MyListScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
+import ProfilesScreen from '../screens/ProfilesScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
@@ -58,6 +59,7 @@ export function RootNavigator() {
       <Stack.Screen name="Downloads" component={DownloadsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
+      <Stack.Screen name="Profiles" component={ProfilesScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="AdultContent" component={AdultContentScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );

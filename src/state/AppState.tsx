@@ -48,6 +48,8 @@ interface State {
   userName: string;
   email: string;
   creditSeen: boolean;
+  profiles: Profile[];
+  activeProfileId: string;
   data: ProfileData;
   settings: Settings;
   toast: { id: number; message: string } | null;
@@ -57,6 +59,7 @@ type Action =
   | { type: 'HYDRATE'; saved: Partial<State> | null }
   | { type: 'AUTH'; user: AccountUser | null }
   | { type: 'SET_NAME'; name: string }
+  | { type: 'SELECT_PROFILE'; id: string }
   | { type: 'CREDIT_SEEN' }
   | { type: 'TOGGLE_MY_LIST'; id: string }
   | { type: 'RATE'; id: string; rating: Rating | null }
@@ -94,6 +97,8 @@ const initialState: State = {
   userName: '',
   email: '',
   creditSeen: false,
+  profiles: [{ id: MAIN_PROFILE_ID, name: 'You', color: PROFILE_COLOR }],
+  activeProfileId: MAIN_PROFILE_ID,
   data: starterData,
   settings: { wifiOnly: true, smartDownloads: true, notifications: true, autoplayNext: true, autoplayPreviews: true },
   toast: null,
@@ -123,12 +128,22 @@ function reducer(state: State, action: Action): State {
       };
       return merged;
     }
-    case 'AUTH':
+    case 'AUTH': {
+      const profiles = action.user
+        ? state.profiles.map((p) => (p.id === MAIN_PROFILE_ID ? { ...p, name: action.user!.name || 'You' } : p))
+        : state.profiles;
       return action.user
-        ? { ...state, authReady: true, signedIn: true, userName: action.user.name, email: action.user.email }
+        ? { ...state, authReady: true, signedIn: true, userName: action.user.name, email: action.user.email, profiles }
         : { ...state, authReady: true, signedIn: false, userName: '', email: '' };
+    }
     case 'SET_NAME':
-      return { ...state, userName: action.name };
+      return {
+        ...state,
+        userName: action.name,
+        profiles: state.profiles.map((p) => (p.id === MAIN_PROFILE_ID ? { ...p, name: action.name || 'You' } : p)),
+      };
+    case 'SELECT_PROFILE':
+      return { ...state, activeProfileId: action.id };
     case 'CREDIT_SEEN':
       return { ...state, creditSeen: true };
     case 'TOGGLE_MY_LIST':
@@ -186,6 +201,7 @@ interface AppContextValue {
   state: State;
   activeProfile: Profile | null;
   profileData: ProfileData;
+  selectProfile: (id: string) => void;
   setDisplayName: (name: string) => void;
   signOut: () => Promise<void>;
   markCreditSeen: () => void;
@@ -216,8 +232,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!state.hydrated) return;
-    const { creditSeen, data, settings } = state;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ creditSeen, data, settings })).catch(() => undefined);
+    const { creditSeen, data, settings, profiles, activeProfileId } = state;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ creditSeen, data, settings, profiles, activeProfileId })).catch(() => undefined);
   }, [state]);
 
   useEffect(() => watchAuth((user) => dispatch({ type: 'AUTH', user })), []);
@@ -265,11 +281,15 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AppContextValue>(() => {
-    const activeProfile: Profile | null = state.signedIn ? { id: MAIN_PROFILE_ID, name: state.userName || 'You', color: PROFILE_COLOR } : null;
+    const activeProfile: Profile | null = state.signedIn
+      ? state.profiles.find((p) => p.id === state.activeProfileId) ??
+        state.profiles[0] ?? { id: MAIN_PROFILE_ID, name: state.userName || 'You', color: PROFILE_COLOR }
+      : null;
     return {
       state,
       activeProfile,
       profileData: state.data,
+      selectProfile: (id) => dispatch({ type: 'SELECT_PROFILE', id }),
       setDisplayName: (name) => dispatch({ type: 'SET_NAME', name }),
       signOut: () => signOutAccount().catch(() => undefined),
       markCreditSeen: () => dispatch({ type: 'CREDIT_SEEN' }),

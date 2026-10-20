@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as MediaLibrary from 'expo-media-library';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext } from 'react';
@@ -119,7 +119,7 @@ export function DownloadsManagerProvider({ children }: { children: React.ReactNo
     await FileSystem.makeDirectoryAsync(`${FileSystem.documentDirectory}mythtube/saved/`, { intermediates: true });
     const m3uDoc = `#EXTM3U\n#EXTINF:-1 tvg-id="${ch.id}" tvg-name="${ch.name}" tvg-logo="${ch.logo}" group-title="${ch.country} | ${ch.category}",${ch.name}\n${ch.url}\n`;
     await FileSystem.writeAsStringAsync(docPath, m3uDoc, { encoding: FileSystem.EncodingType.UTF8 });
-    const finfo = await FileSystem.getInfoAsync(docPath, { size: true });
+    const finfo = await FileSystem.getInfoAsync(docPath);
     const sizeBytes: number =
       finfo.exists && typeof (finfo as { size?: number }).size === 'number'
         ? (finfo as { size: number }).size
@@ -169,7 +169,7 @@ export function DownloadsManagerProvider({ children }: { children: React.ReactNo
       console.warn('MediaLibrary VOD save failed', e);
     }
 
-    const finalInfo = await FileSystem.getInfoAsync(downloadRes.uri, { size: true });
+    const finalInfo = await FileSystem.getInfoAsync(downloadRes.uri);
     const finalSize: number =
       finalInfo.exists && typeof (finalInfo as { size?: number }).size === 'number'
         ? (finalInfo as { size: number }).size

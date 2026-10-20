@@ -23,6 +23,7 @@ export type RootStackParamList = {
   Downloads: undefined;
   Notifications: undefined;
   AppSettings: undefined;
+  Profiles: { mode?: 'manage' } | undefined;
   // Dedicated Adult Content screen (requirement 9)
   AdultContent: undefined;
 };
