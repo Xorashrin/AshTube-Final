@@ -16,6 +16,7 @@ export type RootStackParamList = {
   Main: NavigatorScreenParams<TabParamList> | undefined;
   Title: { id: string };
   Player: { id: string; episodeId?: string };
+  Live: { channelId: string; filter?: string };
   Search: undefined;
   Categories: { current?: string } | undefined;
   MyList: undefined;

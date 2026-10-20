@@ -5,9 +5,11 @@ import React, { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { FlatList, Keyboard, Pressable, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ChannelLogo } from '../components/ChannelLogo';
 import { Poster } from '../components/Poster';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
+import { searchChannels } from '../data/channels';
 import { AVAILABLE, type Title } from '../data/mock';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
@@ -38,6 +40,7 @@ export default function SearchScreen({ navigation }: Props) {
   // Typing stays responsive; result rendering runs at a lower priority.
   const deferred = useDeferredValue(query);
   const results = useMemo(() => search(deferred), [deferred]);
+  const channels = useMemo(() => searchChannels(deferred, 12), [deferred]);
   const hasQuery = deferred.trim().length > 0;
   const cell = Math.floor((width - 24 - 16) / 3);
 
@@ -120,7 +123,7 @@ export default function SearchScreen({ navigation }: Props) {
           }
           renderItem={renderRecommended}
         />
-      ) : results.length === 0 ? (
+      ) : results.length === 0 && channels.length === 0 ? (
         <View key="empty" style={styles.empty}>
           <Txt weight="bold" size={20} align="center">
             Oh darn. We don't have that.
@@ -141,9 +144,36 @@ export default function SearchScreen({ navigation }: Props) {
           contentContainerStyle={styles.grid}
           initialNumToRender={12}
           ListHeaderComponent={
-            <Txt weight="bold" size={18} style={styles.section}>
-              Movies & TV
-            </Txt>
+            <View>
+              {channels.length > 0 ? (
+                <>
+                  <Txt weight="bold" size={18} style={styles.section}>
+                    Live TV
+                  </Txt>
+                  <FlatList
+                    horizontal
+                    data={channels}
+                    keyExtractor={(c) => c.id}
+                    keyboardShouldPersistTaps="handled"
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.channelRow}
+                    renderItem={({ item }) => (
+                      <Pressable onPress={() => { Keyboard.dismiss(); navigation.navigate('Live', { channelId: item.id }); }} style={{ width: cell }}>
+                        <ChannelLogo channel={item} size={cell} />
+                        <Txt weight="medium" size={12} numberOfLines={1} style={{ marginTop: 6 }}>
+                          {item.name}
+                        </Txt>
+                      </Pressable>
+                    )}
+                  />
+                </>
+              ) : null}
+              {results.length > 0 ? (
+                <Txt weight="bold" size={18} style={styles.section}>
+                  Movies & TV
+                </Txt>
+              ) : null}
+            </View>
           }
           renderItem={renderResult}
         />
@@ -172,4 +202,5 @@ const styles = StyleSheet.create({
   empty: { paddingHorizontal: 32, paddingTop: 80 },
   grid: { gap: 8, paddingBottom: 30 },
   gridRow: { gap: 8, paddingHorizontal: 12 },
+  channelRow: { gap: 8, paddingHorizontal: 12 },
 });

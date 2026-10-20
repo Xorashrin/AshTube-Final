@@ -5,6 +5,7 @@ import AppSettingsScreen from '../screens/AppSettingsScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
 import LandingScreen from '../screens/LandingScreen';
+import LivePlayerScreen from '../screens/LivePlayerScreen';
 import MyListScreen from '../screens/MyListScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
@@ -39,6 +40,11 @@ export function RootNavigator() {
       <Stack.Screen
         name="Player"
         component={PlayerScreen}
+        options={{ orientation: 'landscape', animation: 'fade', navigationBarHidden: true, statusBarHidden: true }}
+      />
+      <Stack.Screen
+        name="Live"
+        component={LivePlayerScreen}
         options={{ orientation: 'landscape', animation: 'fade', navigationBarHidden: true, statusBarHidden: true }}
       />
       <Stack.Screen name="Search" component={SearchScreen} options={{ animation: 'fade' }} />

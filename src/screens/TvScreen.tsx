@@ -1,56 +1,80 @@
-import React, { useCallback, useMemo } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { FlatList, Pressable, ScrollView, StyleSheet, View, useWindowDimensions, type ListRenderItem } from 'react-native';
 
-import { Billboard } from '../components/Billboard';
-import { TALL_POSTER } from '../components/Poster';
-import { PosterRow, Top10Row } from '../components/Rows';
+import { ChannelLogo } from '../components/ChannelLogo';
+import { Chip } from '../components/Chip';
 import { ScreenHeader } from '../components/ScreenHeader';
-import { SERIES, TOP10_TV, getTitle, type Title } from '../data/mock';
+import { Txt } from '../components/Txt';
+import { CHANNEL_FILTERS, filterChannels, type Channel } from '../data/channels';
 import { useRootNav } from '../navigation/types';
-import { useApp } from '../state/AppState';
-import { colors } from '../theme/tokens';
+import { colors, layout } from '../theme/tokens';
 
-const GENRE_ROWS = ['Drama', 'Crime', 'Fantasy', 'Sci-Fi', 'Thriller', 'Comedy', 'Mystery', 'Sports', 'Kids'];
+const COLUMNS = 3;
 
 export default function TvScreen() {
   const nav = useRootNav();
-  const { profileData, toggleMyList, showToast } = useApp();
-  const hero = getTitle('echoes-of-rahu');
-  const inMyList = profileData.myList.includes(hero.id);
-  const open = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
+  const { width } = useWindowDimensions();
+  const [filter, setFilter] = useState('All');
+  const channels = useMemo(() => filterChannels(filter), [filter]);
+  const cell = Math.floor((width - layout.gutter * 2 - 8 * (COLUMNS - 1)) / COLUMNS);
 
-  const rows = useMemo(
-    () =>
-      GENRE_ROWS.map((g) => ({ genre: g, items: SERIES.filter((t) => t.genres.includes(g)) })).filter((r) => r.items.length >= 2),
-    [],
+  const renderItem = useCallback<ListRenderItem<Channel>>(
+    ({ item }) => (
+      <Pressable onPress={() => nav.navigate('Live', { channelId: item.id, filter })} style={({ pressed }) => [{ width: cell, opacity: pressed ? 0.7 : 1 }]}>
+        <ChannelLogo channel={item} size={cell} />
+        <Txt weight="medium" size={12} numberOfLines={1} style={{ marginTop: 6 }}>
+          {item.name}
+        </Txt>
+        <View style={styles.meta}>
+          <View style={styles.liveDot} />
+          <Txt size={10} color={colors.textDim} numberOfLines={1}>
+            {item.category}
+            {item.quality ? ` • ${item.quality}` : ''}
+          </Txt>
+        </View>
+      </Pressable>
+    ),
+    [cell, nav, filter],
   );
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="TV Shows" actions={['downloads', 'search']} />
-      <ScrollView contentContainerStyle={{ paddingTop: 8, paddingBottom: 32 }} showsVerticalScrollIndicator={false}>
-        <Billboard
-          title={hero}
-          inMyList={inMyList}
-          onOpen={() => open(hero)}
-          onPlay={() => nav.navigate('Player', { id: hero.id })}
-          onToggleList={() => {
-            toggleMyList(hero.id);
-            showToast(inMyList ? 'Removed from My List' : 'Added to My List');
-          }}
-        />
-        <Top10Row title="Top 10 TV Shows in Bangladesh Today" items={TOP10_TV} onPressTitle={open} />
-        <PosterRow title="MythTube Original Series" items={SERIES.filter((t) => t.original)} onPressTitle={open} width={TALL_POSTER.width} height={TALL_POSTER.height} />
-        <PosterRow title="New Episodes" items={SERIES.filter((t) => t.badge)} onPressTitle={open} />
-        {rows.map((r) => (
-          <PosterRow key={r.genre} title={`${r.genre} TV Shows`} items={r.items} onPressTitle={open} />
-        ))}
-        <PosterRow title="All TV Shows" items={SERIES} onPressTitle={open} />
-      </ScrollView>
+      <ScreenHeader title="Live TV" actions={['search']} />
+      <View>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {CHANNEL_FILTERS.map((f) => (
+            <Chip key={f} label={f} selected={filter === f} solid onPress={() => setFilter(f)} />
+          ))}
+        </ScrollView>
+      </View>
+      <FlatList
+        key={filter}
+        data={channels}
+        keyExtractor={(c) => c.id}
+        numColumns={COLUMNS}
+        renderItem={renderItem}
+        columnWrapperStyle={styles.row}
+        contentContainerStyle={styles.grid}
+        initialNumToRender={18}
+        maxToRenderPerBatch={18}
+        windowSize={7}
+        removeClippedSubviews
+        ListHeaderComponent={
+          <Txt size={12} color={colors.textDim} style={styles.count}>
+            {channels.length} channels
+          </Txt>
+        }
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
+  chips: { gap: 8, paddingHorizontal: layout.gutter, paddingVertical: 8 },
+  grid: { paddingBottom: 30, gap: 16 },
+  row: { gap: 8, paddingHorizontal: layout.gutter },
+  count: { paddingHorizontal: layout.gutter, marginTop: 4 },
+  meta: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.red, marginRight: 5 },
 });
