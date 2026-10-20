@@ -16,13 +16,18 @@ export default function CategoriesScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <PickerList
-        options={[HOME, 'My List', ...GENRES]}
+        options={[HOME, 'My List', '18+ Adult Content', ...GENRES]}
         selected={current}
         onClose={() => navigation.goBack()}
         onSelect={(value) => {
           if (value === 'My List') {
             navigation.goBack();
             navigation.navigate('MyList');
+            return;
+          }
+          if (value === '18+ Adult Content') {
+            navigation.goBack();
+            navigation.navigate('AdultContent');
             return;
           }
           navigation.navigate('Main', { screen: 'Home', params: { genre: value === HOME ? undefined : value } });

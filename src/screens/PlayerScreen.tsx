@@ -14,6 +14,7 @@ import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { findEpisode, getTitle, nextEpisode } from '../data/mock';
 import { resolveTitle } from '../data/resolveTitle';
+import { buildNuvioStreams } from '../services/providers/nuvioProviders';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -37,7 +38,7 @@ const INJECTED_AD_SHIELD = `
       window.prompt = function() { return null; };
       window.onbeforeunload = null;
       var style = document.createElement('style');
-      style.innerHTML = '.ad, .ads, [class*="banner"], [id*="banner"], [class*="pop"], [id*="pop"] { display: none !important; pointer-events: none !important; }';
+      style.innerHTML = 'iframe[src*="ads"], iframe[src*="adsterra"], iframe[src*="traffic"], div[id*="ad-"], div[class*="ad-box"] { display: none !important; pointer-events: none !important; }';
       document.head && document.head.appendChild(style);
     } catch(e) {}
   })();
@@ -123,10 +124,34 @@ export default function PlayerScreen({ navigation, route }: Props) {
   // for adult titles we have the xvideos embed. PlayerScreen tries each
   // source in order until one loads without an error.
   const streams = useMemo(() => {
-    const s = (title as unknown as { streams?: { name: string; url: string; kind: string }[] }).streams ?? [];
-    // Always include the primary fileSource as a candidate
-    return [{ name: 'primary', url: fileSource, kind: fileSource.endsWith('.m3u8') || fileSource.endsWith('.mp4') ? 'hls' : 'embed' }, ...s];
-  }, [fileSource, title]);
+    const list: { name: string; url: string; kind: string }[] = [];
+    if (offline?.status === 'downloaded' && offline.localUri) {
+      list.push({ name: 'Offline Storage', url: offline.localUri, kind: 'hls' });
+    }
+    // For series, generate episode-specific stream URLs dynamically
+    if (title.kind === 'series' && found && episode) {
+      const epStreams = buildNuvioStreams({
+        id: title.id,
+        kind: 'series',
+        season: found.season?.number ?? 1,
+        episode: episode?.number ?? 1,
+      });
+      list.push(...epStreams);
+    } else {
+      const s = (title as unknown as { streams?: { name: string; url: string; kind: string }[] }).streams ?? [];
+      if (s.length > 0) {
+        list.push(...s);
+      }
+    }
+    if (list.length === 0 && fileSource) {
+      list.push({
+        name: 'Server 1 • Primary',
+        url: fileSource,
+        kind: fileSource.endsWith('.m3u8') || fileSource.endsWith('.mp4') ? 'hls' : 'embed',
+      });
+    }
+    return list;
+  }, [fileSource, offline, title, found, episode]);
   const [streamIndex, setStreamIndex] = useState(0);
   const [embedFailed, setEmbedFailed] = useState(false);
   const currentStream = streams[streamIndex] ?? streams[0];
@@ -190,8 +215,8 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const surfaceResponder = useMemo(
     () =>
       PanResponder.create({
-        onStartShouldSetPanResponder: () => true,
-        onMoveShouldSetPanResponder: (_, g) => !locked && (Math.abs(g.dy) > 12 || Math.abs(g.dx) > 12),
+        onStartShouldSetPanResponder: () => !isEmbed,
+        onMoveShouldSetPanResponder: (_, g) => !locked && (Math.abs(g.dy) > 15 || Math.abs(g.dx) > 15),
         onPanResponderGrant: (e) => {
           startY.current = e.nativeEvent.pageY;
           const touchX = e.nativeEvent.pageX;
@@ -218,7 +243,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
           }
         },
       }),
-    [locked, brightness, volume, state.settings.swipeGestures, player],
+    [locked, brightness, volume, state.settings.swipeGestures, player, isEmbed],
   );
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
@@ -291,24 +316,17 @@ export default function PlayerScreen({ navigation, route }: Props) {
             mediaPlaybackRequiresUserAction={false}
             javaScriptEnabled
             domStorageEnabled
+            userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+            originWhitelist={['*']}
+            mixedContentMode="always"
             injectedJavaScriptBeforeContentLoaded={INJECTED_AD_SHIELD}
             onShouldStartLoadWithRequest={(req) => {
-              if (req.url === currentStream.url || req.mainDocumentURL === currentStream.url || !currentStream.url) {
-                return true;
-              }
               const u = req.url.toLowerCase();
               if (
                 u.startsWith('intent:') ||
                 u.startsWith('market:') ||
                 u.startsWith('vnd.youtube:') ||
-                u.includes('doubleclick') ||
-                u.includes('popunder') ||
-                u.includes('adsterra') ||
-                u.includes('onclick') ||
-                u.includes('redirect') ||
-                u.includes('betting') ||
-                u.includes('casino') ||
-                u.includes('traffic')
+                u.startsWith('whatsapp:')
               ) {
                 return false;
               }
@@ -330,10 +348,18 @@ export default function PlayerScreen({ navigation, route }: Props) {
             )}
           />
           {embedFailed ? (
-            <View style={StyleSheet.absoluteFill}>
-              <Txt align="center" size={14} color={colors.textMuted}>
-                Source failed. Try another server from Server & Audio.
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' }]}>
+              <Txt align="center" size={15} color={colors.text}>
+                Playback error on this server.
               </Txt>
+              <Pressable
+                onPress={() => setPanel('audio')}
+                style={{ marginTop: 14, backgroundColor: colors.red, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 }}
+              >
+                <Txt weight="bold" size={14}>
+                  Choose Another Server
+                </Txt>
+              </Pressable>
             </View>
           ) : null}
         </View>
@@ -349,6 +375,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
 
       {/* Gesture surface tracking touches & swipes */}
       <View
+        pointerEvents={isEmbed ? 'box-none' : 'auto'}
         style={StyleSheet.absoluteFill}
         onLayout={(e) => {
           screenWidth.current = e.nativeEvent.layout.width;
@@ -375,7 +402,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
       ) : null}
 
       <Animated.View pointerEvents={pointer} style={[StyleSheet.absoluteFill, controlsStyle]}>
-        <View pointerEvents="none" style={styles.dim} />
+        {!isEmbed ? <View pointerEvents="none" style={styles.dim} /> : null}
         <View style={[styles.top, { paddingLeft: insets.left + 20, paddingRight: insets.right + 20 }]}>
           <Pressable hitSlop={12} onPress={() => navigation.goBack()}>
             <Ionicons name="arrow-back" size={28} color={colors.text} />
@@ -383,33 +410,48 @@ export default function PlayerScreen({ navigation, route }: Props) {
           <Txt weight="semibold" size={15} numberOfLines={1} align="center" style={{ flex: 1, marginHorizontal: 16 }}>
             {heading}
           </Txt>
-          <Pressable hitSlop={12} onPress={() => showToast('Thanks! Report a Problem arrives in a later phase')}>
-            <MaterialCommunityIcons name="flag-outline" size={24} color={colors.text} />
+          {title.kind === 'series' && found ? (
+            <Pressable hitSlop={12} onPress={() => setPanel('episodes')} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 20, marginRight: 8 }}>
+              <MaterialCommunityIcons name="cards-outline" size={16} color={colors.text} />
+              <Txt weight="semibold" size={12} style={{ marginLeft: 4 }}>
+                Episodes
+              </Txt>
+            </Pressable>
+          ) : null}
+          <Pressable hitSlop={12} onPress={() => setPanel('audio')} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20 }}>
+            <MaterialCommunityIcons name="server-network" size={18} color={colors.text} />
+            <Txt weight="semibold" size={12} style={{ marginLeft: 6 }}>
+              {isEmbed ? 'Servers' : 'Audio'}
+            </Txt>
           </Pressable>
         </View>
 
-        <View style={styles.centerControls} pointerEvents="box-none">
-          <Pressable hitSlop={16} onPress={() => seekBy(-10)}>
-            <MaterialCommunityIcons name="rewind-10" size={46} color={colors.text} />
-          </Pressable>
-          <Pressable hitSlop={16} onPress={togglePlay} style={{ marginHorizontal: 70 }}>
-            <Ionicons name={isPlaying ? 'pause' : 'play'} size={64} color={colors.text} />
-          </Pressable>
-          <Pressable hitSlop={16} onPress={() => seekBy(10)}>
-            <MaterialCommunityIcons name="fast-forward-10" size={46} color={colors.text} />
-          </Pressable>
-        </View>
-
-        <View style={[styles.bottom, { paddingLeft: insets.left + 24, paddingRight: insets.right + 24, paddingBottom: insets.bottom + 14 }]}>
-          <SeekBar position={position} duration={duration} onSeek={seekTo} onScrubChange={setScrubbing} />
-          <View style={styles.bottomActions}>
-            <BottomAction icon="speedometer" label={`Speed (${speed}x)`} onPress={() => setPanel('speed')} />
-            <BottomAction icon="lock-open-variant-outline" label="Lock" onPress={() => { setLocked(true); setUnlockArmed(false); }} />
-            {title.kind === 'series' ? <BottomAction icon="cards-outline" label="Episodes" onPress={() => setPanel('episodes')} /> : null}
-            <BottomAction icon="server-network" label="Server & Audio" onPress={() => setPanel('audio')} />
-            {next ? <BottomAction icon="skip-next" label="Next Ep." onPress={() => navigation.replace('Player', { id: title.id, episodeId: next.id })} /> : null}
+        {!isEmbed ? (
+          <View style={styles.centerControls} pointerEvents="box-none">
+            <Pressable hitSlop={16} onPress={() => seekBy(-10)}>
+              <MaterialCommunityIcons name="rewind-10" size={46} color={colors.text} />
+            </Pressable>
+            <Pressable hitSlop={16} onPress={togglePlay} style={{ marginHorizontal: 70 }}>
+              <Ionicons name={isPlaying ? 'pause' : 'play'} size={64} color={colors.text} />
+            </Pressable>
+            <Pressable hitSlop={16} onPress={() => seekBy(10)}>
+              <MaterialCommunityIcons name="fast-forward-10" size={46} color={colors.text} />
+            </Pressable>
           </View>
-        </View>
+        ) : null}
+
+        {!isEmbed ? (
+          <View style={[styles.bottom, { paddingLeft: insets.left + 24, paddingRight: insets.right + 24, paddingBottom: insets.bottom + 14 }]}>
+            <SeekBar position={position} duration={duration} onSeek={seekTo} onScrubChange={setScrubbing} />
+            <View style={styles.bottomActions}>
+              <BottomAction icon="speedometer" label={`Speed (${speed}x)`} onPress={() => setPanel('speed')} />
+              <BottomAction icon="lock-open-variant-outline" label="Lock" onPress={() => { setLocked(true); setUnlockArmed(false); }} />
+              {title.kind === 'series' ? <BottomAction icon="cards-outline" label="Episodes" onPress={() => setPanel('episodes')} /> : null}
+              <BottomAction icon="server-network" label={`Server (${currentStream?.name.split('•')[1]?.trim() || 'Multi'})`} onPress={() => setPanel('audio')} />
+              {next ? <BottomAction icon="skip-next" label="Next Ep." onPress={() => navigation.replace('Player', { id: title.id, episodeId: next.id })} /> : null}
+            </View>
+          </View>
+        ) : null}
       </Animated.View>
 
       {showSkipIntro && !locked ? (

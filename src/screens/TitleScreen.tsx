@@ -120,10 +120,10 @@ export default function TitleScreen({ navigation, route }: Props) {
   const rating = profileData.ratings[title.id];
   const reminded = profileData.reminders.includes(title.id);
   const rank = top10Rank(title.id);
-  const season = title.seasons.find((s) => s.number === seasonNumber) ?? title.seasons[0];
+  const season = (title.seasons || []).find((s) => s.number === seasonNumber) ?? (title.seasons || [])[0];
   const movieDownload = title.kind === 'movie' ? downloadFor(profileData, title.id) : undefined;
   const similar = useMemo(
-    () => RESOLVED_TITLES.filter((t) => t.id !== title.id && t.genres.some((g) => title.genres.includes(g))).slice(0, 12),
+    () => RESOLVED_TITLES.filter((t) => t.id !== title.id && (t.genres || []).some((g) => (title.genres || []).includes(g))).slice(0, 12),
     [title],
   );
   const tabs: { key: Tab; label: string }[] = [
@@ -193,9 +193,9 @@ export default function TitleScreen({ navigation, route }: Props) {
               <Txt weight="semibold" size={11}>{title.maturity}</Txt>
             </View>
             <Txt size={13} color={colors.textMuted}>
-              {title.kind === 'series' ? seasonsLabel(title.seasons.length) : formatRuntime(title.runtime)}
+              {title.kind === 'series' ? seasonsLabel((title.seasons || []).length) : formatRuntime(title.runtime || 120)}
             </Txt>
-            {title.quality.map((q) => (
+            {(title.quality || ['HD']).map((q) => (
               <MetaTag key={q} label={q} />
             ))}
           </View>

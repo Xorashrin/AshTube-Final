@@ -23,26 +23,24 @@ export interface ProviderQuery {
 
 // Active mirror domains with fallback resilience
 export const PROVIDER_DOMAINS = {
-  vidsrcPk: 'https://embed.vidsrc.pk',
-  vixsrc: 'https://vixsrc.to',
-  videasy: 'https://player.videasy.net',
-  streamflix: 'https://streamflix.app',
-  multiembed: 'https://multiembed.mov',
-  twoEmbed: 'https://www.2embed.cc',
-  vidapi: 'https://vidapi.xyz',
   vidsrcTo: 'https://vidsrc.to',
+  vidsrcPm: 'https://vidsrc.pm',
+  vidsrcSh: 'https://vidsrc.sh',
+  twoEmbed: 'https://www.2embed.cc',
+  multiembed: 'https://multiembed.mov',
+  videasy: 'https://player.videasy.to',
+  vidapi: 'https://vidapi.xyz',
 };
 
 /**
  * Builds resilient multi-source streams for any title using Nuvio & Master providers.
  * Guaranteed fallback chain:
- * 1. VidSrc.pk (High reliability multi-server)
- * 2. VixSrc (Nuvio Core M3U8/Embed auto-quality)
- * 3. VidEasy (Multi-server multi-audio)
- * 4. MultiEmbed (Multi-server failover)
- * 5. 2Embed (Clean embed with TV season support)
- * 6. StreamFlix (Multi-language English/Hindi/Regional)
- * 7. VidAPI (Embed provider with subtitles)
+ * 1. VidSrc.to (High reliability auto-1080p)
+ * 2. VidSrc.pm (Primary mirror with high CDN speed)
+ * 3. VidSrc.sh (Alternative mirror with multi-audio)
+ * 4. 2Embed (Clean Cinemeta embed provider)
+ * 5. MultiEmbed (Multi-server failover)
+ * 6. VidEasy (Multi-server multi-audio)
  */
 export function buildNuvioStreams(query: ProviderQuery, existingStreams?: { name: string; url: string; kind?: string }[]): StreamSource[] {
   const sources: StreamSource[] = [];
@@ -51,110 +49,128 @@ export function buildNuvioStreams(query: ProviderQuery, existingStreams?: { name
   const isSeries = query.kind === 'series';
   const s = query.season ?? 1;
   const e = query.episode ?? 1;
-  const primaryId = tmdb || imdb;
 
-  if (!primaryId) {
-    return existingStreams ? existingStreams.map((s, idx) => ({
-      id: `existing-${idx}`,
-      name: s.name,
-      url: s.url,
-      kind: (s.kind as any) || 'embed',
-      quality: 'HD',
-    })) : [];
+  // Check if target is an adult video (e.g., xv-...) or custom direct stream
+  const isImdb = imdb.startsWith('tt');
+  const isTmdb = /^\d+$/.test(tmdb) || /^\d+$/.test(imdb);
+
+  if (!isImdb && !isTmdb) {
+    // Adult VOD content and custom streams should directly use their verified video embed sources
+    if (existingStreams && existingStreams.length > 0) {
+      return existingStreams.map((item, idx) => ({
+        id: `direct-${idx}`,
+        name: item.name || `Server ${idx + 1} • High Speed`,
+        url: item.url,
+        kind: (item.kind as any) || 'embed',
+        quality: '1080p',
+      }));
+    }
+    return [];
   }
 
-  // 1. VidSrc.pk (Primary stable embed from ALL_SOURCES_MASTER.md)
+  const primaryId = isImdb ? imdb : (tmdb || imdb);
+
+  // 1. VidSrc.to (Primary clean embed)
   if (isSeries) {
     sources.push({
-      id: 'vidsrc-pk',
+      id: 'vidsrc-to',
       name: 'Server 1 • VidSrc (Auto 1080p)',
-      url: `${PROVIDER_DOMAINS.vidsrcPk}/tv/${imdb || tmdb}/${s}/${e}`,
+      url: `${PROVIDER_DOMAINS.vidsrcTo}/embed/tv/${primaryId}/${s}/${e}`,
       kind: 'embed',
       quality: '1080p',
       language: 'Multi-Audio',
     });
   } else {
     sources.push({
-      id: 'vidsrc-pk',
+      id: 'vidsrc-to',
       name: 'Server 1 • VidSrc (Auto 1080p)',
-      url: `${PROVIDER_DOMAINS.vidsrcPk}/movie/${imdb || tmdb}`,
+      url: `${PROVIDER_DOMAINS.vidsrcTo}/embed/movie/${primaryId}`,
       kind: 'embed',
       quality: '1080p',
       language: 'Multi-Audio',
     });
   }
 
-  // 2. VixSrc (From Nuvio Yoru repository)
-  if (imdb) {
+  // 2. VidSrc.pm (Mirror with fast CDN)
+  if (isSeries) {
     sources.push({
-      id: 'vixsrc',
-      name: 'Server 2 • VixSrc (Fast Stream)',
-      url: `${PROVIDER_DOMAINS.vixsrc}/embed/${imdb}`,
+      id: 'vidsrc-pm',
+      name: 'Server 2 • VidSrc PM (Fast CDN)',
+      url: `${PROVIDER_DOMAINS.vidsrcPm}/embed/tv/${primaryId}/${s}/${e}`,
+      kind: 'embed',
+      quality: '1080p',
+      language: 'English',
+    });
+  } else {
+    sources.push({
+      id: 'vidsrc-pm',
+      name: 'Server 2 • VidSrc PM (Fast CDN)',
+      url: `${PROVIDER_DOMAINS.vidsrcPm}/embed/movie/${primaryId}`,
       kind: 'embed',
       quality: '1080p',
       language: 'English',
     });
   }
 
-  // 3. VidEasy (From Nuvio Spidey & Yoru - Multi-server provider)
-  if (tmdb) {
-    const videasyUrl = isSeries
-      ? `${PROVIDER_DOMAINS.videasy}/tv/${tmdb}/${s}/${e}`
-      : `${PROVIDER_DOMAINS.videasy}/movie/${tmdb}`;
+  // 3. VidSrc.sh (Alternative multi-server mirror)
+  if (isSeries) {
     sources.push({
-      id: 'videasy',
-      name: 'Server 3 • VidEasy (Multi-Language)',
-      url: videasyUrl,
+      id: 'vidsrc-sh',
+      name: 'Server 3 • VidSrc SH (Multi-Server)',
+      url: `${PROVIDER_DOMAINS.vidsrcSh}/embed/tv?imdb=${primaryId}&season=${s}&episode=${e}`,
       kind: 'embed',
       quality: '1080p',
-      language: 'Multi-Language',
+      language: 'Multi-Audio',
     });
-  }
-
-  // 4. MultiEmbed (From ALL_SOURCES_MASTER.md)
-  if (imdb || tmdb) {
-    const multiUrl = isSeries
-      ? `${PROVIDER_DOMAINS.multiembed}/?video_id=${imdb || tmdb}&tmdb=1&s=${s}&e=${e}`
-      : `${PROVIDER_DOMAINS.multiembed}/?video_id=${imdb || tmdb}&tmdb=1`;
+  } else {
     sources.push({
-      id: 'multiembed',
-      name: 'Server 4 • MultiEmbed (Backup)',
-      url: multiUrl,
+      id: 'vidsrc-sh',
+      name: 'Server 3 • VidSrc SH (Multi-Server)',
+      url: `${PROVIDER_DOMAINS.vidsrcSh}/embed/movie?imdb=${primaryId}`,
       kind: 'embed',
-      quality: '720p',
+      quality: '1080p',
       language: 'Multi-Audio',
     });
   }
 
-  // 5. 2Embed (High uptime Cinemeta embed)
-  if (tmdb) {
-    const twoEmbedUrl = isSeries
-      ? `${PROVIDER_DOMAINS.twoEmbed}/embedtv/${tmdb}&s=${s}&e=${e}`
-      : `${PROVIDER_DOMAINS.twoEmbed}/embed/${tmdb}`;
-    sources.push({
-      id: '2embed',
-      name: 'Server 5 • 2Embed (Clean)',
-      url: twoEmbedUrl,
-      kind: 'embed',
-      quality: '720p',
-      language: 'English',
-    });
-  }
+  // 4. 2Embed (High uptime Cinemeta embed)
+  const twoEmbedUrl = isSeries
+    ? `${PROVIDER_DOMAINS.twoEmbed}/embedtv/${primaryId}&s=${s}&e=${e}`
+    : `${PROVIDER_DOMAINS.twoEmbed}/embed/${primaryId}`;
+  sources.push({
+    id: '2embed',
+    name: 'Server 4 • 2Embed (Clean)',
+    url: twoEmbedUrl,
+    kind: 'embed',
+    quality: '720p',
+    language: 'English',
+  });
 
-  // 6. VidAPI (Subtitles & International)
-  if (imdb || tmdb) {
-    const vidApiUrl = isSeries
-      ? `${PROVIDER_DOMAINS.vidapi}/embed/tv/${imdb || tmdb}/${s}/${e}`
-      : `${PROVIDER_DOMAINS.vidapi}/embed/movie/${imdb || tmdb}`;
-    sources.push({
-      id: 'vidapi',
-      name: 'Server 6 • VidAPI (Subtitles)',
-      url: vidApiUrl,
-      kind: 'embed',
-      quality: '720p',
-      language: 'Subtitles',
-    });
-  }
+  // 5. MultiEmbed (Failover)
+  const multiUrl = isSeries
+    ? `${PROVIDER_DOMAINS.multiembed}/?video_id=${primaryId}&tmdb=1&s=${s}&e=${e}`
+    : `${PROVIDER_DOMAINS.multiembed}/?video_id=${primaryId}&tmdb=1`;
+  sources.push({
+    id: 'multiembed',
+    name: 'Server 5 • MultiEmbed (Backup)',
+    url: multiUrl,
+    kind: 'embed',
+    quality: '720p',
+    language: 'Multi-Audio',
+  });
+
+  // 6. VidEasy (Multi-Language)
+  const videasyUrl = isSeries
+    ? `${PROVIDER_DOMAINS.videasy}/tv/${tmdb || primaryId}/${s}/${e}`
+    : `${PROVIDER_DOMAINS.videasy}/movie/${tmdb || primaryId}`;
+  sources.push({
+    id: 'videasy',
+    name: 'Server 6 • VidEasy (Multi-Language)',
+    url: videasyUrl,
+    kind: 'embed',
+    quality: '1080p',
+    language: 'Multi-Language',
+  });
 
   // Merge any existing verified streams (e.g. trailers or direct files)
   if (existingStreams && existingStreams.length > 0) {

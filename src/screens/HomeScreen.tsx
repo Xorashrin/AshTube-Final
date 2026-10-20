@@ -43,8 +43,9 @@ const GENRE_ROWS: Record<string, string> = {
   Kids: 'Kids & Family Favorites',
 };
 
-const HERO_MOVIE = RESOLVED_TITLES.find((t) => t.kind === 'movie') ?? RESOLVED_TITLES[0];
-const HERO_SERIES = RESOLVED_TITLES.find((t) => t.kind === 'series') ?? RESOLVED_TITLES[1] ?? RESOLVED_TITLES[0];
+const MAIN_TITLES = RESOLVED_TITLES.filter((t) => !t.id.startsWith('xv-') && !(t.genres || []).includes('Adult'));
+const HERO_MOVIE = MAIN_TITLES.find((t) => t.kind === 'movie') ?? MAIN_TITLES[0];
+const HERO_SERIES = MAIN_TITLES.find((t) => t.kind === 'series') ?? MAIN_TITLES[1] ?? MAIN_TITLES[0];
 
 function rotate<T>(list: T[], by: number): T[] {
   if (list.length === 0) return list;
@@ -53,8 +54,8 @@ function rotate<T>(list: T[], by: number): T[] {
 }
 
 function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileData, name: string): HomeRow[] {
-  const pool = RESOLVED_TITLES.filter(
-    (t) => (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) && (!genre || t.genres.includes(genre)),
+  const pool = MAIN_TITLES.filter(
+    (t) => (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) && (!genre || (t.genres || []).includes(genre)),
   );
   const inPool = (t: Title) => pool.some((p) => p.id === t.id);
   const rows: HomeRow[] = [];

@@ -11,10 +11,11 @@ import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { searchChannels } from '../data/channels';
 import { type Title } from '../data/mock';
-import { RESOLVED_TITLES } from '../data/resolveTitle';
+import { RESOLVED_TITLES, fetchCinemetaLiveSearch } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, font, radius } from '../theme/tokens';
+import { ActivityIndicator } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
@@ -40,7 +41,46 @@ export default function SearchScreen({ navigation }: Props) {
   const [query, setQuery] = useState('');
   // Typing stays responsive; result rendering runs at a lower priority.
   const deferred = useDeferredValue(query);
-  const results = useMemo(() => search(deferred), [deferred]);
+  const [liveResults, setLiveResults] = useState<Title[]>([]);
+  const [searchingLive, setSearchingLive] = useState(false);
+
+  useEffect(() => {
+    const q = deferred.trim();
+    if (q.length < 2) {
+      setLiveResults([]);
+      return;
+    }
+    let cancelled = false;
+    setSearchingLive(true);
+    fetchCinemetaLiveSearch(q)
+      .then((remote) => {
+        if (!cancelled) {
+          setLiveResults(remote);
+          setSearchingLive(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setSearchingLive(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [deferred]);
+
+  const localResults = useMemo(() => search(deferred), [deferred]);
+  // Merge local & live results seamlessly, deduplicating by ID
+  const results = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: Title[] = [];
+    for (const item of [...localResults, ...liveResults]) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
+      }
+    }
+    return merged;
+  }, [localResults, liveResults]);
+
   const channels = useMemo(() => searchChannels(deferred, 12), [deferred]);
   const hasQuery = deferred.trim().length > 0;
   const cell = Math.floor((width - 24 - 16) / 3);
@@ -103,6 +143,9 @@ export default function SearchScreen({ navigation }: Props) {
           returnKeyType="search"
           onSubmitEditing={Keyboard.dismiss}
         />
+        {searchingLive ? (
+          <ActivityIndicator size="small" color={colors.textDim} style={{ marginRight: 8 }} />
+        ) : null}
         {query.length > 0 ? (
           <Pressable hitSlop={8} onPress={() => setQuery('')}>
             <Ionicons name="close" size={20} color={colors.textMuted} />
