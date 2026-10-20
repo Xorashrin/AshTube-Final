@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', columnGap: 28, rowGap: 22, paddingHorizontal: 40 },
   tile: { alignItems: 'center', width: AVATAR },
   nameRow: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-  editOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
+  editOverlay: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   add: {
     width: AVATAR,
     height: AVATAR,

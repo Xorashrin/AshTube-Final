@@ -115,7 +115,7 @@ function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'comin
 }
 
 export default function NewHotScreen() {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
   const offsets = useRef<Record<SectionKey, number>>({ coming: 0, everyone: 0, tv: 0, movies: 0 });
   const [active, setActive] = useState<SectionKey>('coming');
   const jumping = useRef(false);
