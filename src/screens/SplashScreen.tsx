@@ -1,0 +1,62 @@
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import React, { useEffect } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+
+import { MLogo } from '../components/Logo';
+import type { RootStackParamList } from '../navigation/types';
+import { useApp } from '../state/AppState';
+import { colors, motion } from '../theme/tokens';
+
+type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
+
+export default function SplashScreen({ navigation }: Props) {
+  const { state } = useApp();
+  const scale = useSharedValue(0.7);
+  const opacity = useSharedValue(0);
+  const glow = useSharedValue(0);
+
+  useEffect(() => {
+    opacity.value = withSequence(withTiming(1, { duration: 300 }), withDelay(800, withTiming(0, { duration: 350 })));
+    scale.value = withSequence(withTiming(1, { duration: 500, easing: motion.decelerate }), withDelay(600, withTiming(5, { duration: 450, easing: motion.accelerate })));
+    glow.value = withDelay(300, withSequence(withTiming(1, { duration: 500 }), withTiming(0, { duration: 500 })));
+  }, [opacity, scale, glow]);
+
+  useEffect(() => {
+    if (!state.hydrated) return;
+    const timer = setTimeout(() => {
+      if (!state.signedIn) navigation.replace('Landing');
+      else if (state.activeProfileId) navigation.replace('Main');
+      else navigation.replace('Profiles');
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [state.hydrated, state.signedIn, state.activeProfileId, navigation]);
+
+  const logoStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value * 0.55, transform: [{ scale: 0.8 + glow.value * 0.6 }] }));
+
+  return (
+    <View style={styles.root}>
+      <Animated.View style={[styles.glow, glowStyle]}>
+        <Svg width={320} height={320}>
+          <Defs>
+            <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={colors.red} stopOpacity={0.9} />
+              <Stop offset="1" stopColor={colors.red} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Circle cx={160} cy={160} r={160} fill="url(#glow)" />
+        </Svg>
+      </Animated.View>
+      <Animated.View style={logoStyle}>
+        <MLogo size={120} />
+      </Animated.View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  glow: { position: 'absolute', width: 320, height: 320 },
+});

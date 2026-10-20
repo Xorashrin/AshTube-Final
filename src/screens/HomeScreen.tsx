@@ -1,0 +1,253 @@
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
+import { LinearGradient } from 'expo-linear-gradient';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { Billboard } from '../components/Billboard';
+import { Chip } from '../components/Chip';
+import { SheetItem } from '../components/ListItems';
+import { ContinueRow, GameRow, PosterRow, Top10Row, type ContinueItem } from '../components/Rows';
+import { HeaderActions } from '../components/ScreenHeader';
+import { Sheet } from '../components/Sheet';
+import { TALL_POSTER } from '../components/Poster';
+import { Txt } from '../components/Txt';
+import { AVAILABLE, GAMES, TOP10_MOVIES, TOP10_TV, findEpisode, getTitle, type Game, type Title } from '../data/mock';
+import { useRootNav, type TabParamList } from '../navigation/types';
+import { useApp, type ProfileData } from '../state/AppState';
+import { colors, layout } from '../theme/tokens';
+import { shade } from '../utils/color';
+
+type Props = BottomTabScreenProps<TabParamList, 'Home'>;
+type HomeFilter = 'all' | 'tv' | 'movies';
+
+type HomeRow =
+  | { key: string; kind: 'continue'; title: string; items: ContinueItem[] }
+  | { key: string; kind: 'top10' | 'poster' | 'tall'; title: string; items: Title[] }
+  | { key: string; kind: 'games'; title: string; items: Game[] };
+
+const GENRE_ROWS: Record<string, string> = {
+  Thriller: 'Edge-of-Your-Seat Thrillers',
+  'Sci-Fi': 'Mind-Bending Sci-Fi',
+  Drama: 'Award-Winning Dramas',
+  Fantasy: 'Epic Fantasy Worlds',
+  Crime: 'Crime TV & Movies',
+  Comedy: 'Laugh-Out-Loud Comedies',
+  Horror: 'Scary Good Horror',
+};
+
+const HERO_BY_FILTER: Record<HomeFilter, string> = { all: 'ashen-crown', tv: 'ninth-oracle', movies: 'last-lantern' };
+
+function rotate<T>(list: T[], by: number): T[] {
+  if (list.length === 0) return list;
+  const n = by % list.length;
+  return [...list.slice(n), ...list.slice(0, n)];
+}
+
+function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileData, name: string): HomeRow[] {
+  const pool = AVAILABLE.filter(
+    (t) => (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) && (!genre || t.genres.includes(genre)),
+  );
+  const inPool = (t: Title) => pool.some((p) => p.id === t.id);
+  const rows: HomeRow[] = [];
+
+  const continueItems: ContinueItem[] = data.progress
+    .map((entry) => {
+      const title = getTitle(entry.titleId);
+      const ep = entry.episodeId ? findEpisode(title, entry.episodeId) : null;
+      return { title, entry, label: ep ? `S${ep.season.number}:E${ep.episode.number}` : undefined };
+    })
+    .filter((i) => inPool(i.title));
+  if (continueItems.length > 0) rows.push({ key: 'continue', kind: 'continue', title: `Continue Watching for ${name}`, items: continueItems });
+
+  const originals = pool.filter((t) => t.original);
+  if (originals.length > 0) rows.push({ key: 'originals', kind: 'tall', title: 'Only on MythTube', items: originals });
+
+  if (!genre) {
+    const movies = filter === 'movies';
+    rows.push({
+      key: 'top10',
+      kind: 'top10',
+      title: movies ? 'Top 10 Movies in Bangladesh Today' : 'Top 10 TV Shows in Bangladesh Today',
+      items: movies ? TOP10_MOVIES : TOP10_TV,
+    });
+  }
+
+  rows.push({ key: 'trending', kind: 'poster', title: 'Trending Now', items: rotate(pool, 3) });
+
+  const myList = data.myList.map(getTitle).filter(inPool);
+  if (myList.length > 0) rows.push({ key: 'mylist', kind: 'poster', title: 'My List', items: myList });
+
+  const fresh = pool.filter((t) => t.badge || t.year >= 2025);
+  if (fresh.length > 0) rows.push({ key: 'new', kind: 'poster', title: 'New on MythTube', items: fresh });
+
+  if (filter === 'all' && !genre) rows.push({ key: 'games', kind: 'games', title: 'Mobile Games', items: GAMES });
+
+  Object.entries(GENRE_ROWS).forEach(([g, label]) => {
+    if (genre && g === genre) return;
+    const items = pool.filter((t) => t.genres.includes(g));
+    if (items.length >= 3) rows.push({ key: `genre-${g}`, kind: 'poster', title: label, items });
+  });
+
+  if (filter === 'all' && !genre) rows.push({ key: 'top10-movies', kind: 'top10', title: 'Top 10 Movies in Bangladesh Today', items: TOP10_MOVIES });
+  rows.push({ key: 'love', kind: 'poster', title: "We Think You'll Love These", items: [...pool].reverse() });
+  return rows;
+}
+
+export default function HomeScreen({ route, navigation }: Props) {
+  const nav = useRootNav();
+  const insets = useSafeAreaInsets();
+  const { activeProfile, profileData, toggleMyList, rate, removeProgress, showToast } = useApp();
+  const [filter, setFilter] = useState<HomeFilter>('all');
+  const [menuItem, setMenuItem] = useState<ContinueItem | null>(null);
+  const genre = route.params?.genre;
+  const name = activeProfile?.name ?? 'You';
+
+  const rows = useMemo(() => buildRows(filter, genre, profileData, name), [filter, genre, profileData, name]);
+  const hero = useMemo(() => {
+    const preferred = getTitle(HERO_BY_FILTER[filter]);
+    if (!genre || preferred.genres.includes(genre)) return preferred;
+    return AVAILABLE.find((t) => t.genres.includes(genre) && (filter === 'all' || (filter === 'tv') === (t.kind === 'series'))) ?? preferred;
+  }, [filter, genre]);
+
+  const scrollY = useSharedValue(0);
+  const lastY = useSharedValue(0);
+  const chipOffset = useSharedValue(0);
+
+  useEffect(() => {
+    scrollY.value = 0;
+    lastY.value = 0;
+    chipOffset.value = 0;
+  }, [filter, genre, scrollY, lastY, chipOffset]);
+
+  const onScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const y = e.contentOffset.y;
+      const dy = y - lastY.value;
+      lastY.value = y;
+      scrollY.value = y;
+      chipOffset.value = y <= 0 ? 0 : Math.min(layout.chipRowHeight, Math.max(0, chipOffset.value + dy));
+    },
+  });
+
+  const headerTop = insets.top + layout.headerHeight;
+  const headerStyle = useAnimatedStyle(() => ({ height: headerTop + layout.chipRowHeight - chipOffset.value }));
+  const headerBgStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, 160], [0, 0.97], Extrapolation.CLAMP) }));
+  const chipsStyle = useAnimatedStyle(() => ({
+    opacity: 1 - chipOffset.value / layout.chipRowHeight,
+    transform: [{ translateY: -chipOffset.value }],
+  }));
+
+  const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
+  const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
+  const openGame = useCallback((g: Game) => showToast(`${g.name} is a preview — games arrive in a later phase`), [showToast]);
+  const clearFilters = () => {
+    setFilter('all');
+    navigation.setParams({ genre: undefined });
+  };
+
+  const filterLabel = filter === 'tv' ? 'TV Shows' : filter === 'movies' ? 'Movies' : undefined;
+  const heading = filterLabel ?? genre ?? `For ${name}`;
+  const inMyList = profileData.myList.includes(hero.id);
+
+  return (
+    <View style={styles.root}>
+      <Animated.ScrollView
+        key={`${filter}-${genre ?? ''}`}
+        onScroll={onScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingTop: headerTop + layout.chipRowHeight + 4, paddingBottom: 32 }}
+      >
+        <LinearGradient
+          colors={[shade(hero.tint, 0.1), shade(hero.tint, 0.55), colors.bg]}
+          locations={[0, 0.5, 1]}
+          style={[styles.tint, { height: headerTop + 820 }]}
+        />
+        <Billboard
+          title={hero}
+          inMyList={inMyList}
+          onOpen={() => openTitle(hero)}
+          onPlay={() => nav.navigate('Player', { id: hero.id })}
+          onToggleList={() => {
+            toggleMyList(hero.id);
+            showToast(inMyList ? 'Removed from My List' : 'Added to My List');
+          }}
+        />
+        {rows.map((row) => {
+          switch (row.kind) {
+            case 'continue':
+              return <ContinueRow key={row.key} title={row.title} items={row.items} onPlay={playContinue} onInfo={openTitle} onMore={setMenuItem} />;
+            case 'top10':
+              return <Top10Row key={row.key} title={row.title} items={row.items} onPressTitle={openTitle} />;
+            case 'tall':
+              return <PosterRow key={row.key} title={row.title} items={row.items} onPressTitle={openTitle} width={TALL_POSTER.width} height={TALL_POSTER.height} />;
+            case 'games':
+              return <GameRow key={row.key} title={row.title} items={row.items} onPressGame={openGame} />;
+            default:
+              return (
+                <PosterRow
+                  key={row.key}
+                  title={row.title}
+                  items={row.items}
+                  onPressTitle={openTitle}
+                  onSeeAll={row.key === 'mylist' ? () => nav.navigate('MyList') : undefined}
+                />
+              );
+          }
+        })}
+      </Animated.ScrollView>
+
+      <Animated.View style={[styles.header, headerStyle]}>
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: shade(hero.tint, 0.6) }, headerBgStyle]} />
+        <View style={[styles.headerRow, { marginTop: insets.top }]}>
+          <Txt weight="bold" size={22} numberOfLines={1} style={{ flex: 1 }}>
+            {heading}
+          </Txt>
+          <HeaderActions actions={['cast', 'downloads', 'search']} />
+        </View>
+        <Animated.View style={[styles.chips, chipsStyle]}>
+          {filter === 'all' && !genre ? (
+            <>
+              <Chip label="TV Shows" onPress={() => setFilter('tv')} />
+              <Chip label="Movies" onPress={() => setFilter('movies')} />
+              <Chip label="Categories" caret onPress={() => nav.navigate('Categories', { current: genre })} />
+            </>
+          ) : (
+            <>
+              <Chip icon="close" onPress={clearFilters} />
+              {filterLabel ? <Chip label={filterLabel} selected /> : null}
+              <Chip label={genre ?? 'All Categories'} caret selected={!!genre} onPress={() => nav.navigate('Categories', { current: genre })} />
+            </>
+          )}
+        </Animated.View>
+      </Animated.View>
+
+      <Sheet visible={menuItem !== null} onClose={() => setMenuItem(null)}>
+        {menuItem ? (
+          <>
+            <Txt weight="bold" size={16} style={styles.sheetTitle} numberOfLines={1}>
+              {menuItem.title.name}
+              {menuItem.label ? `  ${menuItem.label}` : ''}
+            </Txt>
+            <SheetItem label="Episodes & Info" icon="information-circle-outline" onPress={() => { setMenuItem(null); openTitle(menuItem.title); }} />
+            <SheetItem label="Not for me" icon="thumbs-down-outline" onPress={() => { rate(menuItem.title.id, 'down'); setMenuItem(null); showToast("We won't suggest this again."); }} />
+            <SheetItem label="I like this" icon="thumbs-up-outline" onPress={() => { rate(menuItem.title.id, 'up'); setMenuItem(null); showToast("You'll see more like this."); }} />
+            <SheetItem label="Love this!" icon="heart-outline" onPress={() => { rate(menuItem.title.id, 'love'); setMenuItem(null); showToast('We know you’re a true fan!'); }} />
+            <SheetItem label="Remove From Row" icon="close-circle-outline" destructive onPress={() => { removeProgress(menuItem.title.id); setMenuItem(null); showToast('Removed from Continue Watching'); }} />
+          </>
+        ) : null}
+      </Sheet>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.bg },
+  tint: { position: 'absolute', top: 0, left: 0, right: 0 },
+  header: { position: 'absolute', top: 0, left: 0, right: 0, overflow: 'hidden' },
+  headerRow: { height: layout.headerHeight, flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter + 4 },
+  chips: { height: layout.chipRowHeight, flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: layout.gutter + 4 },
+  sheetTitle: { paddingHorizontal: 20, paddingVertical: 10 },
+});
