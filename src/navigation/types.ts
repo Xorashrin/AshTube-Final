@@ -3,7 +3,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type TabParamList = {
   Home: { genre?: string } | undefined;
-  Games: undefined;
+  TV: undefined;
   NewHot: undefined;
   MyNetflix: undefined;
 };
@@ -12,7 +12,7 @@ export type RootStackParamList = {
   Splash: undefined;
   Landing: undefined;
   SignIn: undefined;
-  Profiles: { mode?: 'manage' } | undefined;
+  SignUp: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
   Title: { id: string };
   Player: { id: string; episodeId?: string };

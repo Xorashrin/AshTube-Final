@@ -144,7 +144,7 @@ export default function NewHotScreen() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="New & Hot" actions={['cast', 'downloads', 'search']} />
+      <ScreenHeader title="New & Hot" actions={['downloads', 'search']} />
       <ScrollView ref={scrollRef} stickyHeaderIndices={[0]} onScroll={onScroll} scrollEventThrottle={32} showsVerticalScrollIndicator={false}>
         <View style={styles.chipBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>

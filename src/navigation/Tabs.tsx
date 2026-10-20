@@ -4,10 +4,11 @@ import React from 'react';
 import { View } from 'react-native';
 
 import { Avatar } from '../components/Avatar';
-import GamesScreen from '../screens/GamesScreen';
+import { CreditPopup } from '../components/CreditPopup';
 import HomeScreen from '../screens/HomeScreen';
 import MyNetflixScreen from '../screens/MyNetflixScreen';
 import NewHotScreen from '../screens/NewHotScreen';
+import TvScreen from '../screens/TvScreen';
 import { useApp } from '../state/AppState';
 import { colors, font } from '../theme/tokens';
 import type { TabParamList } from './types';
@@ -26,6 +27,7 @@ function ProfileTabIcon({ focused }: { focused: boolean }) {
 
 export function Tabs() {
   return (
+    <>
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
@@ -42,9 +44,9 @@ export function Tabs() {
         options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} /> }}
       />
       <Tab.Screen
-        name="Games"
-        component={GamesScreen}
-        options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'game-controller' : 'game-controller-outline'} size={26} color={color} /> }}
+        name="TV"
+        component={TvScreen}
+        options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'tv' : 'tv-outline'} size={25} color={color} /> }}
       />
       <Tab.Screen
         name="NewHot"
@@ -62,5 +64,7 @@ export function Tabs() {
         options={{ title: 'My MythTube', tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} /> }}
       />
     </Tab.Navigator>
+    <CreditPopup />
+    </>
   );
 }

@@ -23,7 +23,7 @@ interface Group {
 }
 
 export default function DownloadsScreen({ navigation }: Props) {
-  const { profileData, activeProfile, deleteDownload, state, toggleSetting, showToast } = useApp();
+  const { profileData, activeProfile, deleteDownload, startDownload, state, toggleSetting, showToast } = useApp();
   const [editing, setEditing] = useState(false);
 
   const groups = useMemo<Group[]>(() => {
@@ -93,6 +93,8 @@ export default function DownloadsScreen({ navigation }: Props) {
             {groups.map((g) => {
               const title = getTitle(g.titleId);
               const downloading = g.entries.find((e) => e.status === 'downloading');
+              const failed = g.entries.find((e) => e.status === 'failed');
+              const onDevice = g.entries.some((e) => e.savedToDevice);
               const episodes = g.entries.filter((e) => e.episodeId);
               const detail =
                 title.kind === 'series'
@@ -103,6 +105,10 @@ export default function DownloadsScreen({ navigation }: Props) {
                   key={g.titleId}
                   onPress={() => {
                     if (editing) return;
+                    if (failed) {
+                      startDownload(failed.titleId, failed.sizeMB || 300, failed.episodeId);
+                      return;
+                    }
                     const first = episodes[0]?.episodeId;
                     if (title.kind === 'series' && first) navigation.navigate('Player', { id: title.id, episodeId: first });
                     else if (!downloading) navigation.navigate('Player', { id: title.id });
@@ -111,7 +117,7 @@ export default function DownloadsScreen({ navigation }: Props) {
                 >
                   <View style={styles.thumb}>
                     <Image source={img.backdrop(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-                    {!downloading ? (
+                    {!downloading && !failed ? (
                       <View style={styles.thumbPlay}>
                         <Ionicons name="play" size={16} color={colors.text} style={{ marginLeft: 2 }} />
                       </View>
@@ -127,7 +133,11 @@ export default function DownloadsScreen({ navigation }: Props) {
                       </Txt>
                     ) : null}
                     <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
-                      {downloading ? `Downloading - ${Math.round(downloading.progress * 100)}%` : detail}
+                      {downloading
+                        ? `Downloading - ${Math.round(downloading.progress * 100)}%`
+                        : failed
+                          ? 'Download failed • Tap to retry'
+                          : `${detail}${onDevice ? ' • Saved to device' : ''}`}
                     </Txt>
                     {downloading ? <ProgressBar value={downloading.progress} height={2} style={{ marginTop: 6 }} /> : null}
                   </View>
@@ -143,6 +153,8 @@ export default function DownloadsScreen({ navigation }: Props) {
                     </Pressable>
                   ) : downloading ? (
                     <ActivityIndicator size="small" color={colors.blue} />
+                  ) : failed ? (
+                    <Ionicons name="refresh-circle-outline" size={24} color={colors.redLight} />
                   ) : (
                     <Ionicons name="checkmark-circle" size={22} color={colors.blue} />
                   )}

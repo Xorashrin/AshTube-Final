@@ -5,7 +5,7 @@ import { FlatList, Pressable, StyleSheet, View, type ListRenderItem } from 'reac
 import Svg, { Text as SvgText } from 'react-native-svg';
 
 import { img } from '../data/images';
-import type { Game, Title } from '../data/mock';
+import type { Title } from '../data/mock';
 import type { ProgressEntry } from '../state/AppState';
 import { colors, font, layout, radius } from '../theme/tokens';
 import { ProgressBar } from './Buttons';
@@ -184,40 +184,6 @@ export const ContinueRow = memo(function ContinueRow({ title, items, onPlay, onI
   );
 });
 
-export const GAME_TILE = 110;
-
-export const GameTile = memo(function GameTile({ game, onPress, size = GAME_TILE }: { game: Game; onPress?: (g: Game) => void; size?: number }) {
-  return (
-    <Pressable onPress={onPress ? () => onPress(game) : undefined} style={({ pressed }) => ({ width: size, opacity: pressed ? 0.8 : 1 })}>
-      <View style={[styles.gameIcon, { width: size, height: size, backgroundColor: game.tint }]}>
-        <Image source={img.square(game.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" />
-      </View>
-      <Txt weight="medium" size={12} numberOfLines={1} style={{ marginTop: 6 }}>
-        {game.name}
-      </Txt>
-      <Txt size={11} color={colors.textDim} numberOfLines={1}>
-        {game.genre}
-      </Txt>
-    </Pressable>
-  );
-});
-
-export const GameRow = memo(function GameRow({ title, items, onPressGame }: { title: string; items: Game[]; onPressGame: (g: Game) => void }) {
-  const renderItem = useCallback<ListRenderItem<Game>>(({ item }) => <GameTile game={item} onPress={onPressGame} />, [onPressGame]);
-  return (
-    <View style={styles.row}>
-      <RowHeader title={title} />
-      <FlatList
-        {...listProps}
-        data={items}
-        keyExtractor={(g) => g.id}
-        renderItem={renderItem}
-        getItemLayout={(_, index) => ({ length: GAME_TILE + GAP, offset: (GAME_TILE + GAP) * index, index })}
-      />
-    </View>
-  );
-});
-
 const styles = StyleSheet.create({
   row: { marginTop: 22 },
   header: {
@@ -257,5 +223,4 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 8,
   },
-  gameIcon: { borderRadius: 18, overflow: 'hidden' },
 });

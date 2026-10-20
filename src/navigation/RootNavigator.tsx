@@ -8,9 +8,9 @@ import LandingScreen from '../screens/LandingScreen';
 import MyListScreen from '../screens/MyListScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
-import ProfilesScreen from '../screens/ProfilesScreen';
 import SearchScreen from '../screens/SearchScreen';
 import SignInScreen from '../screens/SignInScreen';
+import SignUpScreen from '../screens/SignUpScreen';
 import SplashScreen from '../screens/SplashScreen';
 import TitleScreen from '../screens/TitleScreen';
 import { colors } from '../theme/tokens';
@@ -33,7 +33,7 @@ export function RootNavigator() {
       <Stack.Screen name="Splash" component={SplashScreen} options={{ animation: 'none' }} />
       <Stack.Screen name="Landing" component={LandingScreen} options={{ animation: 'fade' }} />
       <Stack.Screen name="SignIn" component={SignInScreen} />
-      <Stack.Screen name="Profiles" component={ProfilesScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="SignUp" component={SignUpScreen} />
       <Stack.Screen name="Main" component={Tabs} options={{ animation: 'fade' }} />
       <Stack.Screen name="Title" component={TitleScreen} options={{ animation: 'slide_from_bottom' }} />
       <Stack.Screen

@@ -8,12 +8,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Billboard } from '../components/Billboard';
 import { Chip } from '../components/Chip';
 import { SheetItem } from '../components/ListItems';
-import { ContinueRow, GameRow, PosterRow, Top10Row, type ContinueItem } from '../components/Rows';
+import { ContinueRow, PosterRow, Top10Row, type ContinueItem } from '../components/Rows';
 import { HeaderActions } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { TALL_POSTER } from '../components/Poster';
 import { Txt } from '../components/Txt';
-import { AVAILABLE, GAMES, TOP10_MOVIES, TOP10_TV, findEpisode, getTitle, type Game, type Title } from '../data/mock';
+import { AVAILABLE, TOP10_MOVIES, TOP10_TV, findEpisode, getTitle, type Title } from '../data/mock';
 import { useRootNav, type TabParamList } from '../navigation/types';
 import { useApp, type ProfileData } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
@@ -24,8 +24,7 @@ type HomeFilter = 'all' | 'tv' | 'movies';
 
 type HomeRow =
   | { key: string; kind: 'continue'; title: string; items: ContinueItem[] }
-  | { key: string; kind: 'top10' | 'poster' | 'tall'; title: string; items: Title[] }
-  | { key: string; kind: 'games'; title: string; items: Game[] };
+  | { key: string; kind: 'top10' | 'poster' | 'tall'; title: string; items: Title[] };
 
 const GENRE_ROWS: Record<string, string> = {
   Thriller: 'Edge-of-Your-Seat Thrillers',
@@ -35,6 +34,8 @@ const GENRE_ROWS: Record<string, string> = {
   Crime: 'Crime TV & Movies',
   Comedy: 'Laugh-Out-Loud Comedies',
   Horror: 'Scary Good Horror',
+  Sports: 'Sports Stories',
+  Kids: 'Kids & Family Favorites',
 };
 
 const HERO_BY_FILTER: Record<HomeFilter, string> = { all: 'ashen-crown', tv: 'ninth-oracle', movies: 'last-lantern' };
@@ -81,8 +82,6 @@ function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileD
 
   const fresh = pool.filter((t) => t.badge || t.year >= 2025);
   if (fresh.length > 0) rows.push({ key: 'new', kind: 'poster', title: 'New on MythTube', items: fresh });
-
-  if (filter === 'all' && !genre) rows.push({ key: 'games', kind: 'games', title: 'Mobile Games', items: GAMES });
 
   Object.entries(GENRE_ROWS).forEach(([g, label]) => {
     if (genre && g === genre) return;
@@ -141,7 +140,6 @@ export default function HomeScreen({ route, navigation }: Props) {
 
   const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
   const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
-  const openGame = useCallback((g: Game) => showToast(`${g.name} is a preview — games arrive in a later phase`), [showToast]);
   const clearFilters = () => {
     setFilter('all');
     navigation.setParams({ genre: undefined });
@@ -183,8 +181,6 @@ export default function HomeScreen({ route, navigation }: Props) {
               return <Top10Row key={row.key} title={row.title} items={row.items} onPressTitle={openTitle} />;
             case 'tall':
               return <PosterRow key={row.key} title={row.title} items={row.items} onPressTitle={openTitle} width={TALL_POSTER.width} height={TALL_POSTER.height} />;
-            case 'games':
-              return <GameRow key={row.key} title={row.title} items={row.items} onPressGame={openGame} />;
             default:
               return (
                 <PosterRow
@@ -205,7 +201,7 @@ export default function HomeScreen({ route, navigation }: Props) {
           <Txt weight="bold" size={22} numberOfLines={1} style={{ flex: 1 }}>
             {heading}
           </Txt>
-          <HeaderActions actions={['cast', 'downloads', 'search']} />
+          <HeaderActions actions={['downloads', 'search']} />
         </View>
         <Animated.View style={[styles.chips, chipsStyle]}>
           {filter === 'all' && !genre ? (

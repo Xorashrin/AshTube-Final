@@ -5,7 +5,6 @@ import { Alert, FlatList, Pressable, ScrollView, Share, StyleSheet, View } from 
 import { Avatar } from '../components/Avatar';
 import { SheetItem } from '../components/ListItems';
 import { Poster, POSTER } from '../components/Poster';
-import { ProfileSwitchSheet } from '../components/ProfileSwitchSheet';
 import { RowHeader } from '../components/Rows';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
@@ -70,7 +69,6 @@ function SharedRow({ title, items, onPress, onSeeAll }: { title: string; items: 
 export default function MyNetflixScreen() {
   const nav = useRootNav();
   const { activeProfile, profileData, signOut, showToast } = useApp();
-  const [switcher, setSwitcher] = useState(false);
   const [menu, setMenu] = useState(false);
   const open = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
 
@@ -97,18 +95,17 @@ export default function MyNetflixScreen() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="My MythTube" actions={['cast', 'search', 'menu']} onMenu={() => setMenu(true)} />
+      <ScreenHeader title="My MythTube" actions={['search', 'menu']} onMenu={() => setMenu(true)} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {activeProfile ? (
-          <Pressable onPress={() => setSwitcher(true)} style={styles.profile}>
+          <View style={styles.profile}>
             <Avatar profile={activeProfile} size={72} radius={6} />
             <View style={styles.profileName}>
               <Txt weight="bold" size={20}>
                 {activeProfile.name}
               </Txt>
-              <Ionicons name="chevron-down" size={18} color={colors.text} style={{ marginLeft: 6 }} />
             </View>
-          </Pressable>
+          </View>
         ) : null}
 
         <MenuRow icon="notifications" color={colors.red} label="Notifications" detail={`${NOTIFICATIONS.length} new`} onPress={() => nav.navigate('Notifications')} />
@@ -125,9 +122,7 @@ export default function MyNetflixScreen() {
         <SharedRow title="Trailers You've Watched" items={TOP10_TV.slice(2, 8)} onPress={open} />
       </ScrollView>
 
-      <ProfileSwitchSheet visible={switcher} onClose={() => setSwitcher(false)} />
       <Sheet visible={menu} onClose={() => setMenu(false)}>
-        <SheetItem label="Manage Profiles" icon="pencil" onPress={() => { setMenu(false); nav.navigate('Profiles', { mode: 'manage' }); }} />
         <SheetItem label="App Settings" icon="settings-outline" onPress={() => { setMenu(false); nav.navigate('AppSettings'); }} />
         <SheetItem label="Account" icon="person-circle-outline" onPress={() => { setMenu(false); showToast('Account management is not part of this demo'); }} />
         <SheetItem label="Help" icon="help-circle-outline" onPress={() => { setMenu(false); showToast('Help Center is not part of this demo'); }} />

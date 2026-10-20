@@ -105,7 +105,7 @@ export default function LandingScreen({ navigation }: Props) {
             <View key={s.key} style={[styles.dot, i === page ? styles.dotActive : null]} />
           ))}
         </View>
-        <Button label="GET STARTED" variant="red" height={48} onPress={() => navigation.navigate('SignIn')} />
+        <Button label="GET STARTED" variant="red" height={48} onPress={() => navigation.navigate('SignUp')} />
       </View>
     </View>
   );

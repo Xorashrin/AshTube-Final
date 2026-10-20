@@ -1,14 +1,13 @@
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useRootNav } from '../navigation/types';
-import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
 import { Txt } from './Txt';
 
-export type HeaderAction = 'cast' | 'downloads' | 'search' | 'menu';
+export type HeaderAction = 'downloads' | 'search' | 'menu';
 
 interface ScreenHeaderProps {
   title?: string;
@@ -21,17 +20,10 @@ interface ScreenHeaderProps {
 
 export function HeaderActions({ actions, onMenu }: { actions: HeaderAction[]; onMenu?: () => void }) {
   const nav = useRootNav();
-  const { showToast } = useApp();
   return (
     <View style={styles.actions}>
       {actions.map((a) => {
         switch (a) {
-          case 'cast':
-            return (
-              <Pressable key={a} hitSlop={8} onPress={() => showToast('No devices found on your network')}>
-                <MaterialIcons name="cast" size={24} color={colors.text} />
-              </Pressable>
-            );
           case 'downloads':
             return (
               <Pressable key={a} hitSlop={8} onPress={() => nav.navigate('Downloads')}>

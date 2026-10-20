@@ -13,7 +13,7 @@ import { colors, font, radius } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'SignIn'>;
 
-function Field({ label, value, onChangeText, secure, onToggleSecure }: { label: string; value: string; onChangeText: (v: string) => void; secure?: boolean; onToggleSecure?: () => void }) {
+export function Field({ label, value, onChangeText, secure, onToggleSecure }: { label: string; value: string; onChangeText: (v: string) => void; secure?: boolean; onToggleSecure?: () => void }) {
   const [focused, setFocused] = useState(false);
   const floating = focused || value.length > 0;
   return (
@@ -56,8 +56,9 @@ export default function SignInScreen({ navigation }: Props) {
   const submit = () => {
     setLoading(true);
     setTimeout(() => {
-      signIn();
-      navigation.reset({ index: 0, routes: [{ name: 'Profiles' }] });
+      const handle = email.trim().split('@')[0];
+      signIn(handle ? handle.charAt(0).toUpperCase() + handle.slice(1) : 'You');
+      navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     }, 700);
   };
 
@@ -83,9 +84,11 @@ export default function SignInScreen({ navigation }: Props) {
             Forgot password?
           </Txt>
         </Pressable>
-        <Txt size={14} color={colors.textDim} align="center" style={{ marginTop: 28 }}>
-          New to MythTube? Use any email to try the demo.
-        </Txt>
+        <Pressable onPress={() => navigation.navigate('SignUp')} style={{ marginTop: 28 }}>
+          <Txt size={14} color={colors.textDim} align="center">
+            New to MythTube? <Txt weight="bold" size={14}>Sign up now.</Txt>
+          </Txt>
+        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );

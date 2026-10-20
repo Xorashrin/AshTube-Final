@@ -53,15 +53,6 @@ export interface Profile {
   name: string;
   color: string;
   kids?: boolean;
-  locked?: boolean;
-}
-
-export interface Game {
-  id: string;
-  name: string;
-  genre: string;
-  seed: string;
-  tint: string;
 }
 
 export interface AppNotification {
@@ -179,14 +170,17 @@ const SEEDS: SeedTitle[] = [
   { id: 'wolves-sundarban', name: 'Wolves of Sundarban', kind: 'movie', year: 2024, maturity: '16+', genres: ['Thriller', 'Adventure'], moods: ['Tense', 'Atmospheric'], synopsis: 'A wildlife ranger and a poacher must work together when a storm traps them deep in the mangrove forest.', tint: '#1D3A22', original: true, runtime: 112 },
   { id: 'afterlight', name: 'Afterlight', kind: 'movie', year: 2022, maturity: '13+', genres: ['Romance', 'Drama'], moods: ['Romantic', 'Bittersweet'], synopsis: 'Two strangers keep meeting on the last train of the night — but only one of them remembers the last time.', tint: '#5A2A3A', runtime: 101 },
   { id: 'crimson-ledger', name: 'Crimson Ledger', kind: 'movie', year: 2025, maturity: '18+', genres: ['Crime', 'Thriller'], moods: ['Gritty', 'Suspenseful'], synopsis: 'An accountant for the mob discovers a single line in the books that could bring down the entire city council.', tint: '#4A0F12', original: true, runtime: 109, badge: 'leaving-soon' },
-  { id: 'northbound', name: 'Northbound', kind: 'movie', year: 2021, maturity: '7+', genres: ['Kids & Family', 'Adventure'], moods: ['Feel-Good', 'Heartwarming'], synopsis: 'A boy and his grandmother’s stubborn goat set out on a road trip to reach the northern lights.', tint: '#1F3A5A', runtime: 92 },
+  { id: 'northbound', name: 'Northbound', kind: 'movie', year: 2021, maturity: '7+', genres: ['Kids', 'Adventure'], moods: ['Feel-Good', 'Heartwarming'], synopsis: 'A boy and his grandmother’s stubborn goat set out on a road trip to reach the northern lights.', tint: '#1F3A5A', runtime: 92 },
   { id: 'clockmakers-daughter', name: 'The Clockmaker’s Daughter', kind: 'movie', year: 2023, maturity: '13+', genres: ['Mystery', 'Drama'], moods: ['Intriguing', 'Atmospheric'], synopsis: 'Every clock in town stops at 3:17. The clockmaker’s daughter is the only one who knows why.', tint: '#4A3A1F', runtime: 115 },
   { id: 'monsoon-heist', name: 'Monsoon Heist', kind: 'movie', year: 2024, maturity: '16+', genres: ['Action', 'Comedy'], moods: ['Exciting', 'Witty'], synopsis: 'A crew of amateurs plans to rob a bank during the worst flood in a century. What could go wrong?', tint: '#0F4A4A', original: true, runtime: 107 },
   { id: 'silent-orbit', name: 'Silent Orbit', kind: 'movie', year: 2025, maturity: '13+', genres: ['Sci-Fi', 'Thriller'], moods: ['Tense', 'Mind-Bending'], synopsis: 'The crew of a space station goes silent. The only survivor insists she has been alone for years.', tint: '#101F3A', original: true, runtime: 99 },
-  { id: 'kites-karnaphuli', name: 'Kites Over Karnaphuli', kind: 'movie', year: 2022, maturity: 'ALL', genres: ['Drama', 'Kids & Family'], moods: ['Heartfelt', 'Uplifting'], synopsis: 'In a riverside town, a girl builds the biggest kite anyone has ever seen to win back her brother’s smile.', tint: '#2A4A5A', runtime: 95 },
+  { id: 'kites-karnaphuli', name: 'Kites Over Karnaphuli', kind: 'movie', year: 2022, maturity: 'ALL', genres: ['Drama', 'Kids'], moods: ['Heartfelt', 'Uplifting'], synopsis: 'In a riverside town, a girl builds the biggest kite anyone has ever seen to win back her brother’s smile.', tint: '#2A4A5A', runtime: 95 },
   { id: 'seven-bells', name: 'Seven Bells', kind: 'movie', year: 2023, maturity: '16+', genres: ['Horror'], moods: ['Scary', 'Ominous'], synopsis: 'Each time the chapel bell rings, someone in the village vanishes. The seventh bell rings tonight.', tint: '#2A1A1A', runtime: 94 },
   { id: 'nightjar', name: 'Nightjar', kind: 'movie', year: 2024, maturity: '16+', genres: ['Thriller', 'Crime'], moods: ['Dark', 'Slick'], synopsis: 'A night-radio host realizes a caller is confessing to crimes that have not happened yet.', tint: '#1A1F2A', runtime: 103 },
 
+  { id: 'final-over', name: 'Final Over', kind: 'series', year: 2025, maturity: 'ALL', genres: ['Sports', 'Documentary'], moods: ['Rousing', 'Inspiring'], synopsis: 'Cameras follow a small-town cricket club through one impossible season, from dusty nets to a national final.', tint: '#1F4A2A', original: true, seasons: 1, badge: 'new-episode' },
+  { id: 'hat-trick', name: 'Hat-Trick', kind: 'movie', year: 2024, maturity: '7+', genres: ['Sports', 'Drama'], moods: ['Feel-Good', 'Rousing'], synopsis: 'A goalkeeper who never scores gets one chance to save her team — by playing up front.', tint: '#103A4A', runtime: 106 },
+  { id: 'ring-of-rain', name: 'Ring of Rain', kind: 'movie', year: 2023, maturity: '13+', genres: ['Sports', 'Action'], moods: ['Gritty', 'Exciting'], synopsis: 'An aging boxer trains a street kid for the fight that could save the gym they both call home.', tint: '#3A1A10', runtime: 112 },
   { id: 'tidebreaker', name: 'Tidebreaker', kind: 'series', year: 2026, maturity: '16+', genres: ['Fantasy', 'Action'], moods: ['Epic', 'Exciting'], synopsis: 'A pirate captain who can split the sea is hunted by the empire that made her.', tint: '#0F3A5A', original: true, seasons: 1, comingSoon: { month: 'NOV', day: '07', label: 'Coming Friday' } },
   { id: 'house-of-brass', name: 'House of Brass', kind: 'series', year: 2026, maturity: '13+', genres: ['Drama', 'Mystery'], moods: ['Intriguing', 'Stylish'], synopsis: 'A family of inventors in an alternate 1900s Kolkata hides a machine that can rewrite a single day.', tint: '#5A3A10', original: true, seasons: 1, comingSoon: { month: 'NOV', day: '14', label: 'Coming November 14' } },
   { id: 'vanishing-ghat', name: 'The Vanishing Ghat', kind: 'movie', year: 2026, maturity: '16+', genres: ['Thriller', 'Mystery'], moods: ['Tense', 'Atmospheric'], synopsis: 'A river steps disappear every full moon, and with them, whoever is standing on them.', tint: '#1F2A3A', original: true, runtime: 111, comingSoon: { month: 'NOV', day: '21', label: 'Coming November 21' } },
@@ -282,27 +276,11 @@ export function top10Rank(id: string): { rank: number; list: 'TV Shows' | 'Movie
 
 export const GENRES = [
   'Action', 'Adventure', 'Anime', 'Comedy', 'Crime', 'Drama', 'Fantasy', 'Horror',
-  'Kids & Family', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller',
+  'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'Sports', 'Kids',
 ];
 
-export const PROFILES: Profile[] = [
-  { id: 'p1', name: 'Myth', color: '#2D6CDF' },
-  { id: 'p2', name: 'Nila', color: '#E5B80B' },
-  { id: 'p3', name: 'Rafi', color: '#E50914' },
-  { id: 'p4', name: 'Tara', color: '#5FA53F', locked: true },
-  { id: 'kids', name: 'Kids', color: '#8E44AD', kids: true },
-];
-
-export const GAMES: Game[] = [
-  { id: 'myth-run', name: 'Myth Run', genre: 'Action', seed: 'game-myth-run', tint: '#5A1F10' },
-  { id: 'tile-temple', name: 'Tile Temple', genre: 'Puzzle', seed: 'game-tile-temple', tint: '#5A4A10' },
-  { id: 'sky-lancer', name: 'Sky Lancer', genre: 'Arcade', seed: 'game-sky-lancer', tint: '#10305A' },
-  { id: 'puzzle-bazaar', name: 'Puzzle Bazaar', genre: 'Puzzle', seed: 'game-puzzle-bazaar', tint: '#3C1A5A' },
-  { id: 'ghost-kart', name: 'Ghost Kart', genre: 'Racing', seed: 'game-ghost-kart', tint: '#1E3320' },
-  { id: 'word-oracle', name: 'Word Oracle', genre: 'Word', seed: 'game-word-oracle', tint: '#2E1F4F' },
-  { id: 'tower-of-tides', name: 'Tower of Tides', genre: 'Strategy', seed: 'game-tower-of-tides', tint: '#103C5A' },
-  { id: 'pocket-legends', name: 'Pocket Legends', genre: 'RPG', seed: 'game-pocket-legends', tint: '#4A1030' },
-];
+export const MAIN_PROFILE_ID = 'main';
+export const PROFILE_COLOR = '#2D6CDF';
 
 export const NOTIFICATIONS: AppNotification[] = [
   { id: 'n1', titleId: 'ninth-oracle', kicker: 'New Episode', text: 'The Ninth Oracle', date: 'Today' },

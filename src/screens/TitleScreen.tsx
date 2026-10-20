@@ -48,6 +48,13 @@ function DownloadIcon({ titleId, episode }: { titleId: string; episode?: Episode
       </Pressable>
     );
   }
+  if (entry?.status === 'failed') {
+    return (
+      <Pressable hitSlop={10} onPress={() => startDownload(titleId, episode ? episode.runtime * 6 : 800, episode?.id)} style={styles.dlIcon}>
+        <Ionicons name="refresh-circle-outline" size={26} color={colors.redLight} />
+      </Pressable>
+    );
+  }
   if (entry?.status === 'downloaded') {
     return (
       <Pressable hitSlop={10} onPress={() => { deleteDownload(titleId, episode?.id); showToast('Download deleted'); }} style={styles.dlIcon}>
@@ -155,7 +162,6 @@ export default function TitleScreen({ navigation, route }: Props) {
             <Ionicons name="play" size={30} color={colors.text} style={{ marginLeft: 4 }} />
           </View>
           <View style={styles.heroActions}>
-            <CircleIconButton icon="tv-outline" size={32} onPress={() => showToast('No devices found on your network')} />
             <CircleIconButton icon="close" size={32} onPress={() => navigation.goBack()} />
           </View>
         </Pressable>
@@ -218,13 +224,15 @@ export default function TitleScreen({ navigation, route }: Props) {
                   label={
                     movieDownload?.status === 'downloaded'
                       ? 'Downloaded'
-                      : movieDownload
+                      : movieDownload?.status === 'failed'
+                        ? 'Retry Download'
+                        : movieDownload
                         ? `Downloading ${Math.round(movieDownload.progress * 100)}%`
                         : 'Download'
                   }
                   icon={movieDownload?.status === 'downloaded' ? 'checkmark-circle' : 'download-outline'}
                   variant="gray"
-                  onPress={() => (movieDownload ? navigation.navigate('Downloads') : startDownload(title.id, 845))}
+                  onPress={() => (movieDownload && movieDownload.status !== 'failed' ? navigation.navigate('Downloads') : startDownload(title.id, 845))}
                   style={styles.cta}
                 />
               ) : (

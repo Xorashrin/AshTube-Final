@@ -34,6 +34,17 @@
           "supportsBackgroundPlayback": false,
           "supportsPictureInPicture": false
         }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "MythTube saves downloaded videos to your device storage.",
+          "savePhotosPermission": "MythTube saves downloaded videos to your device storage.",
+          "isAccessMediaLocationEnabled": false,
+          "granularPermissions": [
+            "video"
+          ]
+        }
       ]
     ]
   }

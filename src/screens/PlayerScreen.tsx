@@ -1,4 +1,4 @@
-import { Ionicons, MaterialCommunityIcons, MaterialIcons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEvent, useEventListener } from 'expo';
 import { StatusBar } from 'expo-status-bar';
@@ -13,7 +13,7 @@ import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { findEpisode, getTitle, nextEpisode } from '../data/mock';
 import type { RootStackParamList } from '../navigation/types';
-import { useApp } from '../state/AppState';
+import { downloadFor, useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
 import { formatClock } from '../utils/format';
 
@@ -90,12 +90,14 @@ function BottomAction({ icon, label, onPress }: { icon: MciName; label: string; 
 
 export default function PlayerScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
-  const { setProgress, state, showToast } = useApp();
+  const { setProgress, state, showToast, profileData } = useApp();
   const title = getTitle(route.params.id);
   const found = title.kind === 'series' ? findEpisode(title, route.params.episodeId) : null;
   const episode = found?.episode;
   const next = episode ? nextEpisode(title, episode.id) : null;
-  const source = episode?.video ?? title.video;
+  const offline = downloadFor(profileData, title.id, episode?.id);
+  // Prefer the downloaded file so playback works offline.
+  const source = offline?.status === 'downloaded' && offline.localUri ? offline.localUri : episode?.video ?? title.video;
 
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 0.5;
@@ -219,10 +221,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
           <Txt weight="semibold" size={15} numberOfLines={1} align="center" style={{ flex: 1, marginHorizontal: 16 }}>
             {heading}
           </Txt>
-          <Pressable hitSlop={12} onPress={() => showToast('No devices found on your network')}>
-            <MaterialIcons name="cast" size={24} color={colors.text} />
-          </Pressable>
-          <Pressable hitSlop={12} onPress={() => showToast('Thanks! Report a Problem arrives in a later phase')} style={{ marginLeft: 22 }}>
+          <Pressable hitSlop={12} onPress={() => showToast('Thanks! Report a Problem arrives in a later phase')}>
             <MaterialCommunityIcons name="flag-outline" size={24} color={colors.text} />
           </Pressable>
         </View>

@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 
-import { PROFILES, type Profile } from '../data/mock';
+import { MAIN_PROFILE_ID, PROFILE_COLOR, findEpisode, getTitle, type Profile } from '../data/mock';
+import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo } from '../services/downloads';
 
 export type Rating = 'down' | 'up' | 'love';
 
@@ -16,9 +17,11 @@ export interface ProgressEntry {
 export interface DownloadEntry {
   titleId: string;
   episodeId?: string;
-  status: 'downloading' | 'downloaded';
+  status: 'downloading' | 'downloaded' | 'failed';
   progress: number;
   sizeMB: number;
+  localUri?: string;
+  savedToDevice?: boolean;
 }
 
 export interface ProfileData {
@@ -40,122 +43,125 @@ export interface Settings {
 interface State {
   hydrated: boolean;
   signedIn: boolean;
-  activeProfileId: string | null;
-  profiles: Profile[];
-  data: Record<string, ProfileData>;
+  userName: string;
+  creditSeen: boolean;
+  data: ProfileData;
   settings: Settings;
   toast: { id: number; message: string } | null;
 }
 
 type Action =
   | { type: 'HYDRATE'; saved: Partial<State> | null }
-  | { type: 'SIGN_IN' }
+  | { type: 'SIGN_IN'; name: string }
   | { type: 'SIGN_OUT' }
-  | { type: 'SELECT_PROFILE'; id: string }
+  | { type: 'CREDIT_SEEN' }
   | { type: 'TOGGLE_MY_LIST'; id: string }
   | { type: 'RATE'; id: string; rating: Rating | null }
   | { type: 'TOGGLE_REMINDER'; id: string }
   | { type: 'SET_PROGRESS'; entry: ProgressEntry }
   | { type: 'REMOVE_PROGRESS'; titleId: string }
-  | { type: 'START_DOWNLOAD'; titleId: string; episodeId?: string; sizeMB: number }
-  | { type: 'DELETE_DOWNLOAD'; titleId: string; episodeId?: string }
-  | { type: 'TICK_DOWNLOADS' }
+  | { type: 'DOWNLOAD_START'; titleId: string; episodeId?: string; sizeMB: number }
+  | { type: 'DOWNLOAD_PROGRESS'; titleId: string; episodeId?: string; progress: number }
+  | { type: 'DOWNLOAD_DONE'; titleId: string; episodeId?: string; localUri: string; sizeMB: number; savedToDevice: boolean }
+  | { type: 'DOWNLOAD_FAILED'; titleId: string; episodeId?: string }
+  | { type: 'DOWNLOAD_REMOVE'; titleId: string; episodeId?: string }
   | { type: 'TOGGLE_SETTING'; key: keyof Settings }
   | { type: 'TOAST'; message: string }
   | { type: 'CLEAR_TOAST'; id: number };
 
-const STORAGE_KEY = 'mythtube:v1';
-
-const emptyData = (): ProfileData => ({ myList: [], ratings: {}, reminders: [], progress: [], downloads: [] });
+const STORAGE_KEY = 'mythtube:v2';
 
 const now = Date.now();
-const seededData: Record<string, ProfileData> = {
-  p1: {
-    myList: ['ashen-crown', 'glass-horizon', 'hollow-pines', 'monsoon-heist', 'starfall-academy'],
-    ratings: { 'neon-monsoon': 'love' },
-    reminders: [],
-    progress: [
-      { titleId: 'ninth-oracle', episodeId: 'ninth-oracle-s1e3', position: 410, duration: 596, updatedAt: now - 1000 },
-      { titleId: 'last-lantern', position: 260, duration: 653, updatedAt: now - 2000 },
-      { titleId: 'neon-monsoon', episodeId: 'neon-monsoon-s2e1', position: 120, duration: 888, updatedAt: now - 3000 },
-      { titleId: 'paper-tigers', episodeId: 'paper-tigers-s1e5', position: 300, duration: 734, updatedAt: now - 4000 },
-    ],
-    downloads: [
-      { titleId: 'ashen-crown', episodeId: 'ashen-crown-s1e1', status: 'downloaded', progress: 1, sizeMB: 312 },
-      { titleId: 'ashen-crown', episodeId: 'ashen-crown-s1e2', status: 'downloaded', progress: 1, sizeMB: 298 },
-      { titleId: 'glass-horizon', status: 'downloaded', progress: 1, sizeMB: 845 },
-    ],
-  },
+const starterData: ProfileData = {
+  myList: ['ashen-crown', 'glass-horizon', 'hollow-pines', 'monsoon-heist', 'starfall-academy'],
+  ratings: { 'neon-monsoon': 'love' },
+  reminders: [],
+  progress: [
+    { titleId: 'ninth-oracle', episodeId: 'ninth-oracle-s1e3', position: 410, duration: 596, updatedAt: now - 1000 },
+    { titleId: 'last-lantern', position: 260, duration: 653, updatedAt: now - 2000 },
+    { titleId: 'neon-monsoon', episodeId: 'neon-monsoon-s2e1', position: 120, duration: 888, updatedAt: now - 3000 },
+  ],
+  downloads: [],
 };
 
 const initialState: State = {
   hydrated: false,
   signedIn: false,
-  activeProfileId: null,
-  profiles: PROFILES,
-  data: seededData,
+  userName: '',
+  creditSeen: false,
+  data: starterData,
   settings: { wifiOnly: true, smartDownloads: true, notifications: true, autoplayNext: true, autoplayPreviews: true },
   toast: null,
 };
 
-function updateProfile(state: State, fn: (d: ProfileData) => ProfileData): State {
-  const id = state.activeProfileId;
-  if (!id) return state;
-  return { ...state, data: { ...state.data, [id]: fn(state.data[id] ?? emptyData()) } };
+const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [id, ...list]);
+const same = (d: DownloadEntry, titleId: string, episodeId?: string) => d.titleId === titleId && d.episodeId === episodeId;
+
+function withData(state: State, fn: (d: ProfileData) => ProfileData): State {
+  return { ...state, data: fn(state.data) };
 }
 
-const toggle = (list: string[], id: string) => (list.includes(id) ? list.filter((x) => x !== id) : [id, ...list]);
-const sameDownload = (d: DownloadEntry, titleId: string, episodeId?: string) => d.titleId === titleId && d.episodeId === episodeId;
+function patchDownload(state: State, titleId: string, episodeId: string | undefined, patch: Partial<DownloadEntry>): State {
+  return withData(state, (d) => ({ ...d, downloads: d.downloads.map((x) => (same(x, titleId, episodeId) ? { ...x, ...patch } : x)) }));
+}
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
-    case 'HYDRATE':
-      return { ...state, ...(action.saved ?? {}), profiles: PROFILES, toast: null, hydrated: true };
+    case 'HYDRATE': {
+      const saved = action.saved ?? {};
+      const merged: State = { ...state, ...saved, toast: null, hydrated: true };
+      // Downloads interrupted by an app restart cannot resume; mark them failed.
+      merged.data = {
+        ...merged.data,
+        downloads: (merged.data.downloads ?? []).map((x): DownloadEntry => (x.status === 'downloading' ? { ...x, status: 'failed' } : x)),
+      };
+      return merged;
+    }
     case 'SIGN_IN':
-      return { ...state, signedIn: true };
+      return { ...state, signedIn: true, userName: action.name };
     case 'SIGN_OUT':
-      return { ...state, signedIn: false, activeProfileId: null };
-    case 'SELECT_PROFILE':
-      return { ...state, activeProfileId: action.id };
+      return { ...state, signedIn: false };
+    case 'CREDIT_SEEN':
+      return { ...state, creditSeen: true };
     case 'TOGGLE_MY_LIST':
-      return updateProfile(state, (d) => ({ ...d, myList: toggle(d.myList, action.id) }));
+      return withData(state, (d) => ({ ...d, myList: toggle(d.myList, action.id) }));
     case 'RATE':
-      return updateProfile(state, (d) => {
+      return withData(state, (d) => {
         const ratings = { ...d.ratings };
         if (action.rating) ratings[action.id] = action.rating;
         else delete ratings[action.id];
         return { ...d, ratings };
       });
     case 'TOGGLE_REMINDER':
-      return updateProfile(state, (d) => ({ ...d, reminders: toggle(d.reminders, action.id) }));
+      return withData(state, (d) => ({ ...d, reminders: toggle(d.reminders, action.id) }));
     case 'SET_PROGRESS':
-      return updateProfile(state, (d) => ({
-        ...d,
-        progress: [action.entry, ...d.progress.filter((p) => p.titleId !== action.entry.titleId)],
-      }));
+      return withData(state, (d) => ({ ...d, progress: [action.entry, ...d.progress.filter((p) => p.titleId !== action.entry.titleId)] }));
     case 'REMOVE_PROGRESS':
-      return updateProfile(state, (d) => ({ ...d, progress: d.progress.filter((p) => p.titleId !== action.titleId) }));
-    case 'START_DOWNLOAD':
-      return updateProfile(state, (d) =>
-        d.downloads.some((x) => sameDownload(x, action.titleId, action.episodeId))
-          ? d
-          : { ...d, downloads: [...d.downloads, { titleId: action.titleId, episodeId: action.episodeId, status: 'downloading', progress: 0, sizeMB: action.sizeMB }] },
-      );
-    case 'DELETE_DOWNLOAD':
-      return updateProfile(state, (d) => ({
+      return withData(state, (d) => ({ ...d, progress: d.progress.filter((p) => p.titleId !== action.titleId) }));
+    case 'DOWNLOAD_START':
+      return withData(state, (d) => ({
         ...d,
-        downloads: d.downloads.filter((x) =>
-          action.episodeId === undefined ? x.titleId !== action.titleId : !sameDownload(x, action.titleId, action.episodeId),
-        ),
+        downloads: [
+          ...d.downloads.filter((x) => !same(x, action.titleId, action.episodeId)),
+          { titleId: action.titleId, episodeId: action.episodeId, status: 'downloading', progress: 0, sizeMB: action.sizeMB },
+        ],
       }));
-    case 'TICK_DOWNLOADS':
-      return updateProfile(state, (d) => ({
+    case 'DOWNLOAD_PROGRESS':
+      return patchDownload(state, action.titleId, action.episodeId, { progress: action.progress });
+    case 'DOWNLOAD_DONE':
+      return patchDownload(state, action.titleId, action.episodeId, {
+        status: 'downloaded',
+        progress: 1,
+        localUri: action.localUri,
+        sizeMB: action.sizeMB,
+        savedToDevice: action.savedToDevice,
+      });
+    case 'DOWNLOAD_FAILED':
+      return patchDownload(state, action.titleId, action.episodeId, { status: 'failed' });
+    case 'DOWNLOAD_REMOVE':
+      return withData(state, (d) => ({
         ...d,
-        downloads: d.downloads.map((x): DownloadEntry => {
-          if (x.status !== 'downloading') return x;
-          const progress = Math.min(1, x.progress + 0.07);
-          return { ...x, progress, status: progress >= 1 ? 'downloaded' : 'downloading' };
-        }),
+        downloads: d.downloads.filter((x) => (action.episodeId === undefined ? x.titleId !== action.titleId : !same(x, action.titleId, action.episodeId))),
       }));
     case 'TOGGLE_SETTING':
       return { ...state, settings: { ...state.settings, [action.key]: !state.settings[action.key] } };
@@ -172,9 +178,9 @@ interface AppContextValue {
   state: State;
   activeProfile: Profile | null;
   profileData: ProfileData;
-  signIn: () => void;
+  signIn: (name: string) => void;
   signOut: () => void;
-  selectProfile: (id: string) => void;
+  markCreditSeen: () => void;
   toggleMyList: (id: string) => void;
   rate: (id: string, rating: Rating | null) => void;
   toggleReminder: (id: string) => void;
@@ -191,6 +197,8 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
@@ -200,41 +208,73 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!state.hydrated) return;
-    const { signedIn, activeProfileId, data, settings } = state;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ signedIn, activeProfileId, data, settings })).catch(() => undefined);
+    const { signedIn, userName, creditSeen, data, settings } = state;
+    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ signedIn, userName, creditSeen, data, settings })).catch(() => undefined);
   }, [state]);
-
-  const activeData = state.activeProfileId ? state.data[state.activeProfileId] : undefined;
-  const isDownloading = activeData?.downloads.some((d) => d.status === 'downloading') ?? false;
-  useEffect(() => {
-    if (!isDownloading) return;
-    const timer = setInterval(() => dispatch({ type: 'TICK_DOWNLOADS' }), 450);
-    return () => clearInterval(timer);
-  }, [isDownloading]);
 
   const showToast = useCallback((message: string) => dispatch({ type: 'TOAST', message }), []);
 
+  const startDownload = useCallback(
+    (titleId: string, sizeMB: number, episodeId?: string) => {
+      const title = getTitle(titleId);
+      const url = episodeId ? findEpisode(title, episodeId)?.episode.video ?? title.video : title.video;
+      dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB });
+      let last = 0;
+      downloadVideo(downloadKey(titleId, episodeId), url, (ratio) => {
+        if (ratio - last >= 0.02 || ratio >= 1) {
+          last = ratio;
+          dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
+        }
+      })
+        .then((r) => {
+          const stillWanted = stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId));
+          if (!stillWanted) {
+            deleteLocalFile(r.localUri);
+            return;
+          }
+          dispatch({ type: 'DOWNLOAD_DONE', titleId, episodeId, localUri: r.localUri, sizeMB: r.sizeMB, savedToDevice: r.savedToDevice });
+          showToast(r.savedToDevice ? `${title.name} saved to device storage (MythTube)` : `${title.name} downloaded`);
+        })
+        .catch(() => {
+          if (stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId))) {
+            dispatch({ type: 'DOWNLOAD_FAILED', titleId, episodeId });
+            showToast('Download failed. Check your connection and try again.');
+          }
+        });
+    },
+    [showToast],
+  );
+
+  const deleteDownload = useCallback((titleId: string, episodeId?: string) => {
+    const targets = stateRef.current.data.downloads.filter((x) => (episodeId === undefined ? x.titleId === titleId : same(x, titleId, episodeId)));
+    targets.forEach((x) => {
+      cancelDownload(downloadKey(x.titleId, x.episodeId));
+      deleteLocalFile(x.localUri);
+    });
+    dispatch({ type: 'DOWNLOAD_REMOVE', titleId, episodeId });
+  }, []);
+
   const value = useMemo<AppContextValue>(() => {
-    const activeProfile = state.profiles.find((p) => p.id === state.activeProfileId) ?? null;
+    const activeProfile: Profile | null = state.signedIn ? { id: MAIN_PROFILE_ID, name: state.userName || 'You', color: PROFILE_COLOR } : null;
     return {
       state,
       activeProfile,
-      profileData: activeData ?? emptyData(),
-      signIn: () => dispatch({ type: 'SIGN_IN' }),
+      profileData: state.data,
+      signIn: (name) => dispatch({ type: 'SIGN_IN', name }),
       signOut: () => dispatch({ type: 'SIGN_OUT' }),
-      selectProfile: (id) => dispatch({ type: 'SELECT_PROFILE', id }),
+      markCreditSeen: () => dispatch({ type: 'CREDIT_SEEN' }),
       toggleMyList: (id) => dispatch({ type: 'TOGGLE_MY_LIST', id }),
       rate: (id, rating) => dispatch({ type: 'RATE', id, rating }),
       toggleReminder: (id) => dispatch({ type: 'TOGGLE_REMINDER', id }),
       setProgress: (entry) => dispatch({ type: 'SET_PROGRESS', entry }),
       removeProgress: (titleId) => dispatch({ type: 'REMOVE_PROGRESS', titleId }),
-      startDownload: (titleId, sizeMB, episodeId) => dispatch({ type: 'START_DOWNLOAD', titleId, episodeId, sizeMB }),
-      deleteDownload: (titleId, episodeId) => dispatch({ type: 'DELETE_DOWNLOAD', titleId, episodeId }),
+      startDownload,
+      deleteDownload,
       toggleSetting: (key) => dispatch({ type: 'TOGGLE_SETTING', key }),
       showToast,
       clearToast: (id) => dispatch({ type: 'CLEAR_TOAST', id }),
     };
-  }, [state, activeData, showToast]);
+  }, [state, startDownload, deleteDownload, showToast]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
@@ -250,5 +290,5 @@ export function progressFor(data: ProfileData, titleId: string): ProgressEntry |
 }
 
 export function downloadFor(data: ProfileData, titleId: string, episodeId?: string): DownloadEntry | undefined {
-  return data.downloads.find((d) => sameDownload(d, titleId, episodeId));
+  return data.downloads.find((d) => same(d, titleId, episodeId));
 }

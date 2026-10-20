@@ -26,12 +26,10 @@ export default function SplashScreen({ navigation }: Props) {
   useEffect(() => {
     if (!state.hydrated) return;
     const timer = setTimeout(() => {
-      if (!state.signedIn) navigation.replace('Landing');
-      else if (state.activeProfileId) navigation.replace('Main');
-      else navigation.replace('Profiles');
+      navigation.replace(state.signedIn ? 'Main' : 'Landing');
     }, 1500);
     return () => clearTimeout(timer);
-  }, [state.hydrated, state.signedIn, state.activeProfileId, navigation]);
+  }, [state.hydrated, state.signedIn, navigation]);
 
   const logoStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
   const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value * 0.55, transform: [{ scale: 0.8 + glow.value * 0.6 }] }));
