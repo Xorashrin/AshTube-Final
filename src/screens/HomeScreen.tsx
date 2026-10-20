@@ -15,7 +15,8 @@ import { Sheet } from '../components/Sheet';
 import { TALL_POSTER } from '../components/Poster';
 import { Txt } from '../components/Txt';
 import { VodRow } from '../components/VodRow';
-import { AVAILABLE, TOP10_MOVIES, TOP10_TV, findEpisode, getTitle, type Title } from '../data/mock';
+import { findEpisode, type Title } from '../data/mock';
+import { resolveTitle, RESOLVED_TITLES } from '../data/resolveTitle';
 import { moviesChannels, seriesChannels, newsChannels, sportsChannels, type Channel } from '../data/channels';
 import { VOD_TITLES, vodByCategory, getVodTitle, type VodTitle } from '../data/vod';
 import { useRootNav, type TabParamList } from '../navigation/types';
@@ -42,7 +43,8 @@ const GENRE_ROWS: Record<string, string> = {
   Kids: 'Kids & Family Favorites',
 };
 
-const HERO_BY_FILTER: Record<HomeFilter, string> = { all: 'ashen-crown', tv: 'ninth-oracle', movies: 'last-lantern' };
+const HERO_MOVIE = RESOLVED_TITLES.find((t) => t.kind === 'movie') ?? RESOLVED_TITLES[0];
+const HERO_SERIES = RESOLVED_TITLES.find((t) => t.kind === 'series') ?? RESOLVED_TITLES[1] ?? RESOLVED_TITLES[0];
 
 function rotate<T>(list: T[], by: number): T[] {
   if (list.length === 0) return list;
@@ -51,7 +53,7 @@ function rotate<T>(list: T[], by: number): T[] {
 }
 
 function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileData, name: string): HomeRow[] {
-  const pool = AVAILABLE.filter(
+  const pool = RESOLVED_TITLES.filter(
     (t) => (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) && (!genre || t.genres.includes(genre)),
   );
   const inPool = (t: Title) => pool.some((p) => p.id === t.id);
@@ -59,7 +61,7 @@ function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileD
 
   const continueItems: ContinueItem[] = data.progress
     .map((entry) => {
-      const title = getTitle(entry.titleId);
+      const title = resolveTitle(entry.titleId);
       const ep = entry.episodeId ? findEpisode(title, entry.episodeId) : null;
       return { title, entry, label: ep ? `S${ep.season.number}:E${ep.episode.number}` : undefined };
     })
@@ -71,20 +73,22 @@ function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileD
 
   if (!genre) {
     const movies = filter === 'movies';
+    const topMovies = pool.filter((t) => t.kind === 'movie').slice(0, 10);
+    const topSeries = pool.filter((t) => t.kind === 'series').slice(0, 10);
     rows.push({
       key: 'top10',
       kind: 'top10',
-      title: movies ? 'Top 10 Movies in Bangladesh Today' : 'Top 10 TV Shows in Bangladesh Today',
-      items: movies ? TOP10_MOVIES : TOP10_TV,
+      title: movies ? 'Top 10 Movies Today' : 'Top 10 Series Today',
+      items: movies ? topMovies : topSeries,
     });
   }
 
   rows.push({ key: 'trending', kind: 'poster', title: 'Trending Now', items: rotate(pool, 3) });
 
-  const myList = data.myList.map(getTitle).filter(inPool);
+  const myList = data.myList.map(resolveTitle).filter(inPool);
   if (myList.length > 0) rows.push({ key: 'mylist', kind: 'poster', title: 'My List', items: myList });
 
-  const fresh = pool.filter((t) => t.badge || t.year >= 2025);
+  const fresh = pool.filter((t) => t.badge || t.year >= 2024);
   if (fresh.length > 0) rows.push({ key: 'new', kind: 'poster', title: 'New on MythTube', items: fresh });
 
   Object.entries(GENRE_ROWS).forEach(([g, label]) => {
@@ -93,7 +97,12 @@ function buildRows(filter: HomeFilter, genre: string | undefined, data: ProfileD
     if (items.length >= 3) rows.push({ key: `genre-${g}`, kind: 'poster', title: label, items });
   });
 
-  if (filter === 'all' && !genre) rows.push({ key: 'top10-movies', kind: 'top10', title: 'Top 10 Movies in Bangladesh Today', items: TOP10_MOVIES });
+  if (filter === 'all' && !genre) {
+    const topMovies = pool.filter((t) => t.kind === 'movie').slice(0, 10);
+    if (topMovies.length > 0) {
+      rows.push({ key: 'top10-movies', kind: 'top10', title: 'Top 10 Movies Today', items: topMovies });
+    }
+  }
   rows.push({ key: 'love', kind: 'poster', title: "We Think You'll Love These", items: [...pool].reverse() });
   return rows;
 }
@@ -109,9 +118,13 @@ export default function HomeScreen({ route, navigation }: Props) {
 
   const rows = useMemo(() => buildRows(filter, genre, profileData, name), [filter, genre, profileData, name]);
   const hero = useMemo(() => {
-    const preferred = getTitle(HERO_BY_FILTER[filter]);
-    if (!genre || preferred.genres.includes(genre)) return preferred;
-    return AVAILABLE.find((t) => t.genres.includes(genre) && (filter === 'all' || (filter === 'tv') === (t.kind === 'series'))) ?? preferred;
+    if (filter === 'movies') return HERO_MOVIE;
+    if (filter === 'tv') return HERO_SERIES;
+    if (genre) {
+      const match = RESOLVED_TITLES.find((t) => t.genres.includes(genre));
+      if (match) return match;
+    }
+    return RESOLVED_TITLES[0] ?? HERO_MOVIE;
   }, [filter, genre]);
 
   const scrollY = useSharedValue(0);

@@ -11,21 +11,72 @@ import { colors } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 
 export default function AppSettingsScreen({ navigation }: Props) {
-  const { state, toggleSetting, showToast, profileData, deleteDownload, signOut } = useApp();
+  const { state, toggleSetting, setSetting, showToast, profileData, deleteDownload, signOut } = useApp();
   const s = state.settings;
   const notYet = () => showToast('This setting is visual-only in this build');
+
+  const pickStreamingQuality = () => {
+    Alert.alert('Default Streaming Quality', 'Choose preferred streaming resolution:', [
+      { text: 'Auto', onPress: () => setSetting('defaultStreamingQuality', 'auto') },
+      { text: '1080p (Full HD)', onPress: () => setSetting('defaultStreamingQuality', '1080p') },
+      { text: '720p (HD)', onPress: () => setSetting('defaultStreamingQuality', '720p') },
+      { text: '480p (Data Saver)', onPress: () => setSetting('defaultStreamingQuality', '480p') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const pickDownloadQuality = () => {
+    Alert.alert('Default Download Quality', 'Choose default download video quality:', [
+      { text: '1080p (High Quality)', onPress: () => setSetting('defaultDownloadQuality', '1080p') },
+      { text: '720p (Standard HD)', onPress: () => setSetting('defaultDownloadQuality', '720p') },
+      { text: '480p (Smaller File)', onPress: () => setSetting('defaultDownloadQuality', '480p') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
+
+  const pickLanguage = () => {
+    Alert.alert('Preferred Audio Language', 'Choose preferred audio track for multi-audio titles:', [
+      { text: 'English (Original)', onPress: () => setSetting('preferredLanguage', 'English') },
+      { text: 'Hindi', onPress: () => setSetting('preferredLanguage', 'Hindi') },
+      { text: 'Bengali', onPress: () => setSetting('preferredLanguage', 'Bengali') },
+      { text: 'Spanish', onPress: () => setSetting('preferredLanguage', 'Spanish') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
 
   return (
     <View style={styles.root}>
       <ScreenHeader title="App Settings" back />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <SectionLabel>Video Playback</SectionLabel>
-        <SettingRow icon="cellular-outline" label="Cellular Data Usage" value="Automatic" onPress={notYet} />
+        <SectionLabel>Video Playback & Gestures</SectionLabel>
+        <SettingRow
+          icon="hand-left-outline"
+          label="Swipe Gestures"
+          description="Swipe left edge for brightness, right edge for volume, horizontal to scrub."
+          toggle={s.swipeGestures}
+          onToggle={() => toggleSetting('swipeGestures')}
+        />
+        <SettingRow
+          icon="flash-outline"
+          label="Double-Tap to Seek"
+          description="Double-tap left or right side of screen to jump 10 seconds."
+          toggle={s.doubleTapSeek}
+          onToggle={() => toggleSetting('doubleTapSeek')}
+        />
+        <SettingRow
+          icon="videocam-outline"
+          label="Default Video Quality"
+          value={s.defaultStreamingQuality.toUpperCase()}
+          onPress={pickStreamingQuality}
+        />
+        <SettingRow
+          icon="language-outline"
+          label="Preferred Audio Language"
+          value={s.preferredLanguage}
+          onPress={pickLanguage}
+        />
         <SettingRow icon="play-forward-outline" label="Autoplay Next Episode" toggle={s.autoplayNext} onToggle={() => toggleSetting('autoplayNext')} />
         <SettingRow icon="film-outline" label="Autoplay Previews" toggle={s.autoplayPreviews} onToggle={() => toggleSetting('autoplayPreviews')} />
-
-        <SectionLabel>Notifications</SectionLabel>
-        <SettingRow icon="notifications-outline" label="Allow Notifications" toggle={s.notifications} onToggle={() => toggleSetting('notifications')} />
 
         <SectionLabel>Downloads</SectionLabel>
         <SettingRow icon="wifi-outline" label="Wi-Fi Only" toggle={s.wifiOnly} onToggle={() => toggleSetting('wifiOnly')} />
@@ -36,8 +87,13 @@ export default function AppSettingsScreen({ navigation }: Props) {
           toggle={s.smartDownloads}
           onToggle={() => toggleSetting('smartDownloads')}
         />
-        <SettingRow icon="videocam-outline" label="Download Video Quality" value="Standard" onPress={notYet} />
-        <SettingRow icon="folder-outline" label="Download Location" value="Internal Storage" onPress={notYet} />
+        <SettingRow
+          icon="download-outline"
+          label="Download Video Quality"
+          value={s.defaultDownloadQuality.toUpperCase()}
+          onPress={pickDownloadQuality}
+        />
+        <SettingRow icon="folder-outline" label="Download Location" value="Internal Storage (MythTube Album)" onPress={notYet} />
         <SettingRow
           icon="trash-outline"
           label="Delete All Downloads"

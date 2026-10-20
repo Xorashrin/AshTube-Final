@@ -46,6 +46,10 @@ export interface Title {
   quality: Quality[];
   badge?: Badge;
   comingSoon?: ComingSoon;
+  poster?: string;
+  background?: string;
+  imdbRating?: string;
+  streams?: { name: string; url: string; kind: string }[];
 }
 
 export interface Profile {
@@ -283,9 +287,9 @@ export const MAIN_PROFILE_ID = 'main';
 export const PROFILE_COLOR = '#2D6CDF';
 
 export const NOTIFICATIONS: AppNotification[] = [
-  { id: 'n1', titleId: 'ninth-oracle', kicker: 'New Episode', text: 'The Ninth Oracle', date: 'Today' },
-  { id: 'n2', titleId: 'ashen-crown', kicker: 'New Season', text: 'Ashen Crown: Season 3', date: 'Yesterday' },
-  { id: 'n3', titleId: 'last-lantern', kicker: 'New Arrival', text: 'The Last Lantern', date: 'Oct 17' },
-  { id: 'n4', titleId: 'tidebreaker', kicker: 'Coming Soon', text: 'Tidebreaker arrives Nov 7', date: 'Oct 15' },
-  { id: 'n5', titleId: 'velvet-syndicate', kicker: 'Recently Added', text: 'Velvet Syndicate', date: 'Oct 12' },
+  { id: 'n1', titleId: 'tt22084616', kicker: 'New Arrival', text: 'Spider-Man: Brand New Day', date: 'Today' },
+  { id: 'n2', titleId: 'tt34384900', kicker: 'Trending Now', text: 'Love of Your Life', date: 'Yesterday' },
+  { id: 'n3', titleId: 'tt6262770', kicker: 'New Arrival', text: 'Tenzing', date: 'Oct 17' },
+  { id: 'n4', titleId: 'tt27369017', kicker: 'Recently Added', text: 'Hope', date: 'Oct 15' },
+  { id: 'n5', titleId: 'tt15047880', kicker: 'New Release', text: 'Disclosure Day', date: 'Oct 12' },
 ];

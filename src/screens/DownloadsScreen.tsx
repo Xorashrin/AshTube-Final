@@ -9,6 +9,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { findEpisode, getTitle } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp, type DownloadEntry } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
@@ -91,7 +92,7 @@ export default function DownloadsScreen({ navigation }: Props) {
               </Txt>
             ) : null}
             {groups.map((g) => {
-              const title = getTitle(g.titleId);
+              const title = resolveTitle(g.titleId);
               const downloading = g.entries.find((e) => e.status === 'downloading');
               const failed = g.entries.find((e) => e.status === 'failed');
               const onDevice = g.entries.some((e) => e.savedToDevice);
@@ -116,7 +117,12 @@ export default function DownloadsScreen({ navigation }: Props) {
                   style={({ pressed }) => [styles.item, pressed ? { backgroundColor: colors.surface1 } : null]}
                 >
                   <View style={styles.thumb}>
-                    <Image source={img.backdrop(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+                    <Image
+                      source={(title as any).background || (title as any).poster || img.backdrop(title.seed)}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
                     {!downloading && !failed ? (
                       <View style={styles.thumbPlay}>
                         <Ionicons name="play" size={16} color={colors.text} style={{ marginLeft: 2 }} />

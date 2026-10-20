@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 
 import { MAIN_PROFILE_ID, PROFILE_COLOR, findEpisode, getTitle, type Profile } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo } from '../services/downloads';
 import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
@@ -33,12 +34,20 @@ export interface ProfileData {
   downloads: DownloadEntry[];
 }
 
+export type VideoQuality = 'auto' | '1080p' | '720p' | '480p';
+export type DownloadQuality = '1080p' | '720p' | '480p';
+
 export interface Settings {
   wifiOnly: boolean;
   smartDownloads: boolean;
   notifications: boolean;
   autoplayNext: boolean;
   autoplayPreviews: boolean;
+  swipeGestures: boolean;
+  doubleTapSeek: boolean;
+  defaultStreamingQuality: VideoQuality;
+  defaultDownloadQuality: DownloadQuality;
+  preferredLanguage: string;
 }
 
 interface State {
@@ -72,6 +81,7 @@ type Action =
   | { type: 'DOWNLOAD_FAILED'; titleId: string; episodeId?: string }
   | { type: 'DOWNLOAD_REMOVE'; titleId: string; episodeId?: string }
   | { type: 'TOGGLE_SETTING'; key: keyof Settings }
+  | { type: 'SET_SETTING'; key: keyof Settings; value: any }
   | { type: 'TOAST'; message: string }
   | { type: 'CLEAR_TOAST'; id: number };
 
@@ -90,6 +100,19 @@ const starterData: ProfileData = {
   downloads: [],
 };
 
+const defaultSettings: Settings = {
+  wifiOnly: true,
+  smartDownloads: true,
+  notifications: true,
+  autoplayNext: true,
+  autoplayPreviews: true,
+  swipeGestures: true,
+  doubleTapSeek: true,
+  defaultStreamingQuality: 'auto',
+  defaultDownloadQuality: '1080p',
+  preferredLanguage: 'English',
+};
+
 const initialState: State = {
   hydrated: false,
   authReady: false,
@@ -100,7 +123,7 @@ const initialState: State = {
   profiles: [{ id: MAIN_PROFILE_ID, name: 'You', color: PROFILE_COLOR }],
   activeProfileId: MAIN_PROFILE_ID,
   data: starterData,
-  settings: { wifiOnly: true, smartDownloads: true, notifications: true, autoplayNext: true, autoplayPreviews: true },
+  settings: defaultSettings,
   toast: null,
 };
 
@@ -120,7 +143,17 @@ function reducer(state: State, action: Action): State {
     case 'HYDRATE': {
       const saved = action.saved ?? {};
       // Sign-in state comes from Firebase, never from local storage.
-      const merged: State = { ...state, ...saved, signedIn: state.signedIn, userName: state.userName, email: state.email, authReady: state.authReady, toast: null, hydrated: true };
+      const merged: State = {
+        ...state,
+        ...saved,
+        settings: { ...defaultSettings, ...(saved.settings ?? {}) },
+        signedIn: state.signedIn,
+        userName: state.userName,
+        email: state.email,
+        authReady: state.authReady,
+        toast: null,
+        hydrated: true,
+      };
       // Downloads interrupted by an app restart cannot resume; mark them failed.
       merged.data = {
         ...merged.data,
@@ -188,6 +221,8 @@ function reducer(state: State, action: Action): State {
       }));
     case 'TOGGLE_SETTING':
       return { ...state, settings: { ...state.settings, [action.key]: !state.settings[action.key] } };
+    case 'SET_SETTING':
+      return { ...state, settings: { ...state.settings, [action.key]: action.value } };
     case 'TOAST':
       return { ...state, toast: { id: Date.now(), message: action.message } };
     case 'CLEAR_TOAST':
@@ -213,6 +248,7 @@ interface AppContextValue {
   startDownload: (titleId: string, sizeMB: number, episodeId?: string) => void;
   deleteDownload: (titleId: string, episodeId?: string) => void;
   toggleSetting: (key: keyof Settings) => void;
+  setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
   showToast: (message: string) => void;
   clearToast: (id: number) => void;
 }
@@ -242,7 +278,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const startDownload = useCallback(
     (titleId: string, sizeMB: number, episodeId?: string) => {
-      const title = getTitle(titleId);
+      const title = resolveTitle(titleId);
       const url = episodeId ? findEpisode(title, episodeId)?.episode.video ?? title.video : title.video;
       dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB });
       let last = 0;
@@ -301,6 +337,7 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
       startDownload,
       deleteDownload,
       toggleSetting: (key) => dispatch({ type: 'TOGGLE_SETTING', key }),
+      setSetting: (key, value) => dispatch({ type: 'SET_SETTING', key, value }),
       showToast,
       clearToast: (id) => dispatch({ type: 'CLEAR_TOAST', id }),
     };

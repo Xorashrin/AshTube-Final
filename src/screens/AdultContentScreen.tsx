@@ -26,7 +26,7 @@ export default function AdultContentScreen({ navigation }: Props) {
   const [confirmed, setConfirmed] = useState(false);
   const [checking, setChecking] = useState(true);
   const channels = useMemo(() => adultChannels(), []);
-  const vod = useMemo(() => adultVodTitles(60), []);
+  const vod = useMemo(() => adultVodTitles(150), []);
   const cell = Math.floor((width - layout.gutter * 2 - 8 * 2) / 3);
   const vodCell = Math.floor((width - layout.gutter * 2 - 8 * 2) / 3);
 

@@ -10,26 +10,19 @@ import { Poster } from '../components/Poster';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { searchChannels } from '../data/channels';
-import { AVAILABLE, type Title } from '../data/mock';
-import { VOD_TITLES } from '../data/vod';
+import { type Title } from '../data/mock';
+import { RESOLVED_TITLES } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, font, radius } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
-// Pre-built lowercase index so each keystroke is a cheap string scan.
-// Real backend (requirement 9): include real VOD titles from Cinemeta first.
-const INDEX = [
-  ...VOD_TITLES.map((t) => ({
-    title: t as unknown as Title,
-    haystack: [t.name, ...t.genres, ...t.cast, ...t.creators].join('|').toLowerCase(),
-  })),
-  ...AVAILABLE.map((t) => ({
-    title: t,
-    haystack: [t.name, ...t.genres, ...t.cast, ...t.moods, ...t.creators].join('|').toLowerCase(),
-  })),
-];
+// Pre-built lowercase index so each keystroke is a cheap string scan across real titles.
+const INDEX = RESOLVED_TITLES.map((t) => ({
+  title: t,
+  haystack: [t.name, ...t.genres, ...t.cast, ...t.creators].join('|').toLowerCase(),
+}));
 
 function search(query: string): Title[] {
   const q = query.trim().toLowerCase();
@@ -64,7 +57,13 @@ export default function SearchScreen({ navigation }: Props) {
     ({ item }) => (
       <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.recRow, pressed ? { backgroundColor: colors.surface2 } : null]}>
         <View style={styles.recThumb}>
-          <Image source={img.backdrop(item.seed)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.id} />
+          <Image
+            source={(item as any).background || (item as any).poster || img.backdrop(item.seed)}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={item.id}
+          />
         </View>
         <Txt weight="medium" size={14} numberOfLines={2} style={styles.recTitle}>
           {item.name}
@@ -118,7 +117,7 @@ export default function SearchScreen({ navigation }: Props) {
       {!hasQuery ? (
         <FlatList
           key="recommended"
-          data={AVAILABLE}
+          data={RESOLVED_TITLES.slice(0, 30)}
           keyExtractor={(t) => t.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"

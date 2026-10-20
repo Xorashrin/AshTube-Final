@@ -10,7 +10,7 @@ import { Button } from '../components/Buttons';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
-import { AVAILABLE } from '../data/mock';
+import { RESOLVED_TITLES } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
@@ -38,8 +38,14 @@ function Collage() {
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
       <View style={[styles.collage, { transform: [{ rotate: '-12deg' }, { scale: 1.35 }] }]}>
-        {AVAILABLE.slice(0, 18).map((t) => (
-          <Image key={t.id} source={img.poster(t.seed)} style={{ width: tile, height: tile * 1.5, margin: 3, borderRadius: 4 }} contentFit="cover" cachePolicy="memory-disk" />
+        {RESOLVED_TITLES.slice(0, 18).map((t) => (
+          <Image
+            key={t.id}
+            source={{ uri: t.poster || t.background || img.poster(t.seed) }}
+            style={{ width: tile, height: tile * 1.5, margin: 3, borderRadius: 4 }}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+          />
         ))}
       </View>
       <LinearGradient colors={['rgba(0,0,0,0.65)', 'rgba(0,0,0,0.55)', '#000000']} locations={[0, 0.45, 0.8]} style={StyleSheet.absoluteFill} />

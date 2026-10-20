@@ -4,15 +4,19 @@
 import { getTitle, type Title, type Episode, type Season } from './mock';
 import { VOD_TITLES, getVodTitle, type VodTitle } from './vod';
 import { ADULT_VOD_TITLES } from './adult_vod';
+import { buildNuvioStreams } from '../services/providers/nuvioProviders';
 
 /**
  * Convert a VodTitle (real Cinemeta metadata OR real xvideos adult scrape)
- * into the Title shape that the rest of the app expects. We synthesize one
- * "season" with one "episode" that points to the primary stream URL — so
- * the existing PlayerScreen can play it back transparently.
+ * into the Title shape that the rest of the app expects. Automatically attaches
+ * Nuvio provider multi-source streams for resilient playback.
  */
 function vodToTitle(v: VodTitle): Title {
-  const primaryVideo = v.video || (v.streams && v.streams.length > 0 ? v.streams[0].url : '');
+  const nuvioStreams = buildNuvioStreams(
+    { id: v.id, tmdbId: v.tmdb_id, kind: v.kind },
+    v.streams
+  );
+  const primaryVideo = (nuvioStreams.length > 0 ? nuvioStreams[0].url : '') || v.video;
   const episode: Episode = {
     id: `${v.id}-e1`,
     number: 1,
@@ -41,9 +45,11 @@ function vodToTitle(v: VodTitle): Title {
     tint: v.tint,
     video: primaryVideo,
     quality: v.quality as unknown as Title['quality'],
-    // Stash the full streams list on the Title so PlayerScreen can rotate
-    // through fallback sources if the primary fails. Cast through unknown.
-    streams: (v.streams ?? []) as unknown as { name: string; url: string; kind: string }[],
+    poster: v.poster,
+    background: v.background,
+    imdbRating: v.imdbRating,
+    // Full Nuvio & Master multi-source stream list
+    streams: nuvioStreams as unknown as { name: string; url: string; kind: string }[],
   } as Title;
 }
 

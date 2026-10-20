@@ -11,6 +11,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { getTitle, type Title } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { progressFor, useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
@@ -37,7 +38,7 @@ export default function MyListScreen({ navigation }: Props) {
   const cell = (width - 24 - 16) / 3;
 
   const items = useMemo(() => {
-    let list: Title[] = profileData.myList.map(getTitle);
+    let list: Title[] = profileData.myList.map(resolveTitle);
     list = list.filter((t) => {
       const started = !!progressFor(profileData, t.id);
       switch (filter) {

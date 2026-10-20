@@ -10,6 +10,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { NOTIFICATIONS, TOP10_TV, getTitle, type Title } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
@@ -74,8 +75,8 @@ export default function MyNetflixScreen() {
 
   const liked = Object.entries(profileData.ratings)
     .filter(([, r]) => r !== 'down')
-    .map(([id]) => getTitle(id));
-  const myList = profileData.myList.map(getTitle);
+    .map(([id]) => resolveTitle(id));
+  const myList = profileData.myList.map(resolveTitle);
   const downloadCount = new Set(profileData.downloads.map((d) => d.titleId)).size;
 
   const confirmSignOut = () => {

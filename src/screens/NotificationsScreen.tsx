@@ -7,7 +7,8 @@ import { ChannelLogo } from '../components/ChannelLogo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
-import { NOTIFICATIONS, getTitle } from '../data/mock';
+import { NOTIFICATIONS } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import { newsChannels, type Channel } from '../data/channels';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, layout, radius } from '../theme/tokens';
@@ -80,7 +81,8 @@ export default function NotificationsScreen({ navigation }: Props) {
         keyExtractor={(n) => n.id}
         contentContainerStyle={{ paddingBottom: 30 }}
         renderItem={({ item, index }) => {
-          const title = getTitle(item.titleId);
+          const title = resolveTitle(item.titleId);
+          const thumbUri = title.background || title.poster || img.backdrop(title.seed);
           return (
             <Pressable
               onPress={() => navigation.navigate('Title', { id: title.id })}
@@ -88,7 +90,7 @@ export default function NotificationsScreen({ navigation }: Props) {
             >
               <View style={[styles.dot, index > 1 ? { backgroundColor: 'transparent' } : null]} />
               <View style={styles.thumb}>
-                <Image source={img.backdrop(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+                <Image source={{ uri: thumbUri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
               </View>
               <View style={{ flex: 1, marginLeft: 12 }}>
                 <Txt size={13} color={colors.textMuted}>

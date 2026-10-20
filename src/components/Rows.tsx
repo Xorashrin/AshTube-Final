@@ -142,32 +142,35 @@ const CONTINUE_IMAGE_HEIGHT = 150;
 
 export const ContinueRow = memo(function ContinueRow({ title, items, onPlay, onInfo, onMore }: ContinueRowProps) {
   const renderItem = useCallback<ListRenderItem<ContinueItem>>(
-    ({ item }) => (
-      <View style={styles.continueCard}>
-        <Pressable onPress={() => onPlay(item)} style={styles.continueImage}>
-          <Image source={img.poster(item.title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={item.title.id} />
-          <View style={styles.playCircle}>
-            <Ionicons name="play" size={22} color={colors.text} style={{ marginLeft: 3 }} />
-          </View>
-          {item.label ? (
-            <View style={styles.continueLabel}>
-              <Txt weight="semibold" size={11} numberOfLines={1}>
-                {item.label}
-              </Txt>
+    ({ item }) => {
+      const posterUri = item.title.poster || item.title.background || img.poster(item.title.seed);
+      return (
+        <View style={styles.continueCard}>
+          <Pressable onPress={() => onPlay(item)} style={styles.continueImage}>
+            <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={item.title.id} />
+            <View style={styles.playCircle}>
+              <Ionicons name="play" size={22} color={colors.text} style={{ marginLeft: 3 }} />
             </View>
-          ) : null}
-        </Pressable>
-        <ProgressBar value={item.entry.position / Math.max(1, item.entry.duration)} height={2} track={colors.surface5} style={{ borderRadius: 0 }} />
-        <View style={styles.continueBar}>
-          <Pressable onPress={() => onInfo(item.title)} hitSlop={8}>
-            <Ionicons name="information-circle-outline" size={22} color={colors.textMuted} />
+            {item.label ? (
+              <View style={styles.continueLabel}>
+                <Txt weight="semibold" size={11} numberOfLines={1}>
+                  {item.label}
+                </Txt>
+              </View>
+            ) : null}
           </Pressable>
-          <Pressable onPress={() => onMore(item)} hitSlop={8}>
-            <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
-          </Pressable>
+          <ProgressBar value={item.entry.position / Math.max(1, item.entry.duration)} height={2} track={colors.surface5} style={{ borderRadius: 0 }} />
+          <View style={styles.continueBar}>
+            <Pressable onPress={() => onInfo(item.title)} hitSlop={8}>
+              <Ionicons name="information-circle-outline" size={22} color={colors.textMuted} />
+            </Pressable>
+            <Pressable onPress={() => onMore(item)} hitSlop={8}>
+              <Ionicons name="ellipsis-vertical" size={18} color={colors.textMuted} />
+            </Pressable>
+          </View>
         </View>
-      </View>
-    ),
+      );
+    },
     [onPlay, onInfo, onMore],
   );
   return (

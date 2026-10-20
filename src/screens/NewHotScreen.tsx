@@ -12,7 +12,8 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { VodRow } from '../components/VodRow';
 import { img } from '../data/images';
-import { COMING_SOON, TOP10_MOVIES, TOP10_TV, AVAILABLE, type Title } from '../data/mock';
+import { type Title } from '../data/mock';
+import { RESOLVED_TITLES } from '../data/resolveTitle';
 import { moviesChannels, seriesChannels, sportsChannels, type Channel } from '../data/channels';
 import { vodByCategory, type VodTitle } from '../data/vod';
 import { useRootNav } from '../navigation/types';
@@ -29,7 +30,21 @@ const SECTIONS: { key: SectionKey; emoji: string; label: string }[] = [
   { key: 'live', emoji: '📡', label: 'Live Right Now' },
 ];
 
-const EVERYONE = AVAILABLE.filter((t) => t.original).slice(0, 6);
+const REAL_SERIES = RESOLVED_TITLES.filter((t) => t.kind === 'series');
+const REAL_MOVIES = RESOLVED_TITLES.filter((t) => t.kind === 'movie');
+
+const COMING_REAL: Title[] = RESOLVED_TITLES.slice(10, 16).map((t, idx) => ({
+  ...t,
+  comingSoon: {
+    month: 'NOV',
+    day: String(10 + idx),
+    label: `Arrives November ${10 + idx}`,
+  },
+}));
+
+const EVERYONE = RESOLVED_TITLES.slice(0, 8);
+const TOP10_TV = REAL_SERIES.slice(0, 10);
+const TOP10_MOVIES = REAL_MOVIES.slice(0, 10);
 
 function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'coming' | 'play' }) {
   const nav = useRootNav();
@@ -39,6 +54,7 @@ function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'comin
   const mediaWidth = width - lead - 12;
   const reminded = profileData.reminders.includes(title.id);
   const inList = profileData.myList.includes(title.id);
+  const mediaUri = title.background || title.poster || img.backdrop(title.seed);
 
   return (
     <View style={styles.card}>
@@ -62,7 +78,7 @@ function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'comin
       </View>
       <View style={{ width: mediaWidth }}>
         <Pressable onPress={() => nav.navigate('Title', { id: title.id })} style={[styles.media, { height: (mediaWidth * 9) / 16 }]}>
-          <Image source={img.backdrop(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={title.id} />
+          <Image source={{ uri: mediaUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={title.id} />
           {title.original ? (
             <View style={styles.mediaLogo}>
               <MLogo size={18} />
@@ -112,7 +128,7 @@ function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'comin
           {title.synopsis}
         </Txt>
         <Txt size={12} color={colors.text90} style={{ marginTop: 8 }}>
-          {title.moods.join('  •  ')}
+          {(title.moods || []).join('  •  ')}
         </Txt>
       </View>
     </View>
@@ -142,7 +158,7 @@ export default function NewHotScreen() {
   };
 
   const sectionList: Record<SectionKey, { items: Title[]; mode: 'coming' | 'play'; ranked: boolean }> = {
-    coming: { items: COMING_SOON, mode: 'coming', ranked: false },
+    coming: { items: COMING_REAL, mode: 'coming', ranked: false },
     everyone: { items: EVERYONE, mode: 'play', ranked: false },
     tv: { items: TOP10_TV, mode: 'play', ranked: true },
     movies: { items: TOP10_MOVIES, mode: 'play', ranked: true },

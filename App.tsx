@@ -17,6 +17,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toast } from './src/components/Toast';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AppStateProvider } from './src/state/AppState';
+import { initSourceUpdater } from './src/services/sourceUpdater';
 import { colors } from './src/theme/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
@@ -45,6 +46,10 @@ export default function App() {
     BebasNeue_400Regular,
   });
   const ready = loaded || !!error;
+
+  useEffect(() => {
+    initSourceUpdater().catch(() => undefined);
+  }, []);
 
   useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);

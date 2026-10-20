@@ -28,6 +28,22 @@ const AUDIO = ['English [Original]', 'Bangla', 'Hindi', 'Spanish'];
 const SUBTITLES = ['Off', 'English', 'English [CC]', 'Bangla', 'Hindi'];
 const HIDE_AFTER = 4000;
 
+const INJECTED_AD_SHIELD = `
+  (function() {
+    try {
+      window.open = function() { return null; };
+      window.alert = function() { return null; };
+      window.confirm = function() { return false; };
+      window.prompt = function() { return null; };
+      window.onbeforeunload = null;
+      var style = document.createElement('style');
+      style.innerHTML = '.ad, .ads, [class*="banner"], [id*="banner"], [class*="pop"], [id*="pop"] { display: none !important; pointer-events: none !important; }';
+      document.head && document.head.appendChild(style);
+    } catch(e) {}
+  })();
+  true;
+`;
+
 function SeekBar({ position, duration, onSeek, onScrubChange }: { position: number; duration: number; onSeek: (t: number) => void; onScrubChange: (t: number | null) => void }) {
   const width = useRef(1);
   const start = useRef(0);
@@ -136,8 +152,74 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const [audio, setAudio] = useState(AUDIO[0]);
   const [subtitle, setSubtitle] = useState(SUBTITLES[0]);
   const [seekHint, setSeekHint] = useState<'back' | 'forward' | null>(null);
+  const [brightness, setBrightness] = useState(1.0);
+  const [volume, setVolume] = useState(1.0);
+  const [gestureHUD, setGestureHUD] = useState<{ icon: string; text: string } | null>(null);
+  const gestureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showHUD = (icon: string, text: string) => {
+    setGestureHUD({ icon, text });
+    if (gestureTimer.current) clearTimeout(gestureTimer.current);
+    gestureTimer.current = setTimeout(() => setGestureHUD(null), 1200);
+  };
+
+  const screenWidth = useRef(1);
+  const screenHeight = useRef(1);
+  const startY = useRef(0);
+  const startVal = useRef(0);
+  const isLeft = useRef(false);
+
   const latest = useRef({ position: 0, duration: 0 });
   const lastTap = useRef<{ side: 'left' | 'right'; at: number } | null>(null);
+
+  const onSurfacePress = (side: 'left' | 'right') => {
+    if (locked) {
+      setVisible(true);
+      return;
+    }
+    const nowMs = Date.now();
+    if (state.settings.doubleTapSeek && lastTap.current && lastTap.current.side === side && nowMs - lastTap.current.at < 320) {
+      seekBy(side === 'left' ? -10 : 10);
+      lastTap.current = null;
+      return;
+    }
+    lastTap.current = { side, at: nowMs };
+    setVisible((v) => !v);
+  };
+
+  const surfaceResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onStartShouldSetPanResponder: () => true,
+        onMoveShouldSetPanResponder: (_, g) => !locked && (Math.abs(g.dy) > 12 || Math.abs(g.dx) > 12),
+        onPanResponderGrant: (e) => {
+          startY.current = e.nativeEvent.pageY;
+          const touchX = e.nativeEvent.pageX;
+          isLeft.current = touchX < screenWidth.current / 2;
+          startVal.current = isLeft.current ? brightness : volume;
+        },
+        onPanResponderMove: (_, g) => {
+          if (!state.settings.swipeGestures || locked) return;
+          const delta = -g.dy / (screenHeight.current * 0.75);
+          const newVal = Math.max(0.15, Math.min(1.0, startVal.current + delta));
+          if (isLeft.current) {
+            setBrightness(newVal);
+            showHUD('weather-sunny', `Brightness ${Math.round(newVal * 100)}%`);
+          } else {
+            setVolume(newVal);
+            player.volume = newVal;
+            showHUD(newVal <= 0.05 ? 'volume-mute' : 'volume-high', `Volume ${Math.round(newVal * 100)}%`);
+          }
+        },
+        onPanResponderRelease: (e, g) => {
+          if (Math.abs(g.dx) < 10 && Math.abs(g.dy) < 10) {
+            const touchX = e.nativeEvent.pageX;
+            onSurfacePress(touchX < screenWidth.current / 2 ? 'left' : 'right');
+          }
+        },
+      }),
+    [locked, brightness, volume, state.settings.swipeGestures, player],
+  );
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     setPosition(currentTime);
@@ -191,21 +273,6 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const seekTo = useCallback((t: number) => (player.currentTime = t), [player]);
   const togglePlay = () => (isPlaying ? player.pause() : player.play());
 
-  const onSurfacePress = (side: 'left' | 'right') => {
-    if (locked) {
-      setVisible(true);
-      return;
-    }
-    const nowMs = Date.now();
-    if (lastTap.current && lastTap.current.side === side && nowMs - lastTap.current.at < 300) {
-      seekBy(side === 'left' ? -10 : 10);
-      lastTap.current = null;
-      return;
-    }
-    lastTap.current = { side, at: nowMs };
-    setVisible((v) => !v);
-  };
-
   const heading = episode && found ? `${title.name}: S${found.season.number}:E${episode.number} “${episode.name}”` : title.name;
   const showSkipIntro = title.kind === 'series' && position > 5 && position < 35;
   const showNext = !!next && duration > 0 && duration - position < 25;
@@ -224,6 +291,29 @@ export default function PlayerScreen({ navigation, route }: Props) {
             mediaPlaybackRequiresUserAction={false}
             javaScriptEnabled
             domStorageEnabled
+            injectedJavaScriptBeforeContentLoaded={INJECTED_AD_SHIELD}
+            onShouldStartLoadWithRequest={(req) => {
+              if (req.url === currentStream.url || req.mainDocumentURL === currentStream.url || !currentStream.url) {
+                return true;
+              }
+              const u = req.url.toLowerCase();
+              if (
+                u.startsWith('intent:') ||
+                u.startsWith('market:') ||
+                u.startsWith('vnd.youtube:') ||
+                u.includes('doubleclick') ||
+                u.includes('popunder') ||
+                u.includes('adsterra') ||
+                u.includes('onclick') ||
+                u.includes('redirect') ||
+                u.includes('betting') ||
+                u.includes('casino') ||
+                u.includes('traffic')
+              ) {
+                return false;
+              }
+              return true;
+            }}
             onError={() => {
               if (streamIndex + 1 < streams.length) {
                 setStreamIndex(streamIndex + 1);
@@ -242,7 +332,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
           {embedFailed ? (
             <View style={StyleSheet.absoluteFill}>
               <Txt align="center" size={14} color={colors.textMuted}>
-                Source failed. Try another.
+                Source failed. Try another server from Server & Audio.
               </Txt>
             </View>
           ) : null}
@@ -251,14 +341,32 @@ export default function PlayerScreen({ navigation, route }: Props) {
         <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />
       )}
 
-      <View style={StyleSheet.absoluteFill}>
-        <View style={styles.tapZones}>
-          <Pressable style={{ flex: 1 }} onPress={() => onSurfacePress('left')} />
-          <Pressable style={{ flex: 1 }} onPress={() => onSurfacePress('right')} />
-        </View>
-      </View>
+      {/* Dimmer overlay for swipe brightness control (0 extra permissions) */}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: '#000000', opacity: (1 - brightness) * 0.82 }]}
+      />
+
+      {/* Gesture surface tracking touches & swipes */}
+      <View
+        style={StyleSheet.absoluteFill}
+        onLayout={(e) => {
+          screenWidth.current = e.nativeEvent.layout.width;
+          screenHeight.current = e.nativeEvent.layout.height;
+        }}
+        {...surfaceResponder.panHandlers}
+      />
 
       {status === 'loading' ? <ActivityIndicator size="large" color={colors.red} style={styles.center} /> : null}
+
+      {gestureHUD ? (
+        <View pointerEvents="none" style={styles.hudBubble}>
+          <MaterialCommunityIcons name={gestureHUD.icon as any} size={24} color={colors.text} />
+          <Txt weight="bold" size={14} style={{ marginLeft: 8 }}>
+            {gestureHUD.text}
+          </Txt>
+        </View>
+      ) : null}
 
       {seekHint ? (
         <View pointerEvents="none" style={[styles.seekHint, seekHint === 'back' ? { left: '15%' } : { right: '15%' }]}>
@@ -298,7 +406,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
             <BottomAction icon="speedometer" label={`Speed (${speed}x)`} onPress={() => setPanel('speed')} />
             <BottomAction icon="lock-open-variant-outline" label="Lock" onPress={() => { setLocked(true); setUnlockArmed(false); }} />
             {title.kind === 'series' ? <BottomAction icon="cards-outline" label="Episodes" onPress={() => setPanel('episodes')} /> : null}
-            <BottomAction icon="subtitles-outline" label="Audio & Subtitles" onPress={() => setPanel('audio')} />
+            <BottomAction icon="server-network" label="Server & Audio" onPress={() => setPanel('audio')} />
             {next ? <BottomAction icon="skip-next" label="Next Ep." onPress={() => navigation.replace('Player', { id: title.id, episodeId: next.id })} /> : null}
           </View>
         </View>
@@ -376,27 +484,83 @@ export default function PlayerScreen({ navigation, route }: Props) {
           ) : null}
 
           {panel === 'audio' ? (
-            <View style={[styles.audioWrap, { paddingLeft: insets.left + 60, paddingRight: insets.right + 60 }]}>
-              {[
-                { heading: 'Audio', options: AUDIO, value: audio, set: setAudio },
-                { heading: 'Subtitles', options: SUBTITLES, value: subtitle, set: setSubtitle },
-              ].map((col) => (
-                <View key={col.heading} style={{ flex: 1 }}>
-                  <Txt weight="bold" size={20} style={{ marginBottom: 16 }}>
-                    {col.heading}
-                  </Txt>
-                  <ScrollView>
-                    {col.options.map((o) => (
-                      <Pressable key={o} onPress={() => col.set(o)} style={styles.audioOption}>
-                        <View style={{ width: 26 }}>{o === col.value ? <Ionicons name="checkmark" size={20} color={colors.text} /> : null}</View>
-                        <Txt weight={o === col.value ? 'bold' : 'regular'} size={16} color={o === col.value ? colors.text : colors.textMuted}>
-                          {o}
+            <View style={[styles.audioWrap, { paddingLeft: insets.left + 30, paddingRight: insets.right + 30 }]}>
+              {/* Column 1: Multi-Server Streaming Source */}
+              <View style={{ flex: 1.3, marginRight: 16 }}>
+                <Txt weight="bold" size={18} style={{ marginBottom: 14 }}>
+                  Streaming Server
+                </Txt>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {streams.map((s, idx) => (
+                    <Pressable
+                      key={s.name + idx}
+                      onPress={() => {
+                        setStreamIndex(idx);
+                        setEmbedFailed(false);
+                        showToast(`Switched server: ${s.name}`);
+                      }}
+                      style={styles.audioOption}
+                    >
+                      <View style={{ width: 24 }}>
+                        {idx === streamIndex ? <Ionicons name="checkmark" size={20} color={colors.text} /> : null}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Txt weight={idx === streamIndex ? 'bold' : 'regular'} size={15} color={idx === streamIndex ? colors.text : colors.textMuted} numberOfLines={1}>
+                          {s.name}
                         </Txt>
-                      </Pressable>
-                    ))}
-                  </ScrollView>
-                </View>
-              ))}
+                        <Txt size={11} color={colors.textDim}>
+                          {(s as any).quality || 'HD'} • {(s as any).language || 'Multi-Audio'}
+                        </Txt>
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Column 2: Audio Language */}
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Txt weight="bold" size={18} style={{ marginBottom: 14 }}>
+                  Audio Language
+                </Txt>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {AUDIO.map((o) => (
+                    <Pressable
+                      key={o}
+                      onPress={() => {
+                        setAudio(o);
+                        showToast(`Audio set to ${o}`);
+                      }}
+                      style={styles.audioOption}
+                    >
+                      <View style={{ width: 24 }}>
+                        {o === audio ? <Ionicons name="checkmark" size={20} color={colors.text} /> : null}
+                      </View>
+                      <Txt weight={o === audio ? 'bold' : 'regular'} size={15} color={o === audio ? colors.text : colors.textMuted}>
+                        {o}
+                      </Txt>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
+
+              {/* Column 3: Subtitles */}
+              <View style={{ flex: 0.9 }}>
+                <Txt weight="bold" size={18} style={{ marginBottom: 14 }}>
+                  Subtitles
+                </Txt>
+                <ScrollView showsVerticalScrollIndicator={false}>
+                  {SUBTITLES.map((o) => (
+                    <Pressable key={o} onPress={() => setSubtitle(o)} style={styles.audioOption}>
+                      <View style={{ width: 24 }}>
+                        {o === subtitle ? <Ionicons name="checkmark" size={20} color={colors.text} /> : null}
+                      </View>
+                      <Txt weight={o === subtitle ? 'bold' : 'regular'} size={15} color={o === subtitle ? colors.text : colors.textMuted}>
+                        {o}
+                      </Txt>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </View>
             </View>
           ) : null}
 
@@ -468,6 +632,20 @@ const styles = StyleSheet.create({
   speedDotActive: { width: 24, height: 24, borderRadius: 12, marginTop: 0, backgroundColor: colors.text },
   audioWrap: { flex: 1, flexDirection: 'row', paddingTop: 60, paddingBottom: 30 },
   audioOption: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10 },
+  hudBubble: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: 36,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.25)',
+    zIndex: 10,
+  },
   epThumb: { width: 220, height: 124, borderRadius: 4, overflow: 'hidden', backgroundColor: colors.surface2, borderWidth: 2, borderColor: 'transparent' },
   epThumbActive: { borderColor: colors.text },
 });

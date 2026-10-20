@@ -30,12 +30,13 @@ interface PosterProps {
 export const Poster = memo(function Poster({ title, width = POSTER.width, height = POSTER.height, onPress, showBadges = true }: PosterProps) {
   const rank = showBadges ? top10Rank(title.id) : null;
   const titleSize = Math.max(14, Math.round(width / 5.2));
+  const imageSource = (title as any).poster || (title as any).background || img.poster(title.seed);
   return (
     <Pressable
       onPress={onPress ? () => onPress(title) : undefined}
       style={({ pressed }) => [styles.frame, { width, height, opacity: pressed ? 0.85 : 1 }]}
     >
-      <Image source={img.poster(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={title.id} />
+      <Image source={imageSource} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={title.id} />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.25)', 'rgba(0,0,0,0.9)']} locations={[0.35, 0.6, 1]} style={StyleSheet.absoluteFill} />
       {title.original ? (
         <View style={styles.logo}>

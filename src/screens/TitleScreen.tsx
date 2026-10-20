@@ -13,8 +13,8 @@ import { Poster } from '../components/Poster';
 import { PickerOverlay } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
-import { AVAILABLE, findEpisode, getTitle, top10Rank, type Episode, type Title } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
+import { findEpisode, getTitle, top10Rank, type Episode, type Title } from '../data/mock';
+import { resolveTitle, RESOLVED_TITLES } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp, type Rating } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
@@ -123,7 +123,7 @@ export default function TitleScreen({ navigation, route }: Props) {
   const season = title.seasons.find((s) => s.number === seasonNumber) ?? title.seasons[0];
   const movieDownload = title.kind === 'movie' ? downloadFor(profileData, title.id) : undefined;
   const similar = useMemo(
-    () => AVAILABLE.filter((t) => t.id !== title.id && t.genres.some((g) => title.genres.includes(g))).slice(0, 12),
+    () => RESOLVED_TITLES.filter((t) => t.id !== title.id && t.genres.some((g) => title.genres.includes(g))).slice(0, 12),
     [title],
   );
   const tabs: { key: Tab; label: string }[] = [
@@ -157,7 +157,13 @@ export default function TitleScreen({ navigation, route }: Props) {
     <View style={styles.root}>
       <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
         <Pressable onPress={() => play(target?.episode.id)} style={{ width, height: (width * 9) / 16 }}>
-          <Image source={img.backdrop(title.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} cachePolicy="memory-disk" />
+          <Image
+            source={(title as any).background || (title as any).poster || img.backdrop(title.seed)}
+            style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+          />
           <LinearGradient colors={['rgba(0,0,0,0.35)', 'transparent', 'rgba(0,0,0,0.5)']} style={StyleSheet.absoluteFill} />
           <View style={styles.heroPlay}>
             <Ionicons name="play" size={30} color={colors.text} style={{ marginLeft: 4 }} />
