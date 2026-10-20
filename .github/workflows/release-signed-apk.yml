@@ -1,0 +1,75 @@
+name: Sign and Publish Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'GitHub Actions Run ID to sign'
+        required: true
+        default: '39484802415'
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  sign-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Download artifact from run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh run download ${{ inputs.run_id }} -R ${{ github.repository }} -n MythTube-apk --dir /tmp/artifact
+          ls -lh /tmp/artifact
+
+      - name: Sign APK with APK Signature Scheme v2/v3
+        run: |
+          cd /tmp/artifact
+          if [ -f app-release.apk ]; then
+            APK_FILE="app-release.apk"
+          else
+            APK_FILE=$(find . -name "*.apk" | head -n 1)
+          fi
+          echo "Found APK: $APK_FILE"
+
+          # Generate signing keystore
+          keytool -genkey -v -keystore release.keystore -storepass android -alias mythtubekey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=MythTube,O=MythTube,C=US"
+
+          # Locate apksigner in Android SDK
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
+          echo "Using apksigner: $APKSIGNER"
+
+          # Sign APK
+          $APKSIGNER sign --ks release.keystore --ks-key-alias mythtubekey --ks-pass pass:android --key-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out MythTube.apk "$APK_FILE"
+
+          # Verify signatures
+          $APKSIGNER verify --verbose MythTube.apk
+          ls -lh MythTube.apk
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 /tmp/artifact/MythTube.apk \
+            --repo ${{ github.repository }} \
+            --title "MythTube v1.0.0 - Official Release" \
+            --notes "### MythTube v1.0.0 - Official Release APK
+
+Official release package for MythTube Android (arm64-v8a).
+
+#### Key Features & Highlights:
+- **Zero Fake Content:** Only 100% verified playable titles with authentic TMDB artwork.
+- **Nuvio Provider Engine:** Multi-server streaming from VidSrc.pk, VixSrc, VidEasy, MultiEmbed, 2Embed, and VidAPI with automatic failover.
+- **Dynamic Mirror Sync:** Automatically updates streaming domain mirrors from GitHub manifests without requiring APK updates.
+- **In-App Gesture Controls:** Swipe brightness (software dimmer), swipe volume, double-tap seek (10s), scrubbable timeline seekbar, speed control, and screen lock.
+- **Server & Audio Language Drawer:** 3-column drawer to easily switch streaming servers, multi-audio tracks (English, Hindi, Bengali, Spanish), and subtitles.
+- **Ad & Redirect Shield:** Embedded player neutralizes popups, alerts, and external browser redirect hijacks.
+- **Adult Content Section:** Verified adult VOD catalog with age gate and ad shield.
+- **Properly Signed:** Fully signed with APK Signature Schemes v1, v2, and v3 for clean installation on all Android devices." \
+            --clobber

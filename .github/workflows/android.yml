@@ -9,6 +9,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v5
 
@@ -37,7 +40,26 @@ jobs:
         working-directory: android
         run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
 
+      - name: Sign APK with APK Signature Scheme v2/v3
+        run: |
+          APK_PATH=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          echo "Found APK: $APK_PATH"
+          keytool -genkey -v -keystore release.keystore -storepass android -alias mythtubekey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=MythTube,O=MythTube,C=US"
+          APKSIGNER=$(find $ANDROID_HOME/build-tools -name apksigner | sort -V | tail -n 1)
+          $APKSIGNER sign --ks release.keystore --ks-key-alias mythtubekey --ks-pass pass:android --key-pass pass:android --v1-signing-enabled true --v2-signing-enabled true --v3-signing-enabled true --out android/app/build/outputs/apk/release/MythTube.apk "$APK_PATH"
+          $APKSIGNER verify --verbose android/app/build/outputs/apk/release/MythTube.apk
+
       - uses: actions/upload-artifact@v5
         with:
           name: MythTube-apk
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/release/MythTube.apk
+
+      - name: Publish to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create v1.0.0 android/app/build/outputs/apk/release/MythTube.apk \
+            --repo ${{ github.repository }} \
+            --title "MythTube v1.0.0 - Official Release" \
+            --notes "MythTube Official Android Release (arm64-v8a). Includes all working backends, Nuvio plugins, player swipe gestures, ad shield, and 100% verified playable content." \
+            --clobber
