@@ -130,12 +130,9 @@ export default function AdultContentScreen({ navigation }: Props) {
           </View>
         }
         renderItem={({ item }: { item: VodTitle }) => (
-          <Pressable
-            onPress={() => openVod(item)}
-            style={({ pressed }) => [{ width: vodCell, opacity: pressed ? 0.7 : 1 }]}
-          >
+          <View style={{ width: vodCell }}>
             <VodPoster title={item} width={vodCell} height={vodCell * 1.45} onPress={openVod} />
-          </Pressable>
+          </View>
         )}
         ListFooterComponent={
           channels.length > 0 ? (

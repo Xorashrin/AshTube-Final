@@ -61,5 +61,6 @@ jobs:
           gh release create v1.0.0 android/app/build/outputs/apk/release/MythTube.apk \
             --repo ${{ github.repository }} \
             --title "MythTube v1.0.0 - Official Release" \
-            --notes "MythTube Official Android Release (arm64-v8a). Includes all working backends, Nuvio plugins, player swipe gestures, ad shield, and 100% verified playable content." \
-            --clobber
+            --notes "MythTube Official Android Release (arm64-v8a). Includes all working backends, Nuvio plugins, player swipe gestures, ad shield, and 100% verified playable content." || \
+          gh release upload v1.0.0 android/app/build/outputs/apk/release/MythTube.apk \
+            --repo ${{ github.repository }} --clobber
