@@ -8,10 +8,12 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { findEpisode, getTitle, nextEpisode } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -91,13 +93,30 @@ function BottomAction({ icon, label, onPress }: { icon: MciName; label: string; 
 export default function PlayerScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { setProgress, state, showToast, profileData } = useApp();
-  const title = getTitle(route.params.id);
+  const title = resolveTitle(route.params.id);
   const found = title.kind === 'series' ? findEpisode(title, route.params.episodeId) : null;
   const episode = found?.episode;
   const next = episode ? nextEpisode(title, episode.id) : null;
   const offline = downloadFor(profileData, title.id, episode?.id);
   // Prefer the downloaded file so playback works offline.
-  const source = offline?.status === 'downloaded' && offline.localUri ? offline.localUri : episode?.video ?? title.video;
+  const fileSource = offline?.status === 'downloaded' && offline.localUri ? offline.localUri : episode?.video ?? title.video;
+
+  // Multi-source rotation (requirement: full-movie backend).
+  // `title.streams` carries a list of {name, url, kind} objects — for
+  // Cinemeta-backed titles we have 2embed + multiembed + vidsrc + trailer;
+  // for adult titles we have the xvideos embed. PlayerScreen tries each
+  // source in order until one loads without an error.
+  const streams = useMemo(() => {
+    const s = (title as unknown as { streams?: { name: string; url: string; kind: string }[] }).streams ?? [];
+    // Always include the primary fileSource as a candidate
+    return [{ name: 'primary', url: fileSource, kind: fileSource.endsWith('.m3u8') || fileSource.endsWith('.mp4') ? 'hls' : 'embed' }, ...s];
+  }, [fileSource, title]);
+  const [streamIndex, setStreamIndex] = useState(0);
+  const [embedFailed, setEmbedFailed] = useState(false);
+  const currentStream = streams[streamIndex] ?? streams[0];
+  const isEmbed = currentStream && currentStream.kind === 'embed';
+  // Pick the HLS/mp4 URL only when NOT an embed — we feed it to the native video player.
+  const source = isEmbed ? null : fileSource;
 
   const player = useVideoPlayer(source, (p) => {
     p.timeUpdateEventInterval = 0.5;
@@ -195,7 +214,42 @@ export default function PlayerScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />
+      {isEmbed && currentStream?.url ? (
+        <View style={StyleSheet.absoluteFill}>
+          <WebView
+            source={{ uri: currentStream.url }}
+            style={StyleSheet.absoluteFill}
+            allowsFullscreenVideo
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            javaScriptEnabled
+            domStorageEnabled
+            onError={() => {
+              if (streamIndex + 1 < streams.length) {
+                setStreamIndex(streamIndex + 1);
+                showToast(`Switching source: ${streams[streamIndex + 1].name}`);
+              } else {
+                setEmbedFailed(true);
+                showToast('All sources failed');
+              }
+            }}
+            renderLoading={() => (
+              <View style={StyleSheet.absoluteFill}>
+                <ActivityIndicator size="large" color={colors.text} />
+              </View>
+            )}
+          />
+          {embedFailed ? (
+            <View style={StyleSheet.absoluteFill}>
+              <Txt align="center" size={14} color={colors.textMuted}>
+                Source failed. Try another.
+              </Txt>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit="contain" nativeControls={false} />
+      )}
 
       <View style={StyleSheet.absoluteFill}>
         <View style={styles.tapZones}>

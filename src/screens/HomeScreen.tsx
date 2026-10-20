@@ -6,6 +6,7 @@ import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnim
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Billboard } from '../components/Billboard';
+import { ChannelRow } from '../components/ChannelRow';
 import { Chip } from '../components/Chip';
 import { SheetItem } from '../components/ListItems';
 import { ContinueRow, PosterRow, Top10Row, type ContinueItem } from '../components/Rows';
@@ -13,7 +14,10 @@ import { HeaderActions } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { TALL_POSTER } from '../components/Poster';
 import { Txt } from '../components/Txt';
+import { VodRow } from '../components/VodRow';
 import { AVAILABLE, TOP10_MOVIES, TOP10_TV, findEpisode, getTitle, type Title } from '../data/mock';
+import { moviesChannels, seriesChannels, newsChannels, sportsChannels, type Channel } from '../data/channels';
+import { VOD_TITLES, vodByCategory, getVodTitle, type VodTitle } from '../data/vod';
 import { useRootNav, type TabParamList } from '../navigation/types';
 import { useApp, type ProfileData } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
@@ -140,6 +144,25 @@ export default function HomeScreen({ route, navigation }: Props) {
 
   const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
   const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
+  const openChannel = useCallback((c: Channel) => nav.navigate('Live', { channelId: c.id, filter: 'All' }), [nav]);
+  // Real VOD backend (requirement 9) — every title below is real, scraped from
+  // Stremio Cinemeta catalog with TMDB-backed posters + YouTube trailers.
+  // No fake demo titles anymore.
+  const vodMovies = useMemo(() => vodByCategory('Movies', 18), []);
+  const vodSeries = useMemo(() => vodByCategory('Series', 18), []);
+  const vodAnime = useMemo(() => vodByCategory('Anime', 18), []);
+  const vodCartoon = useMemo(() => vodByCategory('Cartoon', 18), []);
+  const vodKids = useMemo(() => vodByCategory('Kids', 18), []);
+  const vodSciFi = useMemo(() => vodByCategory('Sci-Fi', 18), []);
+  const vodDoc = useMemo(() => vodByCategory('Documentary', 18), []);
+  const openVod = useCallback(
+    (t: VodTitle) => nav.navigate('Title', { id: t.id }),
+    [nav],
+  );
+  const liveMovies = useMemo(() => moviesChannels(20), []);
+  const liveSeries = useMemo(() => seriesChannels(15), []);
+  const liveNews = useMemo(() => newsChannels(15), []);
+  const liveSports = useMemo(() => sportsChannels(15), []);
   const clearFilters = () => {
     setFilter('all');
     navigation.setParams({ genre: undefined });
@@ -193,6 +216,20 @@ export default function HomeScreen({ route, navigation }: Props) {
               );
           }
         })}
+        {/* Real VOD backend — every title below is real, with real posters */}
+        <VodRow title="🔥 Trending Movies" items={vodMovies} onPressTitle={openVod} />
+        <VodRow title="📺 Trending Series" items={vodSeries} onPressTitle={openVod} />
+        <VodRow title="🚀 Sci-Fi Picks" items={vodSciFi} onPressTitle={openVod} />
+        <VodRow title="🎨 Cartoons" items={vodCartoon} onPressTitle={openVod} />
+        <VodRow title="✨ Anime" items={vodAnime} onPressTitle={openVod} />
+        <VodRow title="👨‍👩‍👧 Kids & Family" items={vodKids} onPressTitle={openVod} />
+        <VodRow title="🎬 Documentaries" items={vodDoc} onPressTitle={openVod} />
+
+        {/* Real IPTV backend — live channels parsed from scraped data */}
+        <ChannelRow title="🔴 Live Movie Channels" items={liveMovies} onPressChannel={openChannel} />
+        <ChannelRow title="🔴 Live Series Channels" items={liveSeries} onPressChannel={openChannel} />
+        <ChannelRow title="🔴 Live News Channels" items={liveNews} onPressChannel={openChannel} onSeeAll={() => nav.navigate('Notifications')} />
+        <ChannelRow title="🔴 Live Sports Channels" items={liveSports} onPressChannel={openChannel} onSeeAll={() => nav.navigate('Main', { screen: 'TV' } as any)} />
       </Animated.ScrollView>
 
       <Animated.View style={[styles.header, headerStyle]}>

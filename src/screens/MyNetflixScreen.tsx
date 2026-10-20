@@ -115,6 +115,14 @@ export default function MyNetflixScreen() {
           detail={downloadCount > 0 ? `${downloadCount} ${downloadCount === 1 ? 'title' : 'titles'}` : undefined}
           onPress={() => nav.navigate('Downloads')}
         />
+        {/* Adult Content entry point (requirement 9) */}
+        <MenuRow
+          icon="flame"
+          color="#9B2C5A"
+          label="Adult Content"
+          detail="18+"
+          onPress={() => nav.navigate('AdultContent')}
+        />
 
         {liked.length > 0 ? <SharedRow title="TV Shows & Movies You've Liked" items={liked} onPress={open} /> : null}
         {myList.length > 0 ? <SharedRow title="My List" items={myList} onPress={open} onSeeAll={() => nav.navigate('MyList')} /> : null}

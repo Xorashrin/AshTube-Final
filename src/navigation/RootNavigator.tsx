@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import React from 'react';
 
 import AppSettingsScreen from '../screens/AppSettingsScreen';
+import AdultContentScreen from '../screens/AdultContentScreen';
 import CategoriesScreen from '../screens/CategoriesScreen';
 import DownloadsScreen from '../screens/DownloadsScreen';
 import LandingScreen from '../screens/LandingScreen';
@@ -57,6 +58,7 @@ export function RootNavigator() {
       <Stack.Screen name="Downloads" component={DownloadsScreen} />
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
+      <Stack.Screen name="AdultContent" component={AdultContentScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

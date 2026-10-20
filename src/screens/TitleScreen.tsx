@@ -14,6 +14,7 @@ import { PickerOverlay } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { AVAILABLE, findEpisode, getTitle, top10Rank, type Episode, type Title } from '../data/mock';
+import { resolveTitle } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp, type Rating } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
@@ -101,7 +102,7 @@ function EpisodeRow({ title, episode, onPlay }: { title: Title; episode: Episode
 }
 
 export default function TitleScreen({ navigation, route }: Props) {
-  const title = getTitle(route.params.id);
+  const title = resolveTitle(route.params.id);
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const { profileData, toggleMyList, rate, toggleReminder, startDownload, showToast } = useApp();

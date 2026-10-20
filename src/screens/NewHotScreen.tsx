@@ -5,23 +5,28 @@ import { Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions, ty
 import Svg, { Text as SvgText } from 'react-native-svg';
 
 import { IconAction } from '../components/Buttons';
+import { ChannelRow } from '../components/ChannelRow';
 import { Chip } from '../components/Chip';
 import { MLogo } from '../components/Logo';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
+import { VodRow } from '../components/VodRow';
 import { img } from '../data/images';
 import { COMING_SOON, TOP10_MOVIES, TOP10_TV, AVAILABLE, type Title } from '../data/mock';
+import { moviesChannels, seriesChannels, sportsChannels, type Channel } from '../data/channels';
+import { vodByCategory, type VodTitle } from '../data/vod';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, font, layout, radius } from '../theme/tokens';
 
-type SectionKey = 'coming' | 'everyone' | 'tv' | 'movies';
+type SectionKey = 'coming' | 'everyone' | 'tv' | 'movies' | 'live';
 
 const SECTIONS: { key: SectionKey; emoji: string; label: string }[] = [
   { key: 'coming', emoji: '🍿', label: 'Coming Soon' },
   { key: 'everyone', emoji: '🔥', label: "Everyone's Watching" },
   { key: 'tv', emoji: '🔟', label: 'Top 10 TV Shows' },
   { key: 'movies', emoji: '🔟', label: 'Top 10 Movies' },
+  { key: 'live', emoji: '📡', label: 'Live Right Now' },
 ];
 
 const EVERYONE = AVAILABLE.filter((t) => t.original).slice(0, 6);
@@ -115,8 +120,9 @@ function Card({ title, rank, mode }: { title: Title; rank?: number; mode: 'comin
 }
 
 export default function NewHotScreen() {
+  const nav = useRootNav();
   const scrollRef = useRef<React.ComponentRef<typeof ScrollView>>(null);
-  const offsets = useRef<Record<SectionKey, number>>({ coming: 0, everyone: 0, tv: 0, movies: 0 });
+  const offsets = useRef<Record<SectionKey, number>>({ coming: 0, everyone: 0, tv: 0, movies: 0, live: 0 });
   const [active, setActive] = useState<SectionKey>('coming');
   const jumping = useRef(false);
 
@@ -140,7 +146,21 @@ export default function NewHotScreen() {
     everyone: { items: EVERYONE, mode: 'play', ranked: false },
     tv: { items: TOP10_TV, mode: 'play', ranked: true },
     movies: { items: TOP10_MOVIES, mode: 'play', ranked: true },
+    live: { items: [], mode: 'play', ranked: false },
   };
+
+  // Real backend — IPTV channels parsed from the scraped + validated channels.json.
+  const liveMovies = moviesChannels(12);
+  const liveSeries = seriesChannels(12);
+  const liveSports = sportsChannels(12);
+  const openChannel = (c: Channel) => nav.navigate('Live', { channelId: c.id, filter: 'All' });
+  // Real VOD backend — every title is real, scraped from Cinemeta.
+  const vodMovies = vodByCategory('Movies', 18);
+  const vodSeries = vodByCategory('Series', 18);
+  const vodAnime = vodByCategory('Anime', 18);
+  const vodCartoon = vodByCategory('Cartoon', 18);
+  const vodKids = vodByCategory('Kids', 18);
+  const openVod = (t: VodTitle) => nav.navigate('Title', { id: t.id });
 
   return (
     <View style={styles.root}>
@@ -161,9 +181,22 @@ export default function NewHotScreen() {
                 {s.label}
               </Txt>
             </View>
-            {sectionList[s.key].items.map((t, i) => (
-              <Card key={`${s.key}-${t.id}`} title={t} mode={sectionList[s.key].mode} rank={sectionList[s.key].ranked ? i + 1 : undefined} />
-            ))}
+            {s.key === 'live' ? (
+              <View>
+                <VodRow title="🔥 Hot Movies" items={vodMovies} onPressTitle={openVod} />
+                <VodRow title="📺 Binge-Worthy Series" items={vodSeries} onPressTitle={openVod} />
+                <VodRow title="🎨 Trending Cartoons" items={vodCartoon} onPressTitle={openVod} />
+                <VodRow title="✨ New Anime" items={vodAnime} onPressTitle={openVod} />
+                <VodRow title="👨‍👩‍👧 Family Picks" items={vodKids} onPressTitle={openVod} />
+                <ChannelRow title="Live Movies" items={liveMovies} onPressChannel={openChannel} />
+                <ChannelRow title="Live Series" items={liveSeries} onPressChannel={openChannel} />
+                <ChannelRow title="Live Sports" items={liveSports} onPressChannel={openChannel} />
+              </View>
+            ) : (
+              sectionList[s.key].items.map((t, i) => (
+                <Card key={`${s.key}-${t.id}`} title={t} mode={sectionList[s.key].mode} rank={sectionList[s.key].ranked ? i + 1 : undefined} />
+              ))
+            )}
           </View>
         ))}
         <View style={{ height: 40 }} />

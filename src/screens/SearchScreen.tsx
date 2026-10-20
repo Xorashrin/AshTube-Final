@@ -11,6 +11,7 @@ import { Txt } from '../components/Txt';
 import { img } from '../data/images';
 import { searchChannels } from '../data/channels';
 import { AVAILABLE, type Title } from '../data/mock';
+import { VOD_TITLES } from '../data/vod';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, font, radius } from '../theme/tokens';
@@ -18,10 +19,17 @@ import { colors, font, radius } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
 // Pre-built lowercase index so each keystroke is a cheap string scan.
-const INDEX = AVAILABLE.map((t) => ({
-  title: t,
-  haystack: [t.name, ...t.genres, ...t.cast, ...t.moods, ...t.creators].join('|').toLowerCase(),
-}));
+// Real backend (requirement 9): include real VOD titles from Cinemeta first.
+const INDEX = [
+  ...VOD_TITLES.map((t) => ({
+    title: t as unknown as Title,
+    haystack: [t.name, ...t.genres, ...t.cast, ...t.creators].join('|').toLowerCase(),
+  })),
+  ...AVAILABLE.map((t) => ({
+    title: t,
+    haystack: [t.name, ...t.genres, ...t.cast, ...t.moods, ...t.creators].join('|').toLowerCase(),
+  })),
+];
 
 function search(query: string): Title[] {
   const q = query.trim().toLowerCase();

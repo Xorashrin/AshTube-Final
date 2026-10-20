@@ -23,8 +23,11 @@ CATEGORY_MAP = {
     "cartoon": "Kids", "animation": "Kids", "kids": "Kids", "anime": "Kids",
     "news": "News", "music": "Music", "movies": "Movies", "series": "Series",
     "entertainment": "Entertainment", "documentary": "Documentary", "education": "Education",
+    "adult": "Adult", "xxx": "Adult", "porn": "Adult", "erotic": "Adult",
     "general": "General", "undefined": "General",
 }
+# Keyword detection for Adult-category channels that don't carry the group label.
+ADULT_KW = re.compile(r"\b(adult|xxx|porn|erotic|sex|playboy|hustler|brazzers|redlight|babes|nude|18\+|hot ?club|venus|private tv|dorcel|vivid|music box sexy|pink tv|blue hustler|extreme|babes tv|jasmin tv)\b", re.I)
 UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 14) MythTube/1.0"}
 
 
@@ -42,10 +45,13 @@ def parse(path):
     return out
 
 
-def classify(group):
+def classify(group, name=""):
     parts = [p.strip() for p in group.split("|")]
     country = parts[0] if len(parts) > 1 and parts[0] in ("Bangladesh", "India", "International") else "International"
     raw = parts[-1].split(";")[0].strip().lower()
+    # Adult category is detected from group label OR from name keywords
+    if raw == "adult" or (ADULT_KW.search(name or "") and raw in ("general", "undefined", "")):
+        return country, "Adult"
     return country, CATEGORY_MAP.get(raw, "General")
 
 
@@ -119,8 +125,7 @@ def main(src, dst):
     kept = []
     for e in entries:
         group = e["attrs"].get("group-title", "")
-        if "adult" in group.lower() or ADULT.search(e["name"]) or ADULT.search(e["attrs"].get("tvg-id", "")):
-            continue
+        # Requirement: include Adult content category, so don't filter adult out anymore.
         if TAGS.search(e["name"]) or not e["url"].startswith(("http://", "https://")):
             continue
         kept.append(e)
@@ -145,7 +150,7 @@ def main(src, dst):
         if not working:
             continue
         best = working[0]
-        country, category = classify(best["attrs"].get("group-title", ""))
+        country, category = classify(best["attrs"].get("group-title", ""), best["name"])
         m = RES.search(best["name"])
         logo = best["attrs"].get("tvg-logo", "")
         if not logo_ok.get(logo):

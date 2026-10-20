@@ -23,6 +23,8 @@ export type RootStackParamList = {
   Downloads: undefined;
   Notifications: undefined;
   AppSettings: undefined;
+  // Dedicated Adult Content screen (requirement 9)
+  AdultContent: undefined;
 };
 
 export type RootNav = NativeStackNavigationProp<RootStackParamList>;
