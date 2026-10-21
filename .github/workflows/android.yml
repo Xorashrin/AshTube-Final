@@ -46,33 +46,32 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: Build release APKs (every CPU architecture, minified)
+      - name: Build release APK (arm64-v8a + armeabi-v7a in one file)
         working-directory: android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64 --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a --no-daemon
 
-      - name: Collect and verify APKs
+      - name: Collect and verify the APK
         run: |
           mkdir -p dist
-          for f in $(find android/app/build/outputs/apk/release -name "*.apk"); do
-            name=$(basename "$f" .apk)
-            abi=${name#app-}; abi=${abi%-release}
-            [ "$abi" = "release" ] && abi=universal
-            cp "$f" "dist/MythTube-$abi.apk"
-          done
+          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          cp "$APK" dist/MythTube.apk
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
-          for f in dist/*.apk; do "$APKSIGNER" verify "$f" && ls -l "$f"; done
+          "$APKSIGNER" verify --verbose dist/MythTube.apk
+          AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -n 1)"
+          "$AAPT" dump badging dist/MythTube.apk | grep -E "package:|sdkVersion|native-code"
+          ls -l dist/MythTube.apk
 
       - uses: actions/upload-artifact@v5
         with:
           name: MythTube-apk
-          path: dist/*.apk
+          path: dist/MythTube.apk
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v2.0.${{ github.run_number }}"
-          gh release create "$TAG" dist/*.apk \
+          gh release create "$TAG" dist/MythTube.apk \
             --repo "${{ github.repository }}" \
             --title "MythTube $TAG" \
-            --notes "Most phones: MythTube-arm64-v8a.apk. Older 32-bit phones: MythTube-armeabi-v7a.apk. Emulators / Chromebooks: x86 or x86_64. Unsure: MythTube-universal.apk. Built from ${{ github.sha }}."
+            --notes "One APK for every Android phone and tablet (32-bit and 64-bit ARM). Built from ${{ github.sha }}."

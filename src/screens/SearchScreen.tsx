@@ -18,7 +18,7 @@ import { colors, font, radius } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
-const RECOMMENDED_ROWS = rowsByKey('bd-bangla', 'cm-series', 'cm-movies');
+const RECOMMENDED_ROWS = rowsByKey('cm-series', 'cm-movies');
 const ANIME_RECOMMENDED = ANIME_ROWS.slice(1, 3);
 
 function matchKind(t: Title, kind?: 'movie' | 'series' | 'anime') {

@@ -6,7 +6,7 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 
 | Feature | How it works |
 |---|---|
-| **Home** | Live rows, Bangladeshi content first, cached for an instant open and refreshed on foreground / pull-to-refresh. Titles from the last 72 h get a **New** badge. Titles that no source can play are hidden (checked quietly in the background and remembered). |
+| **Home** | A billboard, your Continue Watching and My List, the main rows, then an **endless feed** that keeps adding genre and category rows (Cinemeta, southfreak, AniList, in successive pages) as you scroll. Cached for an instant open. Titles from the last 72 h get a **New** badge. Titles that no source can play are hidden (checked quietly in the background and remembered). |
 | **Anime tab** | AniList discovery: airing this week, trending, this season, popular, top rated, movies, next season and 16 genres with endless scrolling. Playback uses the anime plugins (KickAssAnime, AniZone, AnimePahe, AnimeKai, HiAnime, AllWish, Tokyo Insider and more) with AniList → TMDB season mapping through arm.haglund.dev and api.ani.zip. |
 | **Updates** | On every start the app applies and refreshes `config/sources.json` from this repository (new plugin repos, new BDIX servers, kill-switches), reloads plugin manifests and pre-downloads the best-ranked plugin scripts, so new sources reach installs without a new APK. |
 | **Search** | Fans out to every source in parallel. Opened from a genre, Movies or TV Shows it searches only there; opened from Home it never shows live TV. Keeps your history, completes full titles while you type, and understands `bachelor point season 1 ep 10` (play that episode or open the season). Bangladeshi titles win ties. |
@@ -22,7 +22,7 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 |---|---|
 | southfreak.club / southfreak.in | Movies, metadata, links → TechZed → HubCloud / GDFlix / MultiCloud / Direct-DL / GDXShare |
 | amaderftp.net | Direct MP4/MKV with HTTP Range, looked up by TMDB id |
-| BDIX / FTP servers (CircleFTP API + ~100 index servers, plus the live bdix.app and ftpserverbd.com directories) | Direct files, searched by name. Most answer only from Bangladeshi ISPs; servers that never answer on your network are skipped for 12 h and answering ones are tried first |
+| BDIX / FTP servers (CircleFTP API, ~100 curated index servers and **all 437 hosts from the mega list**, plus the live bdix.app and ftpserverbd.com directories) | Direct files, searched by name. Most answer only from Bangladeshi ISPs; servers that never answer on your network are skipped for 12 h and answering ones are tried first |
 | **Nuvio plugins** (46 repositories, ~700 scrapers; the list is remotely updatable) | Streams for movies, series and anime. Provider scripts are downloaded on demand and run in the app (Hermes) with cheerio and crypto-js |
 | Stremio addons (Stremify, OnlyPorn) | Direct HTTP streams and the 18+ catalogs |
 | Cinemeta | Trending, search, cast, real season/episode lists |
@@ -53,7 +53,7 @@ Feeds load three at a time, list posters use smaller image variants, and the sou
 
 ## Stability
 
-A global error handler keeps async failures from closing the app, an error boundary shows a recovery screen for render errors, and tabs/screens freeze when hidden. The APK is built for every CPU: `MythTube-arm64-v8a.apk` (most phones), `MythTube-armeabi-v7a.apk` (older 32-bit phones), `x86`/`x86_64` (emulators, Chromebooks) and `MythTube-universal.apk`. Minimum Android version is 7.0 (API 24), the lowest React Native 0.88 supports.
+A global error handler keeps async failures from closing the app, an error boundary shows a recovery screen for render errors, and tabs/screens freeze when hidden. A single `MythTube.apk` carries both 32-bit and 64-bit ARM code, so the same file installs on every Android phone and tablet (Android 7.0+). Each CI build gets a higher `versionCode`, so a new APK always installs over the previous one.
 
 ## Build
 

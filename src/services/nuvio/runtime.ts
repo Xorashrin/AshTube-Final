@@ -9,7 +9,7 @@ import CryptoJS from 'crypto-js';
 import * as FileSystem from 'expo-file-system/legacy';
 
 import { cached } from '../cache';
-import { getJson, getText, withTimeout } from '../http';
+import { getJsonMirrored, getTextMirrored, withTimeout } from '../http';
 import { providerDisabled } from './disabled';
 import { NUVIO_REPOS, type NuvioRepo } from './repos';
 
@@ -48,7 +48,7 @@ const MANIFEST_TTL = 24 * 3600 * 1000;
 const RUN_TIMEOUT = 18000;
 const HEALTH_KEY = 'mythtube:nuvio:health:v1';
 // Public TMDB key shipped inside the vetted community plugins; used only for the plugins that ask the host for one.
-const TMDB_KEY = '439c478a771f35c05022f9feabcca01c';
+export const TMDB_KEY = '439c478a771f35c05022f9feabcca01c';
 
 // ---------------------------------------------------------------- manifests
 
@@ -57,7 +57,7 @@ export async function loadProviders(kind: 'movie' | 'tv'): Promise<Provider[]> {
     NUVIO_REPOS.map(async (repo) => {
       try {
         const man = await cached(`nuvio:manifest:${repo.id}`, { ttl: MANIFEST_TTL }, () =>
-          getJson<{ scrapers?: Scraper[] }>(`${repo.base}/manifest.json`, { timeout: 12000, retries: 1 }),
+          getJsonMirrored<{ scrapers?: Scraper[] }>(`${repo.base}/manifest.json`, { timeout: 12000 }),
         );
         return (man.scrapers ?? [])
           .filter((s) => s.enabled !== false && s.filename && (!s.supportedTypes || s.supportedTypes.includes(kind) || (kind === 'tv' && s.supportedTypes.includes('anime'))))
@@ -154,7 +154,7 @@ async function readScript(p: Provider): Promise<string> {
   } catch {
     // fall through to the network
   }
-  const code = await getText(`${p.repo.base}/${p.scraper.filename}`, { timeout: 20000, retries: 1 });
+  const code = await getTextMirrored(`${p.repo.base}/${p.scraper.filename}`, { timeout: 20000 });
   FileSystem.makeDirectoryAsync(DIR, { intermediates: true })
     .then(() => FileSystem.writeAsStringAsync(file, code))
     .catch(() => undefined);

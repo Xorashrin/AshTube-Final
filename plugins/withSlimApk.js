@@ -1,5 +1,5 @@
-// Shrinks the release APK: English-only resources, R8 full mode, no unused ABIs/lint, and
-// no PNG crunching of already-optimized assets. Runs during `expo prebuild`.
+// Shrinks the release APK: English-only resources and R8 full mode. Runs during `expo prebuild`.
+// One APK carries both ARM ABIs (32-bit and 64-bit), so a single file installs on every Android phone and tablet.
 const { withAppBuildGradle, withGradleProperties } = require('expo/config-plugins');
 
 module.exports = function withSlimApk(config) {
@@ -19,13 +19,6 @@ module.exports = function withSlimApk(config) {
       gradle = /androidResources\s*\{/.test(gradle)
         ? gradle.replace(/androidResources\s*\{/, 'androidResources {\n        localeFilters.addAll(["en"])')
         : gradle.replace(/android\s*\{/, 'android {\n    androidResources {\n        localeFilters.addAll(["en"])\n    }');
-    }
-    // One APK per CPU architecture (plus a universal one): every phone gets a small file that matches its chip.
-    if (!/splits\s*\{/.test(gradle)) {
-      gradle = gradle.replace(
-        /android\s*\{/,
-        'android {\n    splits {\n        abi {\n            reset()\n            enable true\n            universalApk true\n            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"\n        }\n    }',
-      );
     }
     cfg.modResults.contents = gradle;
     return cfg;
