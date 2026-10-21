@@ -60,8 +60,9 @@ export const font = {
   medium: 'Inter_500Medium',
   semibold: 'Inter_600SemiBold',
   bold: 'Inter_700Bold',
-  extrabold: 'Inter_800ExtraBold',
-  black: 'Inter_900Black',
+  // 800/900 map to Bold: two fewer font files in the APK.
+  extrabold: 'Inter_700Bold',
+  black: 'Inter_700Bold',
   display: 'BebasNeue_400Regular',
 } as const;
 

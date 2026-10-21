@@ -232,7 +232,11 @@ function sameTitle(a: Title, b: Title): boolean {
 
 // ---------------------------------------------------------------- engine
 
-type Gatherer = (add: (servers: Server[]) => void, engine: SourceSearch) => Promise<void>;
+interface Gatherer {
+  /** Early gatherers are cheap direct sources; late ones (plugins, web players) wait for them. */
+  early: boolean;
+  run: (add: (servers: Server[]) => void, engine: SourceSearch) => Promise<void>;
+}
 
 const PARALLEL_RESOLVES = 5;
 const GRACE_MS = 2500;
@@ -247,6 +251,7 @@ export class SourceSearch {
   private queue: Server[] = [];
   private active = 0;
   private gatherersLeft = 0;
+  earlyLeft = 0;
   private listeners = new Set<() => void>();
   private failures = 0;
 
@@ -267,9 +272,10 @@ export class SourceSearch {
   }
 
   private add = (servers: Server[]) => {
-    const fresh = servers.filter((s) => !this.seen.has(s.id));
+    const key = (s: Server) => s.id.replace(/^x:/, '');
+    const fresh = servers.filter((s) => !this.seen.has(key(s)));
     if (fresh.length === 0) return;
-    fresh.forEach((s) => this.seen.add(s.id));
+    fresh.forEach((s) => this.seen.add(key(s)));
     this.servers.push(...fresh);
     for (const s of fresh) if (s.kind === 'native' && s.resolve) this.queue.push(s);
     this.queue.sort((a, b) => ORIGIN_TIER[a.origin] - ORIGIN_TIER[b.origin] || b.rank - a.rank);
@@ -309,11 +315,13 @@ export class SourceSearch {
   private start() {
     const gatherers = buildGatherers(this.title, this.episode);
     this.gatherersLeft = gatherers.length;
+    this.earlyLeft = gatherers.filter((g) => g.early).length;
     for (const g of gatherers) {
-      g(this.add, this)
+      g.run(this.add, this)
         .catch(() => undefined)
         .finally(() => {
           this.gatherersLeft--;
+          if (g.early) this.earlyLeft--;
           this.checkDone();
           this.emit();
         });
@@ -324,6 +332,11 @@ export class SourceSearch {
         this.emit();
       }
     }, HARD_CAP_MS);
+  }
+
+  /** A verified, seekable 1080p+ stream exists: nothing else is worth fetching. */
+  get hasTop(): boolean {
+    return this.results.some((r) => r.server.rank >= 4 && r.playable.seekable);
   }
 
   /** Verified results ranked for the given purpose. */
@@ -385,9 +398,11 @@ export class SourceSearch {
 
 function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] {
   const list: Gatherer[] = [];
+  const early = (run: Gatherer['run']) => list.push({ early: true, run });
+  const late = (run: Gatherer['run']) => list.push({ early: false, run });
 
   // 1. The title's own source.
-  list.push(async (add) => {
+  early(async (add) => {
     if (title.source === 'southfreak' || title.source === 'sfadult') {
       add(wpServers(title, await getVariants(siteFor(title.source), title.ref)));
     } else if (title.source === 'amaderftp') {
@@ -407,31 +422,36 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
   // 2. The same movie on other direct sources.
   if (mainstream && title.kind === 'movie') {
     if (title.source !== 'amaderftp') {
-      list.push(async (add) => {
+      early(async (add) => {
         if (title.tmdbId) return add(ftpServers(await amaderftp.filesByTmdb(title.tmdbId), 'x:'));
         const hits = (await amaderftp.search(title.name)).filter((t) => sameTitle(title, t));
         if (hits.length) add(ftpServers(await amaderftp.getFiles(hits[0]), 'x:'));
       });
     }
     if (title.source !== 'southfreak') {
-      list.push(async (add) => {
+      early(async (add) => {
         const hits = (await listPosts(SOUTHFREAK, { search: title.name, perPage: 8 })).filter((t) => sameTitle(title, t));
         for (const h of hits.slice(0, 2)) add(wpServers(h, await getVariants(SOUTHFREAK, h.ref), 'x:'));
       });
     }
     if (title.source !== 'bdix') {
-      list.push(async (add) => {
+      early(async (add) => {
         const found = await bdix.search(`${title.name} ${title.year}`.trim(), 8000);
         found.forEach((f) => add(f.files.slice(0, 6).map((file, i) => fileServer(`bx:${f.server.id}:${file.url}:${i}`, f.server.name, file.url, [file.url], file.label, 'bdix'))));
       });
     }
   }
 
-  // 3. Nuvio plugins and Stremio streams need TMDB/IMDb ids.
+  // 3. Nuvio plugins and Stremio streams (need TMDB/IMDb ids). They are heavier, so they only run when
+  //    the direct sources did not already produce a seekable 1080p+ stream.
   if (mainstream) {
-    list.push(async (add, engine) => {
+    late(async (add, engine) => {
       const ids = await identify(title);
       if (!ids.tmdbId && !ids.imdbId) return;
+      const waitedFrom = Date.now();
+      while (engine.earlyLeft > 0 && !engine.hasTop && Date.now() - waitedFrom < 5000) await sleep(250);
+      if (engine.hasTop) return;
+
       const kind = title.kind === 'series' ? 'tv' : 'movie';
       const season = episode?.season ?? (kind === 'tv' ? 1 : undefined);
       const number = episode?.number ?? (kind === 'tv' ? 1 : undefined);
@@ -446,14 +466,15 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
         );
       }
       if (ids.tmdbId) {
+        const tmdb = String(ids.tmdbId);
         const providers = await rankProviders(await loadProviders(kind), preferredLangs);
         const runBatch = async (batch: typeof providers) => {
           let next = 0;
           const worker = async () => {
-            while (next < batch.length && !engine.done) {
+            while (next < batch.length && !engine.done && !engine.hasTop) {
               const p = batch[next++];
               try {
-                add(nuvioServers(await runProvider(p, String(ids.tmdbId), kind, season, number)));
+                add(nuvioServers(await runProvider(p, tmdb, kind, season, number)));
               } catch {
                 // provider failed or timed out: the next one takes over
               }
@@ -474,13 +495,15 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
 
   // 4. Web players: kept for the very end, never probed.
   if (mainstream) {
-    list.push(async (add) => {
+    late(async (add) => {
       const ids = await identify(title);
       add(embedServers(title, { tmdbId: title.tmdbId ?? ids.tmdbId, imdbId: title.imdbId ?? ids.imdbId }, episode));
     });
   }
   return list;
 }
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function addonServers(items: { url: string; quality?: string; provider: string; headers?: Record<string, string> }[], origin: 'stremio'): Server[] {
   return items.map((s) => {

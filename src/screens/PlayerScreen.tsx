@@ -192,6 +192,8 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const offline = downloadFor(profileData, title.id, episode?.id);
   const offlineUri = offline?.status === 'downloaded' ? offline.localUri : undefined;
   const waitingForEpisodes = title.kind === 'series' && !title.detailed;
+  // A download that finishes while streaming must not restart playback.
+  const initialOffline = useRef(offlineUri).current;
 
   // One shared engine per title/episode: it was usually warmed up already by the Title screen.
   const engine = useMemo(() => (waitingForEpisodes ? null : getSearch(title, episode)), [title.id, episode?.id, waitingForEpisodes]);
@@ -210,8 +212,8 @@ export default function PlayerScreen({ navigation, route }: Props) {
     let cancelled = false;
     failedIds.current = new Set();
     setAllFailed(false);
-    if (offlineUri) {
-      setCurrent(localResolved(offlineUri));
+    if (initialOffline) {
+      setCurrent(localResolved(initialOffline));
       return;
     }
     setCurrent(null);
@@ -223,7 +225,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [engine, offlineUri, token]);
+  }, [engine, initialOffline, token]);
 
   const advance = useCallback(async () => {
     if (!engine || !current) return;
@@ -289,6 +291,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const volumeRef = useRef(1);
   const resumedRef = useRef(false);
   const latest = useRef({ position: 0, duration: 0 });
+  const armed = useRef(false);
   const speedRef = useRef(1);
   speedRef.current = speed;
 
@@ -299,10 +302,12 @@ export default function PlayerScreen({ navigation, route }: Props) {
       return;
     }
     let cancelled = false;
+    armed.current = false;
     player
       .replaceAsync({ uri: source.url, headers: source.headers, contentType: source.hls ? 'hls' : 'auto' })
       .then(() => {
         if (cancelled) return;
+        armed.current = true;
         player.playbackRate = speedRef.current;
         player.volume = volumeRef.current;
         player.muted = muted;
@@ -332,7 +337,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
   }, [status, isEmbed, profileData, title.id, episode, player]);
 
   useEventListener(player, 'statusChange', ({ status: s }) => {
-    if (source && s === 'error') advance();
+    if (source && armed.current && s === 'error') advance();
   });
 
   useEventListener(player, 'sourceLoad', ({ availableAudioTracks, availableSubtitleTracks }) => {

@@ -15,8 +15,10 @@ module.exports = function withSlimApk(config) {
   });
   return withAppBuildGradle(config, (cfg) => {
     let gradle = cfg.modResults.contents;
-    if (!gradle.includes('androidResources')) {
-      gradle = gradle.replace(/android\s*\{/, 'android {\n    androidResources {\n        localeFilters.addAll(["en"])\n    }');
+    if (!gradle.includes('localeFilters')) {
+      gradle = /androidResources\s*\{/.test(gradle)
+        ? gradle.replace(/androidResources\s*\{/, 'androidResources {\n        localeFilters.addAll(["en"])')
+        : gradle.replace(/android\s*\{/, 'android {\n    androidResources {\n        localeFilters.addAll(["en"])\n    }');
     }
     cfg.modResults.contents = gradle;
     return cfg;
