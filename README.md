@@ -7,7 +7,7 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 | Feature | How it works |
 |---|---|
 | **Home / New & Hot** | Live rows from the sources below, cached for an instant open and refreshed on foreground / pull-to-refresh. Titles from the last 72 h get a **New** badge. |
-| **Search** | Fans out to every source in parallel (a dead source never blocks the rest). |
+| **Search** | Fans out to every source in parallel. Opened from a genre, Movies or TV Shows it searches only there; opened from Home it never shows live TV. Keeps your history, completes full titles while you type, and understands `bachelor point season 1 ep 10` (play that episode or open the season). Bangladeshi titles win ties. |
 | **Automatic best server** | Opening a title (or the Home hero, or the top search result) starts looking for servers in the background. Playback starts on the highest-quality, seekable, fastest verified server; no picking needed. A manual override stays in the Servers panel. |
 | **Playback** | ExoPlayer with seek, double-tap seek, smooth swipe brightness / volume / scrub, speed, fit modes, lock, real audio and subtitle tracks, next episode, resume. |
 | **Downloads** | Pick *Automatic* or a specific server, choose the target folder (any folder or SD card via the system picker) and the number of parallel connections. The Download button is disabled when no direct file exists. |
@@ -25,19 +25,19 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 | Stremio addons (Stremify, OnlyPorn) | Direct HTTP streams and the 18+ catalogs |
 | Cinemeta | Trending, search, cast, real season/episode lists |
 | AniList | Anime trending, airing schedule, search |
-| VidSrc / 2Embed / MultiEmbed | Last-resort web players |
-| GDPlayer / GDShare | Google Drive file ids, when a mirror exposes one |
 
-Not used because they are dead or need your own server / debrid: `api.consumet.org` (451), Torrentio / Comet / MediaFusion (debrid), Jikan (timeouts), AniSpace (empty), AdultColony and Lustpress (self-host only), NodeBrid (down). Details in [`docs/BACKEND.md`](docs/BACKEND.md).
+Web embed players (VidSrc, 2Embed, MultiEmbed, GDPlayer, GDShare) are not used: they show ads and have no native stream. Not used because they are dead or need your own server / debrid: `api.consumet.org` (451), Torrentio / Comet / MediaFusion (debrid), Jikan (timeouts), AniSpace (empty), AdultColony and Lustpress (self-host only), NodeBrid (down). Details in [`docs/BACKEND.md`](docs/BACKEND.md).
 
 ## Fallback chain
 
 ```
-provider    own source → same title on other sources (TMDB id, name + year) → BDIX → Nuvio plugins / Stremio → web players
+provider    own source → same title on other sources (TMDB id, every name spelling) → BDIX → Nuvio plugins / Stremio (widening to all plugins if nothing is found)
   └ server   verified in parallel (5 at a time), ranked: quality × 100 + seekable + origin − latency
       └ mirror   hosts ranked by live success rate, 30 s cap per attempt
           └ probe    Range request must return media (206 = seek, resume and multi-thread work)
 ```
+
+Every candidate is validated before it can be picked, and again while it plays: promo clips (for example MovieBox ads, under 1 MB), files named after another title, the wrong season/episode, truncated files and streams with no valid running time are rejected, and the plugin that produced them is pushed down the order. If the stream stalls for 25 s the next server takes over at the same position.
 
 Plugin sources only start when no seekable 1080p stream was found within five seconds, so the common case costs one or two requests. If the chosen stream fails or stalls for 25 s the next verified server takes over at the same position.
 

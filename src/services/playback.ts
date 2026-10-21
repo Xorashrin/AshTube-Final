@@ -170,15 +170,6 @@ async function resolveOnce(key: string, run: () => Promise<Playable>): Promise<P
   return value;
 }
 
-/** Reads an HLS playlist: confirms it is real and extracts the best picture height from a master list. */
-async function probeHls(url: string, headers?: Record<string, string>): Promise<{ height: number }> {
-  const text = await getText(url, { headers, timeout: 9000, retries: 0 });
-  if (!text.includes('#EXTM3U')) throw new Error('Not an HLS playlist');
-  let height = 0;
-  for (const m of text.matchAll(/RESOLUTION=\d+x(\d+)/g)) height = Math.max(height, Number(m[1]));
-  return { height };
-}
-
 // ---------------------------------------------------------------- server builders
 
 /** Reads an HLS playlist: confirms it is real, finds the best picture height and the total running time. */

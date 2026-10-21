@@ -140,7 +140,7 @@ async function nextUntried(engine: SourceSearch, failed: Set<string>, isCancelle
 }
 
 function localResolved(uri: string): Resolved {
-  const server: Server = { id: 'offline', name: 'Offline • Downloaded', detail: 'stored on this device', quality: 'Offline', rank: 5, origin: 'local', kind: 'native', downloadable: false };
+  const server: Server = { id: 'offline', name: 'Offline • Downloaded', detail: 'stored on this device', quality: 'Offline', rank: 5, origin: 'local', downloadable: false };
   return { server, playable: { url: uri, seekable: true, size: 0, host: 'Local', hls: false }, ms: 0, score: 999 };
 }
 
