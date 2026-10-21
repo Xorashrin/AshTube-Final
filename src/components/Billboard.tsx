@@ -3,11 +3,9 @@ import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 
-import { img } from '../data/images';
-import type { Title } from '../data/mock';
+import type { Title } from '../data/types';
 import { colors, radius } from '../theme/tokens';
 import { Button } from './Buttons';
-import { MLogo } from './Logo';
 import { Txt } from './Txt';
 
 interface BillboardProps {
@@ -22,25 +20,17 @@ export const Billboard = memo(function Billboard({ title, inMyList, onPlay, onTo
   const { width: screen } = useWindowDimensions();
   const width = screen - 32;
   const height = Math.round(width * 1.42);
-  const heroImage = (title as any).background || (title as any).poster || img.hero(title.seed);
+  const heroImage = title.background || title.poster;
   return (
     <Pressable onPress={onOpen} style={[styles.card, { width, height }]}>
-      <Image source={heroImage} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} cachePolicy="memory-disk" />
+      <Image source={heroImage ? { uri: heroImage } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} cachePolicy="memory-disk" />
       <LinearGradient colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.92)']} locations={[0.4, 0.62, 1]} style={StyleSheet.absoluteFill} />
       <View style={styles.content}>
-        {title.original ? (
-          <View style={styles.kicker}>
-            <MLogo size={16} />
-            <Txt weight="bold" size={11} spacing={3} color={colors.textSoft} style={{ marginLeft: 6 }}>
-              {title.kind === 'series' ? 'SERIES' : 'FILM'}
-            </Txt>
-          </View>
-        ) : null}
         <Txt weight="display" size={58} lineHeight={56} align="center" numberOfLines={2} spacing={1}>
           {title.name.toUpperCase()}
         </Txt>
         <Txt weight="medium" size={13} color={colors.text90} align="center" style={styles.moods} numberOfLines={1}>
-          {title.moods.join('  •  ')}
+          {[title.kind === 'series' ? 'Series' : 'Movie', ...title.genres.slice(0, 3)].join('  •  ')}
         </Txt>
         <View style={styles.buttons}>
           <Button label="Play" icon="play" variant="white" onPress={onPlay} style={styles.button} />

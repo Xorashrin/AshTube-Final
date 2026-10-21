@@ -2,12 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React, { memo, useCallback } from 'react';
 import { FlatList, Pressable, StyleSheet, View, type ListRenderItem } from 'react-native';
-import Svg, { Text as SvgText } from 'react-native-svg';
 
-import { img } from '../data/images';
-import type { Title } from '../data/mock';
+import type { Title } from '../data/types';
 import type { ProgressEntry } from '../state/AppState';
-import { colors, font, layout, radius } from '../theme/tokens';
+import { colors, layout, radius } from '../theme/tokens';
 import { ProgressBar } from './Buttons';
 import { POSTER, Poster } from './Poster';
 import { Txt } from './Txt';
@@ -43,6 +41,19 @@ export function RowHeader({ title, onSeeAll }: { title: string; onSeeAll?: () =>
   );
 }
 
+export function SkeletonRow({ title }: { title: string }) {
+  return (
+    <View style={styles.row}>
+      <RowHeader title={title} />
+      <View style={{ flexDirection: 'row', paddingHorizontal: layout.gutter, gap: GAP }}>
+        {[0, 1, 2, 3].map((i) => (
+          <View key={i} style={{ width: POSTER.width, height: POSTER.height, borderRadius: radius.sm, backgroundColor: colors.surface2 }} />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 interface PosterRowProps {
   title: string;
   items: Title[];
@@ -71,59 +82,6 @@ export const PosterRow = memo(function PosterRow({ title, items, onPressTitle, w
   );
 });
 
-function RankNumber({ rank, height }: { rank: number; height: number }) {
-  const w = rank === 10 ? 104 : 64;
-  return (
-    <Svg width={w} height={height}>
-      <SvgText
-        x={w - 2}
-        y={height - 2}
-        fontSize={height * 0.98}
-        fontFamily={font.display}
-        textAnchor="end"
-        fill={colors.bg}
-        stroke="#8C8C8C"
-        strokeWidth={3}
-      >
-        {String(rank)}
-      </SvgText>
-    </Svg>
-  );
-}
-
-const TOP10_OVERLAP = 14;
-const top10Width = (rank: number) => (rank === 10 ? 104 : 64) - TOP10_OVERLAP + POSTER.width;
-
-export const Top10Row = memo(function Top10Row({ title, items, onPressTitle }: { title: string; items: Title[]; onPressTitle: (t: Title) => void }) {
-  const renderItem = useCallback<ListRenderItem<Title>>(
-    ({ item, index }) => (
-      <View style={styles.top10Item}>
-        <RankNumber rank={index + 1} height={POSTER.height} />
-        <View style={{ marginLeft: -TOP10_OVERLAP }}>
-          <Poster title={item} onPress={onPressTitle} showBadges={false} />
-        </View>
-      </View>
-    ),
-    [onPressTitle],
-  );
-  return (
-    <View style={styles.row}>
-      <RowHeader title={title} />
-      <FlatList
-        {...listProps}
-        data={items.slice(0, 10)}
-        keyExtractor={(t) => t.id}
-        renderItem={renderItem}
-        getItemLayout={(_, index) => {
-          let offset = 0;
-          for (let i = 0; i < index; i++) offset += top10Width(i + 1) + GAP;
-          return { length: top10Width(index + 1) + GAP, offset, index };
-        }}
-      />
-    </View>
-  );
-});
-
 export interface ContinueItem {
   title: Title;
   entry: ProgressEntry;
@@ -143,11 +101,11 @@ const CONTINUE_IMAGE_HEIGHT = 150;
 export const ContinueRow = memo(function ContinueRow({ title, items, onPlay, onInfo, onMore }: ContinueRowProps) {
   const renderItem = useCallback<ListRenderItem<ContinueItem>>(
     ({ item }) => {
-      const posterUri = item.title.poster || item.title.background || img.poster(item.title.seed);
+      const posterUri = item.title.background || item.title.poster;
       return (
         <View style={styles.continueCard}>
           <Pressable onPress={() => onPlay(item)} style={styles.continueImage}>
-            <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={item.title.id} />
+            <Image source={posterUri ? { uri: posterUri } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" recyclingKey={item.title.id} />
             <View style={styles.playCircle}>
               <Ionicons name="play" size={22} color={colors.text} style={{ marginLeft: 3 }} />
             </View>

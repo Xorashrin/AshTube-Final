@@ -1,25 +1,29 @@
 import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Button, ProgressBar } from '../components/Buttons';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
-import { img } from '../data/images';
-import { findEpisode } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
+import { findEpisode } from '../data/types';
+import { resolveTitle } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp, type DownloadEntry } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
+import { freeSpaceMB } from '../services/downloads';
 import { formatSize } from '../utils/format';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Downloads'>;
 
 export default function DownloadsScreen({ navigation }: Props) {
-  const { profileData, activeProfile, deleteDownload, startDownload, state, toggleSetting, showToast } = useApp();
+  const { profileData, activeProfile, deleteDownload, startDownload, showToast } = useApp();
   const [editing, setEditing] = useState(false);
+  const [freeMB, setFreeMB] = useState(0);
+  useEffect(() => {
+    freeSpaceMB().then(setFreeMB);
+  }, [profileData.downloads.length]);
 
   const entries = profileData.downloads;
 
@@ -39,7 +43,7 @@ export default function DownloadsScreen({ navigation }: Props) {
       return;
     }
     if (d.status === 'failed') {
-      startDownload(d.titleId, d.sizeMB || 350, d.episodeId);
+      startDownload(d.titleId, d.episodeId);
       return;
     }
     if (d.status === 'downloading') {
@@ -73,16 +77,6 @@ export default function DownloadsScreen({ navigation }: Props) {
         }
       />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
-        <Pressable onPress={() => toggleSetting('smartDownloads')} style={styles.smart}>
-          <Ionicons name="sparkles-outline" size={18} color={colors.blue} />
-          <Txt weight="semibold" size={13} style={{ marginLeft: 8 }}>
-            SMART DOWNLOADS
-          </Txt>
-          <Txt weight="bold" size={13} color={colors.blue} style={{ marginLeft: 6 }}>
-            {state.settings.smartDownloads ? 'ON' : 'OFF'}
-          </Txt>
-        </Pressable>
-
         {entries.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyCircle}>
@@ -117,7 +111,7 @@ export default function DownloadsScreen({ navigation }: Props) {
               const sizeLabel = formatSize(
                 d.status === 'downloaded' ? d.sizeMB : Math.max(1, d.sizeMB * Math.max(0.05, d.progress)),
               );
-              const detail = `${title.maturity} | ${sizeLabel}${d.savedToDevice ? ' • Saved to device' : ' • Offline ready'}`;
+              const detail = `${title.year} | ${sizeLabel} • Offline ready`;
 
               return (
                 <Pressable
@@ -127,11 +121,10 @@ export default function DownloadsScreen({ navigation }: Props) {
                 >
                   <View style={styles.thumb}>
                     <Image
-                      source={
-                        foundEp
-                          ? img.still(foundEp.episode.seed)
-                          : title.background || title.poster || img.backdrop(title.seed)
-                      }
+                      source={(() => {
+                        const uri = foundEp?.episode.still || title.background || title.poster;
+                        return uri ? { uri } : undefined;
+                      })()}
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
                       cachePolicy="memory-disk"
@@ -185,7 +178,7 @@ export default function DownloadsScreen({ navigation }: Props) {
                   ) : failed ? (
                     <Pressable
                       hitSlop={10}
-                      onPress={() => startDownload(d.titleId, d.sizeMB || 350, d.episodeId)}
+                      onPress={() => startDownload(d.titleId, d.episodeId)}
                     >
                       <Ionicons name="refresh-circle-outline" size={26} color={colors.redLight} />
                     </Pressable>
@@ -215,14 +208,12 @@ export default function DownloadsScreen({ navigation }: Props) {
       </ScrollView>
       <View style={styles.storage}>
         <View style={styles.storageBar}>
-          <View style={{ flex: 30, backgroundColor: colors.textDim }} />
-          <View style={{ flex: Math.max(1, usedMB / 100), backgroundColor: colors.blue }} />
-          <View style={{ flex: 60, backgroundColor: colors.surface6 }} />
+          <View style={{ flex: Math.max(1, usedMB), backgroundColor: colors.blue }} />
+          <View style={{ flex: Math.max(1, freeMB), backgroundColor: colors.surface6 }} />
         </View>
         <View style={styles.storageLegend}>
-          <Txt size={11} color={colors.textMuted}>Used • 38.2 GB</Txt>
           <Txt size={11} color={colors.textMuted}>MythTube • {formatSize(usedMB)}</Txt>
-          <Txt size={11} color={colors.textMuted}>Free • 72.4 GB</Txt>
+          <Txt size={11} color={colors.textMuted}>Free • {freeMB > 0 ? formatSize(freeMB) : '—'}</Txt>
         </View>
       </View>
     </View>

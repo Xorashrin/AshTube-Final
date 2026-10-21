@@ -9,13 +9,15 @@ import { RowHeader } from '../components/Rows';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { NOTIFICATIONS, type Title } from '../data/mock';
-import { resolveTitle, RESOLVED_TITLES } from '../data/resolveTitle';
+import type { Title } from '../data/types';
+import { HOME_ROWS, resolveTitle, useRows } from '../services/catalog';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
+
+const RECOMMENDED = [HOME_ROWS[1]];
 
 function MenuRow({ icon, color, label, detail, onPress }: { icon: IoniconName; color: string; label: string; detail?: string; onPress: () => void }) {
   return (
@@ -69,8 +71,10 @@ function SharedRow({ title, items, onPress, onSeeAll }: { title: string; items: 
 
 export default function MyNetflixScreen() {
   const nav = useRootNav();
-  const { activeProfile, profileData, signOut, showToast } = useApp();
+  const { activeProfile, profileData, signOut, showToast, state } = useApp();
   const [menu, setMenu] = useState(false);
+  const { rows } = useRows(RECOMMENDED);
+  const recommended = rows.flatMap((r) => r.items).slice(0, 12);
   const open = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
 
   const liked = Object.entries(profileData.ratings)
@@ -108,7 +112,8 @@ export default function MyNetflixScreen() {
           </View>
         ) : null}
 
-        <MenuRow icon="notifications" color={colors.red} label="Notifications" detail={`${NOTIFICATIONS.length} new`} onPress={() => nav.navigate('Notifications')} />
+        <MenuRow icon="notifications" color={colors.red} label="Notifications" detail="Live news channels"
+          onPress={() => nav.navigate('Notifications')} />
         <MenuRow
           icon="download"
           color={colors.blue}
@@ -127,13 +132,13 @@ export default function MyNetflixScreen() {
 
         {liked.length > 0 ? <SharedRow title="TV Shows & Movies You've Liked" items={liked} onPress={open} /> : null}
         {myList.length > 0 ? <SharedRow title="My List" items={myList} onPress={open} onSeeAll={() => nav.navigate('MyList')} /> : null}
-        <SharedRow title="Recommended For You" items={RESOLVED_TITLES.slice(0, 8)} onPress={open} />
+        {recommended.length > 0 ? <SharedRow title="Recommended For You" items={recommended} onPress={open} /> : null}
       </ScrollView>
 
       <Sheet visible={menu} onClose={() => setMenu(false)}>
         <SheetItem label="App Settings" icon="settings-outline" onPress={() => { setMenu(false); nav.navigate('AppSettings'); }} />
-        <SheetItem label="Account" icon="person-circle-outline" onPress={() => { setMenu(false); showToast('Account management is not part of this demo'); }} />
-        <SheetItem label="Help" icon="help-circle-outline" onPress={() => { setMenu(false); showToast('Help Center is not part of this demo'); }} />
+        <SheetItem label="Account" icon="person-circle-outline" onPress={() => { setMenu(false); showToast(`Signed in as ${state.email || 'guest'}`); }} />
+        <SheetItem label="Help" icon="help-circle-outline" onPress={() => { setMenu(false); showToast('Pull down on any screen to refresh content'); }} />
         <SheetItem label="Sign Out" icon="log-out-outline" onPress={confirmSignOut} />
       </Sheet>
     </View>

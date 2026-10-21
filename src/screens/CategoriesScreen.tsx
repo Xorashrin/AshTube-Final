@@ -3,7 +3,7 @@ import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { PickerList } from '../components/ListItems';
-import { GENRES } from '../data/mock';
+import { GENRES } from '../data/types';
 import type { RootStackParamList } from '../navigation/types';
 import { colors } from '../theme/tokens';
 

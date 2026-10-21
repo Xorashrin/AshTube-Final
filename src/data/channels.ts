@@ -48,19 +48,6 @@ export function adultChannels(): Channel[] {
   return CHANNELS.filter((c) => c.category === 'Adult');
 }
 
-// Lazily import adult VOD titles to avoid circular dependency at module init.
-let _adultVodCache: import('./vod').VodTitle[] | null = null;
-export function adultVodTitles(limit = 30): import('./vod').VodTitle[] {
-  if (_adultVodCache === null) {
-    // require here so circular import doesn't break module init
-    const { ADULT_VOD_TITLES } = require('./adult_vod') as {
-      ADULT_VOD_TITLES: import('./vod').VodTitle[];
-    };
-    _adultVodCache = ADULT_VOD_TITLES;
-  }
-  return _adultVodCache.slice(0, limit);
-}
-
 export function newsChannels(limit = 60): Channel[] {
   return channelsByCategory('News', limit);
 }

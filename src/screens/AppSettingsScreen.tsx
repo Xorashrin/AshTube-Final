@@ -5,6 +5,7 @@ import { Alert, ScrollView, StyleSheet, View } from 'react-native';
 import { SectionLabel, SettingRow } from '../components/ListItems';
 import { ScreenHeader } from '../components/ScreenHeader';
 import type { RootStackParamList } from '../navigation/types';
+import { clearPersistentCache } from '../services/cache';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
 
@@ -13,7 +14,22 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AppSettings'>;
 export default function AppSettingsScreen({ navigation }: Props) {
   const { state, toggleSetting, setSetting, showToast, profileData, deleteDownload, signOut } = useApp();
   const s = state.settings;
-  const notYet = () => showToast('This setting is visual-only in this build');
+  const checkSources = async () => {
+    showToast('Checking sources…');
+    const targets = [
+      'https://southfreak.club/wp-json/',
+      'http://amaderftp.net/',
+      'https://graphql.anilist.co',
+      'https://v3-cinemeta.strem.io/manifest.json',
+    ];
+    const started = Date.now();
+    const ok = await Promise.all(
+      targets.map((u) =>
+        Promise.race([fetch(u, { method: 'GET', headers: { Range: 'bytes=0-64' } }).then((r) => r.status < 500), new Promise<boolean>((r) => setTimeout(() => r(false), 8000))]).catch(() => false),
+      ),
+    );
+    showToast(`${ok.filter(Boolean).length}/${targets.length} sources online (${((Date.now() - started) / 1000).toFixed(1)}s)`);
+  };
 
   const pickStreamingQuality = () => {
     Alert.alert('Default Streaming Quality', 'Choose preferred streaming resolution:', [
@@ -76,24 +92,15 @@ export default function AppSettingsScreen({ navigation }: Props) {
           onPress={pickLanguage}
         />
         <SettingRow icon="play-forward-outline" label="Autoplay Next Episode" toggle={s.autoplayNext} onToggle={() => toggleSetting('autoplayNext')} />
-        <SettingRow icon="film-outline" label="Autoplay Previews" toggle={s.autoplayPreviews} onToggle={() => toggleSetting('autoplayPreviews')} />
 
         <SectionLabel>Downloads</SectionLabel>
-        <SettingRow icon="wifi-outline" label="Wi-Fi Only" toggle={s.wifiOnly} onToggle={() => toggleSetting('wifiOnly')} />
-        <SettingRow
-          icon="sparkles-outline"
-          label="Smart Downloads"
-          description="Completed episodes will be deleted and replaced with the next episodes, only on Wi-Fi."
-          toggle={s.smartDownloads}
-          onToggle={() => toggleSetting('smartDownloads')}
-        />
         <SettingRow
           icon="download-outline"
           label="Download Video Quality"
           value={s.defaultDownloadQuality.toUpperCase()}
           onPress={pickDownloadQuality}
         />
-        <SettingRow icon="folder-outline" label="Download Location" value="Internal Storage (MythTube Album)" onPress={notYet} />
+        <SettingRow icon="folder-outline" label="Download Location" value="App storage (offline library)" />
         <SettingRow
           icon="trash-outline"
           label="Delete All Downloads"
@@ -113,13 +120,16 @@ export default function AppSettingsScreen({ navigation }: Props) {
         />
 
         <SectionLabel>Diagnostics</SectionLabel>
-        <SettingRow icon="speedometer-outline" label="Check Network" onPress={() => showToast('Network check successful.')} />
-        <SettingRow icon="information-circle-outline" label="Playback Specification" onPress={notYet} />
+        <SettingRow icon="speedometer-outline" label="Check Sources" description="Pings every content source and reports how many are reachable." onPress={checkSources} />
+        <SettingRow
+          icon="refresh-outline"
+          label="Clear Content Cache"
+          description="Forces fresh lists from every source on next open."
+          onPress={() => clearPersistentCache().then(() => showToast('Cache cleared'))}
+        />
 
         <SectionLabel>About</SectionLabel>
-        <SettingRow icon="phone-portrait-outline" label="Version" value="MythTube 1.0.0 (phase 1)" />
-        <SettingRow icon="document-text-outline" label="Open Source Licenses" onPress={notYet} />
-        <SettingRow icon="shield-checkmark-outline" label="Privacy" onPress={notYet} />
+        <SettingRow icon="phone-portrait-outline" label="Version" value="MythTube 2.0.0" />
         <SettingRow
           icon="log-out-outline"
           label="Sign Out"

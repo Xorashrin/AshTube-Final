@@ -8,7 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '../components/Avatar';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
-import type { Profile } from '../data/mock';
+import type { Profile } from '../data/types';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';

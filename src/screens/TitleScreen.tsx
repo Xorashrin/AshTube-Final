@@ -2,19 +2,17 @@ import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, CircleIconButton, IconAction, ProgressBar } from '../components/Buttons';
 import { PickerList } from '../components/ListItems';
-import { MLogo } from '../components/Logo';
-import { Poster } from '../components/Poster';
 import { PickerOverlay } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { img } from '../data/images';
-import { findEpisode, getTitle, top10Rank, type Episode, type Title } from '../data/mock';
-import { resolveTitle, RESOLVED_TITLES } from '../data/resolveTitle';
+import { findEpisode, type Episode, type Title } from '../data/types';
+import { loadDetail, resolveTitle } from '../services/catalog';
+import { loadServers, type Server } from '../services/playback';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp, type Rating } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
@@ -39,37 +37,6 @@ function MetaTag({ label }: { label: string }) {
   );
 }
 
-function DownloadIcon({ titleId, episode }: { titleId: string; episode?: Episode }) {
-  const { profileData, startDownload, deleteDownload, showToast } = useApp();
-  const entry = downloadFor(profileData, titleId, episode?.id);
-  if (entry?.status === 'downloading') {
-    return (
-      <Pressable hitSlop={10} onPress={() => deleteDownload(titleId, episode?.id)} style={styles.dlIcon}>
-        <ActivityIndicator size="small" color={colors.blue} />
-      </Pressable>
-    );
-  }
-  if (entry?.status === 'failed') {
-    return (
-      <Pressable hitSlop={10} onPress={() => startDownload(titleId, episode ? episode.runtime * 6 : 800, episode?.id)} style={styles.dlIcon}>
-        <Ionicons name="refresh-circle-outline" size={26} color={colors.redLight} />
-      </Pressable>
-    );
-  }
-  if (entry?.status === 'downloaded') {
-    return (
-      <Pressable hitSlop={10} onPress={() => { deleteDownload(titleId, episode?.id); showToast('Download deleted'); }} style={styles.dlIcon}>
-        <Ionicons name="checkmark-circle" size={24} color={colors.blue} />
-      </Pressable>
-    );
-  }
-  return (
-    <Pressable hitSlop={10} onPress={() => startDownload(titleId, episode ? episode.runtime * 6 : 800, episode?.id)} style={styles.dlIcon}>
-      <Ionicons name="download-outline" size={24} color={colors.text} />
-    </Pressable>
-  );
-}
-
 function EpisodeRow({ title, episode, onPlay }: { title: Title; episode: Episode; onPlay: () => void }) {
   const { profileData } = useApp();
   const progress = progressFor(profileData, title.id);
@@ -78,7 +45,7 @@ function EpisodeRow({ title, episode, onPlay }: { title: Title; episode: Episode
     <View style={styles.episode}>
       <View style={styles.episodeTop}>
         <Pressable onPress={onPlay} style={styles.still}>
-          <Image source={img.still(episode.seed)} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" />
+          <Image source={episode.still ? { uri: episode.still } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} cachePolicy="memory-disk" />
           <View style={styles.stillPlay}>
             <Ionicons name="play" size={16} color={colors.text} style={{ marginLeft: 2 }} />
           </View>
@@ -88,25 +55,50 @@ function EpisodeRow({ title, episode, onPlay }: { title: Title; episode: Episode
           <Txt weight="medium" size={14} numberOfLines={2}>
             {episode.number}. {episode.name}
           </Txt>
-          <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
-            {episode.runtime}m
-          </Txt>
+          {episode.runtime > 0 || episode.airDate ? (
+            <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
+              {episode.runtime > 0 ? `${episode.runtime}m` : new Date(episode.airDate!).toLocaleDateString()}
+            </Txt>
+          ) : null}
         </View>
-        <DownloadIcon titleId={title.id} episode={episode} />
-      </View>
-      <Txt size={13} color={colors.textMuted} lineHeight={18} numberOfLines={3} style={{ marginTop: 8 }}>
-        {episode.synopsis}
-      </Txt>
+              </View>
+      {episode.synopsis ? (
+        <Txt size={13} color={colors.textMuted} lineHeight={18} numberOfLines={3} style={{ marginTop: 8 }}>
+          {episode.synopsis}
+        </Txt>
+      ) : null}
     </View>
   );
 }
 
 export default function TitleScreen({ navigation, route }: Props) {
-  const title = resolveTitle(route.params.id);
+  const [title, setTitle] = useState<Title>(() => resolveTitle(route.params.id));
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { profileData, toggleMyList, rate, toggleReminder, startDownload, showToast } = useApp();
-  const [tab, setTab] = useState<Tab>(title.kind === 'series' ? 'episodes' : 'more');
+  const { profileData, toggleMyList, rate, startDownload, showToast, state } = useApp();
+  const [servers, setServers] = useState<Server[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadDetail(route.params.id).then((t) => !cancelled && setTitle(t));
+    return () => {
+      cancelled = true;
+    };
+  }, [route.params.id]);
+
+  // Finds every source for this title (own + cross-source + embeds). The Download button depends on it.
+  useEffect(() => {
+    let cancelled = false;
+    setServers(null);
+    loadServers(title, undefined, state.settings.defaultStreamingQuality)
+      .then((list) => !cancelled && setServers(list))
+      .catch(() => !cancelled && setServers([]));
+    return () => {
+      cancelled = true;
+    };
+  }, [title.id, title.detailed, title.tmdbId, state.settings.defaultStreamingQuality]);
+  const downloadable = servers ? servers.some((x) => x.downloadable) : null;
+  const [tab, setTab] = useState<Tab>(title.kind === 'series' ? 'episodes' : 'servers');
   const [seasonNumber, setSeasonNumber] = useState(1);
   const [seasonPicker, setSeasonPicker] = useState(false);
   const [ratingOpen, setRatingOpen] = useState(false);
@@ -118,24 +110,16 @@ export default function TitleScreen({ navigation, route }: Props) {
   const target = resume ?? first;
   const inList = profileData.myList.includes(title.id);
   const rating = profileData.ratings[title.id];
-  const reminded = profileData.reminders.includes(title.id);
-  const rank = top10Rank(title.id);
   const season = (title.seasons || []).find((s) => s.number === seasonNumber) ?? (title.seasons || [])[0];
   const activeDownload = downloadFor(profileData, title.id, title.kind === 'series' ? target?.episode.id : undefined);
-  const similar = useMemo(
-    () => RESOLVED_TITLES.filter((t) => t.id !== title.id && (t.genres || []).some((g) => (title.genres || []).includes(g))).slice(0, 12),
-    [title],
-  );
   const tabs: { key: Tab; label: string }[] = [
     ...(title.kind === 'series' ? [{ key: 'episodes' as const, label: 'Episodes' }] : []),
-    { key: 'more', label: 'More Like This' },
-    { key: 'servers', label: 'Servers & Streams' },
+    { key: 'servers', label: 'Sources' },
   ];
-  const gridWidth = (width - 24 - 16) / 3;
 
   const play = (episodeId?: string) => {
-    if (title.comingSoon) {
-      showToast(`${title.name} is ${title.comingSoon.label.toLowerCase()}`);
+    if (servers && servers.length === 0) {
+      showToast('No playable source found for this title yet');
       return;
     }
     navigation.navigate('Player', { id: title.id, episodeId });
@@ -156,9 +140,9 @@ export default function TitleScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <View style={{ paddingTop: insets.top, backgroundColor: colors.bg }}>
-        <Pressable onPress={() => play(target?.episode.id)} style={{ width, height: (width * 9) / 16 }}>
+        <Pressable onPress={() => play(target?.episode.id)} style={{ width, height: (width * 9) / 16, backgroundColor: title.tint }}>
           <Image
-            source={(title as any).background || (title as any).poster || img.backdrop(title.seed)}
+            source={title.background || title.poster ? { uri: (title.background || title.poster)! } : undefined}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={200}
@@ -176,14 +160,6 @@ export default function TitleScreen({ navigation, route }: Props) {
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         <View style={styles.body}>
-          {title.original ? (
-            <View style={styles.kicker}>
-              <MLogo size={16} />
-              <Txt weight="bold" size={11} spacing={3} color={colors.textSoft} style={{ marginLeft: 6 }}>
-                {title.kind === 'series' ? 'SERIES' : 'FILM'}
-              </Txt>
-            </View>
-          ) : null}
           <Txt weight="extrabold" size={24} lineHeight={30}>
             {title.name}
           </Txt>
@@ -193,68 +169,39 @@ export default function TitleScreen({ navigation, route }: Props) {
               <Txt weight="semibold" size={11}>{title.maturity}</Txt>
             </View>
             <Txt size={13} color={colors.textMuted}>
-              {title.kind === 'series' ? seasonsLabel((title.seasons || []).length) : formatRuntime(title.runtime || 120)}
+              {title.kind === 'series' ? (title.seasons.length ? seasonsLabel(title.seasons.length) : 'Series') : title.runtime ? formatRuntime(title.runtime) : 'Movie'}
             </Txt>
-            {(title.quality || ['HD']).map((q) => (
+            {title.quality.map((q) => (
               <MetaTag key={q} label={q} />
             ))}
           </View>
 
-          {rank ? (
-            <View style={styles.rank}>
-              <View style={styles.rankBadge}>
-                <Txt weight="black" size={7} lineHeight={8} align="center">TOP</Txt>
-                <Txt weight="black" size={11} lineHeight={12} align="center">10</Txt>
-              </View>
-              <Txt weight="bold" size={15}>
-                #{rank.rank} in {rank.list} Today
-              </Txt>
-            </View>
-          ) : null}
-
-          {title.comingSoon ? (
+          <Button label={playLabel} icon="play" variant="white" onPress={() => play(target?.episode.id)} style={styles.cta} />
+          {title.kind === 'movie' ? (
             <Button
-              label={reminded ? 'Reminder Set' : 'Remind Me'}
-              icon={reminded ? 'checkmark' : 'notifications-outline'}
-              variant="white"
+              label={
+                activeDownload?.status === 'downloaded'
+                  ? 'Downloaded'
+                  : activeDownload?.status === 'failed'
+                    ? 'Retry Download'
+                    : activeDownload
+                      ? `Downloading ${Math.round(activeDownload.progress * 100)}%`
+                      : downloadable === null
+                        ? 'Checking download…'
+                        : downloadable
+                          ? 'Download'
+                          : 'Download unavailable'
+              }
+              icon={activeDownload?.status === 'downloaded' ? 'checkmark-circle' : 'download-outline'}
+              variant="gray"
+              disabled={!activeDownload && !downloadable}
               onPress={() => {
-                toggleReminder(title.id);
-                showToast(reminded ? 'Reminder removed' : 'Reminder set. Look for this in My List soon.');
+                if (activeDownload && activeDownload.status !== 'failed') navigation.navigate('Downloads');
+                else startDownload(title.id);
               }}
               style={styles.cta}
             />
-          ) : (
-            <>
-              <Button label={playLabel} icon="play" variant="white" onPress={() => play(target?.episode.id)} style={styles.cta} />
-              <Button
-                label={
-                  activeDownload?.status === 'downloaded'
-                    ? title.kind === 'series'
-                      ? `Downloaded ${epCode}`
-                      : 'Downloaded'
-                    : activeDownload?.status === 'failed'
-                      ? 'Retry Download'
-                      : activeDownload
-                        ? `Downloading ${Math.round(activeDownload.progress * 100)}%`
-                        : title.kind === 'series'
-                          ? `Download ${epCode}`
-                          : 'Download'
-                }
-                icon={activeDownload?.status === 'downloaded' ? 'checkmark-circle' : 'download-outline'}
-                variant="gray"
-                onPress={() => {
-                  if (activeDownload && activeDownload.status !== 'failed') {
-                    navigation.navigate('Downloads');
-                  } else if (title.kind === 'series' && target) {
-                    startDownload(title.id, target.episode.runtime * 6, target.episode.id);
-                  } else {
-                    startDownload(title.id, 845);
-                  }
-                }}
-                style={styles.cta}
-              />
-            </>
-          )}
+          ) : null}
 
           {progress ? (
             <View style={styles.resume}>
@@ -271,21 +218,27 @@ export default function TitleScreen({ navigation, route }: Props) {
             </Txt>
           ) : null}
 
-          <Pressable onPress={() => setExpanded((e) => !e)}>
-            <Txt size={14} lineHeight={20} numberOfLines={expanded ? undefined : 3} style={{ marginTop: 10 }}>
-              {title.synopsis}
+          {title.synopsis ? (
+            <Pressable onPress={() => setExpanded((e) => !e)}>
+              <Txt size={14} lineHeight={20} numberOfLines={expanded ? undefined : 3} style={{ marginTop: 10 }}>
+                {title.synopsis}
+              </Txt>
+            </Pressable>
+          ) : null}
+          {title.cast.length > 0 ? (
+            <Txt size={12} color={colors.textDim} numberOfLines={expanded ? undefined : 1} style={{ marginTop: 10 }}>
+              <Txt weight="semibold" size={12} color={colors.textMuted}>Starring: </Txt>
+              {title.cast.join(', ')}
             </Txt>
-          </Pressable>
-          <Txt size={12} color={colors.textDim} numberOfLines={expanded ? undefined : 1} style={{ marginTop: 10 }}>
-            <Txt weight="semibold" size={12} color={colors.textMuted}>Starring: </Txt>
-            {title.cast.join(', ')}
-          </Txt>
-          <Txt size={12} color={colors.textDim} numberOfLines={1} style={{ marginTop: 4 }}>
-            <Txt weight="semibold" size={12} color={colors.textMuted}>
-              {title.kind === 'series' ? (title.creators.length > 1 ? 'Creators: ' : 'Creator: ') : 'Director: '}
+          ) : null}
+          {title.creators.length > 0 ? (
+            <Txt size={12} color={colors.textDim} numberOfLines={1} style={{ marginTop: 4 }}>
+              <Txt weight="semibold" size={12} color={colors.textMuted}>
+                {title.source === 'anilist' ? 'Studio: ' : title.kind === 'series' ? 'Creator: ' : 'Director: '}
+              </Txt>
+              {title.creators.join(', ')}
             </Txt>
-            {title.creators.join(', ')}
-          </Txt>
+          ) : null}
 
           <View style={styles.actions}>
             <IconAction
@@ -331,6 +284,12 @@ export default function TitleScreen({ navigation, route }: Props) {
           ))}
         </View>
 
+        {tab === 'episodes' && !season ? (
+          <View style={{ paddingVertical: 28, alignItems: 'center' }}>
+            {title.detailed ? <Txt size={14} color={colors.textMuted}>No episodes released yet.</Txt> : <ActivityIndicator color={colors.text} />}
+          </View>
+        ) : null}
+
         {tab === 'episodes' && season ? (
           <View style={styles.tabBody}>
             <Pressable onPress={() => title.seasons.length > 1 && setSeasonPicker(true)} style={styles.seasonButton}>
@@ -345,39 +304,33 @@ export default function TitleScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {tab === 'more' ? (
-          <View style={[styles.tabBody, styles.grid]}>
-            {similar.map((t) => (
-              <Poster key={t.id} title={t} width={gridWidth} height={gridWidth * 1.45} onPress={(p) => navigation.push('Title', { id: p.id })} />
-            ))}
-          </View>
-        ) : null}
-
         {tab === 'servers' ? (
           <View style={styles.tabBody}>
-            {(title.streams && title.streams.length > 0
-              ? title.streams
-              : [{ name: 'Server 1 • Direct HD (Native Player)', url: title.video, kind: 'mp4' }]
-            ).map((s, i) => (
-              <Pressable key={s.name + i} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
-                <View style={styles.serverIconWrap}>
-                  <MaterialCommunityIcons
-                    name={s.kind === 'embed' ? 'web' : 'play-network-outline'}
-                    size={24}
-                    color={colors.red}
-                  />
-                </View>
-                <View style={{ flex: 1, marginLeft: 12 }}>
-                  <Txt weight="semibold" size={14} numberOfLines={1}>
-                    {s.name}
-                  </Txt>
-                  <Txt size={12} color={colors.textMuted} style={{ marginTop: 2 }}>
-                    {s.kind === 'embed' ? 'Web Embed Player • Multi-Server' : 'Direct Native Stream • Instant Playback & Download'}
-                  </Txt>
-                </View>
-                <Ionicons name="play-circle" size={30} color={colors.text} />
-              </Pressable>
-            ))}
+            {servers === null ? (
+              <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                <ActivityIndicator color={colors.text} />
+                <Txt size={13} color={colors.textMuted} style={{ marginTop: 10 }}>Finding sources…</Txt>
+              </View>
+            ) : servers.length === 0 ? (
+              <Txt size={14} color={colors.textMuted} style={{ paddingVertical: 20 }}>
+                No source has this title right now. New uploads are checked every time you open the app.
+              </Txt>
+            ) : (
+              servers.map((sv) => (
+                <Pressable key={sv.id} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
+                  <View style={styles.serverIconWrap}>
+                    <MaterialCommunityIcons name={sv.kind === 'embed' ? 'web' : 'play-network-outline'} size={24} color={colors.red} />
+                  </View>
+                  <View style={{ flex: 1, marginLeft: 12 }}>
+                    <Txt weight="semibold" size={14} numberOfLines={1}>{sv.name}</Txt>
+                    <Txt size={12} color={colors.textMuted} style={{ marginTop: 2 }}>
+                      {sv.detail}{sv.downloadable ? ' • downloadable' : ''}
+                    </Txt>
+                  </View>
+                  <Ionicons name="play-circle" size={30} color={colors.text} />
+                </Pressable>
+              ))
+            )}
           </View>
         ) : null}
       </ScrollView>

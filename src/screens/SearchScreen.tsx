@@ -2,84 +2,57 @@ import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Image } from 'expo-image';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { FlatList, Keyboard, Pressable, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
+import { ActivityIndicator, FlatList, Keyboard, Pressable, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChannelLogo } from '../components/ChannelLogo';
 import { Poster } from '../components/Poster';
 import { Txt } from '../components/Txt';
-import { img } from '../data/images';
 import { searchChannels } from '../data/channels';
-import { type Title } from '../data/mock';
-import { RESOLVED_TITLES, fetchCinemetaLiveSearch } from '../data/resolveTitle';
+import type { Title } from '../data/types';
+import { HOME_ROWS, searchAll, useRows } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
-import { useApp } from '../state/AppState';
 import { colors, font, radius } from '../theme/tokens';
-import { ActivityIndicator } from 'react-native';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
-// Pre-built lowercase index so each keystroke is a cheap string scan across real titles.
-const INDEX = RESOLVED_TITLES.map((t) => ({
-  title: t,
-  haystack: [t.name, ...t.genres, ...t.cast, ...t.creators].join('|').toLowerCase(),
-}));
-
-function search(query: string): Title[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [];
-  const terms = q.split(/\s+/).filter(Boolean);
-  return INDEX.filter((e) => terms.every((term) => e.haystack.includes(term)))
-    .sort((a, b) => Number(b.title.name.toLowerCase().startsWith(q)) - Number(a.title.name.toLowerCase().startsWith(q)))
-    .map((e) => e.title);
-}
+const RECOMMENDED_ROWS = [HOME_ROWS[1], HOME_ROWS[0]];
 
 export default function SearchScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { showToast } = useApp();
   const [query, setQuery] = useState('');
-  // Typing stays responsive; result rendering runs at a lower priority.
+  // Typing stays responsive; network search runs on the debounced value.
   const deferred = useDeferredValue(query);
-  const [liveResults, setLiveResults] = useState<Title[]>([]);
-  const [searchingLive, setSearchingLive] = useState(false);
+  const [results, setResults] = useState<Title[]>([]);
+  const [searching, setSearching] = useState(false);
+  const { rows } = useRows(RECOMMENDED_ROWS);
+  const recommended = useMemo(() => rows.flatMap((r) => r.items).slice(0, 30), [rows]);
 
   useEffect(() => {
     const q = deferred.trim();
     if (q.length < 2) {
-      setLiveResults([]);
+      setResults([]);
+      setSearching(false);
       return;
     }
     let cancelled = false;
-    setSearchingLive(true);
-    fetchCinemetaLiveSearch(q)
-      .then((remote) => {
-        if (!cancelled) {
-          setLiveResults(remote);
-          setSearchingLive(false);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setSearchingLive(false);
-      });
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchAll(q)
+        .then((found) => {
+          if (!cancelled) setResults(found);
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setSearching(false);
+        });
+    }, 350);
     return () => {
       cancelled = true;
+      clearTimeout(timer);
     };
   }, [deferred]);
-
-  const localResults = useMemo(() => search(deferred), [deferred]);
-  // Merge local & live results seamlessly, deduplicating by ID
-  const results = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: Title[] = [];
-    for (const item of [...localResults, ...liveResults]) {
-      if (!seen.has(item.id)) {
-        seen.add(item.id);
-        merged.push(item);
-      }
-    }
-    return merged;
-  }, [localResults, liveResults]);
 
   const channels = useMemo(() => searchChannels(deferred, 12), [deferred]);
   const hasQuery = deferred.trim().length > 0;
@@ -98,7 +71,7 @@ export default function SearchScreen({ navigation }: Props) {
       <Pressable onPress={() => open(item)} style={({ pressed }) => [styles.recRow, pressed ? { backgroundColor: colors.surface2 } : null]}>
         <View style={styles.recThumb}>
           <Image
-            source={(item as any).background || (item as any).poster || img.backdrop(item.seed)}
+            source={item.background || item.poster ? { uri: (item.background || item.poster)! } : undefined}
             style={StyleSheet.absoluteFill}
             contentFit="cover"
             cachePolicy="memory-disk"
@@ -136,14 +109,14 @@ export default function SearchScreen({ navigation }: Props) {
           autoFocus
           autoCorrect={false}
           autoCapitalize="none"
-          placeholder="Search shows, movies, genres, people…"
+          placeholder="Search movies, shows, anime…"
           placeholderTextColor={colors.textDim}
           selectionColor={colors.text}
           style={styles.input}
           returnKeyType="search"
           onSubmitEditing={Keyboard.dismiss}
         />
-        {searchingLive ? (
+        {searching ? (
           <ActivityIndicator size="small" color={colors.textDim} style={{ marginRight: 8 }} />
         ) : null}
         {query.length > 0 ? (
@@ -151,7 +124,7 @@ export default function SearchScreen({ navigation }: Props) {
             <Ionicons name="close" size={20} color={colors.textMuted} />
           </Pressable>
         ) : (
-          <Pressable hitSlop={8} onPress={() => showToast('Voice search is not part of this demo')}>
+          <Pressable hitSlop={8} onPress={() => setQuery('')}>
             <Ionicons name="mic" size={20} color={colors.textMuted} />
           </Pressable>
         )}
@@ -160,7 +133,7 @@ export default function SearchScreen({ navigation }: Props) {
       {!hasQuery ? (
         <FlatList
           key="recommended"
-          data={RESOLVED_TITLES.slice(0, 30)}
+          data={recommended}
           keyExtractor={(t) => t.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
@@ -173,13 +146,18 @@ export default function SearchScreen({ navigation }: Props) {
           }
           renderItem={renderRecommended}
         />
+      ) : results.length === 0 && channels.length === 0 && searching ? (
+        <View key="busy" style={styles.empty}>
+          <ActivityIndicator color={colors.text} />
+          <Txt size={14} color={colors.textMuted} align="center" style={{ marginTop: 14 }}>Searching all sources…</Txt>
+        </View>
       ) : results.length === 0 && channels.length === 0 ? (
         <View key="empty" style={styles.empty}>
           <Txt weight="bold" size={20} align="center">
             Oh darn. We don't have that.
           </Txt>
           <Txt size={14} color={colors.textMuted} align="center" style={{ marginTop: 10 }}>
-            Try searching for another movie, show, actor, director, or genre.
+            Try another spelling or a different title.
           </Txt>
         </View>
       ) : (

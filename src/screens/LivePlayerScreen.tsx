@@ -11,7 +11,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChannelLogo } from '../components/ChannelLogo';
 import { Txt } from '../components/Txt';
 import { filterChannels, getChannel, neighbor } from '../data/channels';
-import { DIRECT_HLS_STREAMS } from '../services/providers/nuvioProviders';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -33,7 +32,7 @@ export default function LivePlayerScreen({ navigation, route }: Props) {
   const list = useMemo(() => filterChannels(route.params.filter ?? 'All'), [route.params.filter]);
   const sources = useMemo(() => {
     if (!channel) return [];
-    const raw = [channel.url, ...channel.fallbacks, ...DIRECT_HLS_STREAMS.map((s) => s.url)];
+    const raw = [channel.url, ...channel.fallbacks];
     return Array.from(new Set(raw.filter(Boolean)));
   }, [channel]);
 

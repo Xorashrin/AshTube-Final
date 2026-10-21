@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
 
-import type { Profile } from '../data/mock';
+import type { Profile } from '../data/types';
 import { font } from '../theme/tokens';
 
 interface AvatarProps {

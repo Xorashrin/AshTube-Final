@@ -10,8 +10,8 @@ import { Poster } from '../components/Poster';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { getTitle, type Title } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
+import type { Title } from '../data/types';
+import { resolveTitle } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
 import { progressFor, useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
@@ -56,7 +56,7 @@ export default function MyListScreen({ navigation }: Props) {
     });
     if (sort === 'A - Z') list = [...list].sort((a, b) => a.name.localeCompare(b.name));
     if (sort === 'Release Date') list = [...list].sort((a, b) => b.year - a.year);
-    if (sort === 'Suggested') list = [...list].sort((a, b) => Number(b.original) - Number(a.original));
+    if (sort === 'Suggested') list = [...list].sort((a, b) => Number(!!b.imdbRating) - Number(!!a.imdbRating));
     return list;
   }, [profileData, filter, sort]);
 

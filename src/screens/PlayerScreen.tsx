@@ -1,9 +1,9 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useEvent, useEventListener } from 'expo';
-import { StatusBar } from 'expo-status-bar';
 import { Image } from 'expo-image';
-import { useVideoPlayer, VideoView, type VideoContentFit } from 'expo-video';
+import { StatusBar } from 'expo-status-bar';
+import { useVideoPlayer, VideoView, type AudioTrack, type SubtitleTrack, type VideoContentFit } from 'expo-video';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -11,15 +11,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
 import { Txt } from '../components/Txt';
-import { img } from '../data/images';
-import { findEpisode, nextEpisode } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
-import {
-  buildNuvioStreams,
-  isYoutubeOrTrailerStream,
-  pickDirectMp4Url,
-  type StreamSource,
-} from '../services/providers/nuvioProviders';
+import { findEpisode, nextEpisode, type Title } from '../data/types';
+import { loadDetail, resolveTitle } from '../services/catalog';
+import { loadServers, type Server } from '../services/playback';
+import type { Playable } from '../services/resolvers';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -30,42 +25,13 @@ type Panel = 'none' | 'speed' | 'episodes' | 'audio';
 type MciName = React.ComponentProps<typeof MaterialCommunityIcons>['name'];
 
 const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2.0];
-const AUDIO = ['English [Original]', 'Bangla', 'Hindi', 'Spanish'];
-const SUBTITLES = ['Off', 'English', 'English [CC]', 'Bangla', 'Hindi'];
 const FIT_MODES: { mode: VideoContentFit; label: string; icon: MciName }[] = [
   { mode: 'contain', label: 'Fit Screen', icon: 'aspect-ratio' },
   { mode: 'cover', label: 'Zoom / Fill', icon: 'fullscreen' },
   { mode: 'fill', label: 'Stretch', icon: 'arrow-expand-all' },
 ];
 const HIDE_AFTER = 4000;
-const STREAM_TIMEOUT_MS = 16000;
-
-const SAMPLE_CAPTIONS: Record<string, string[]> = {
-  English: [
-    'Every choice we make leaves an echo across time.',
-    'Stay sharp — they know we are already inside the perimeter.',
-    'Look at the horizon. The signal is coming from the northern tower.',
-    'We only get one shot at this. Make every second count.',
-  ],
-  'English [CC]': [
-    '[atmospheric synth music playing]',
-    'Every choice we make leaves an echo across time.',
-    '[distant rumble] Stay sharp — they know we are here.',
-    '[radio static] The signal is coming from the northern tower.',
-  ],
-  Bangla: [
-    'আমাদের প্রতিটি সিদ্ধান্তের প্রতিধ্বনি সময়ের সাথে থেকে যায়।',
-    'সতর্ক থাকো — তারা জানে আমরা ভেতরে ঢুকে পড়েছি।',
-    'দিগন্তের দিকে তাকাও, উত্তর টাওয়ার থেকে সিগন্যাল আসছে।',
-    'আমাদের হাতে একটাই সুযোগ আছে, প্রতিটি মুহূর্ত কাজে লাগাও।',
-  ],
-  Hindi: [
-    'हमारा हर फैसला वक्त के साथ अपनी गूंज छोड़ जाता है।',
-    'सावधान रहो — उन्हें पता है कि हम अंदर आ चुके हैं।',
-    'क्षितिज की तरफ देखो, सिग्नल उत्तरी टावर से आ रहा है।',
-    'हमारे पास सिर्फ एक मौका है, हर सेकंड मायने रखता है।',
-  ],
-};
+const STREAM_TIMEOUT_MS = 25000;
 
 const INJECTED_AD_SHIELD = `
   (function() {
@@ -184,98 +150,87 @@ function BottomAction({ icon, label, active, onPress }: { icon: MciName; label: 
   );
 }
 
+interface PlayerStream {
+  id: string;
+  name: string;
+  /** Embed page URL; empty for native streams (resolved on demand). */
+  url: string;
+  kind: 'native' | 'embed';
+  quality: string;
+  language: string;
+}
+
 export default function PlayerScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { setProgress, state, showToast, profileData, startDownload, deleteDownload } = useApp();
-  const title = resolveTitle(route.params.id);
+  const [title, setTitle] = useState<Title>(() => resolveTitle(route.params.id));
+  useEffect(() => {
+    let cancelled = false;
+    loadDetail(route.params.id).then((t) => !cancelled && setTitle(t));
+    return () => {
+      cancelled = true;
+    };
+  }, [route.params.id]);
+
   const found = title.kind === 'series' ? findEpisode(title, route.params.episodeId) : null;
   const episode = found?.episode;
   const next = episode ? nextEpisode(title, episode.id) : null;
   const offline = downloadFor(profileData, title.id, episode?.id);
+  const waitingForEpisodes = title.kind === 'series' && !title.detailed;
 
-  const streams = useMemo<StreamSource[]>(() => {
-    const list: StreamSource[] = [];
-    if (offline?.status === 'downloaded' && offline.localUri) {
-      list.push({
-        id: 'offline-local',
-        name: 'Offline Storage • Downloaded MP4',
-        url: offline.localUri,
-        kind: 'mp4',
-        quality: 'Offline HD',
-        language: 'Local',
-        isDirect: true,
-      });
-    }
+  // Servers: offline copy first, then every live source in fallback order.
+  const [servers, setServers] = useState<Server[] | null>(null);
+  const offlineUri = offline?.status === 'downloaded' ? offline.localUri : undefined;
+  useEffect(() => {
+    if (waitingForEpisodes) return;
+    let cancelled = false;
+    const local: Server[] = offlineUri
+      ? [
+          {
+            id: 'offline',
+            name: 'Offline • Downloaded',
+            detail: 'stored on this device',
+            quality: 'Offline',
+            kind: 'native',
+            downloadable: false,
+            resolve: async (): Promise<Playable> => ({ url: offlineUri, seekable: true, size: 0, host: 'Local', hls: false }),
+          },
+        ]
+      : [];
+    setServers(local.length ? local : null);
+    loadServers(title, episode, state.settings.defaultStreamingQuality)
+      .then((list) => !cancelled && setServers([...local, ...list]))
+      .catch(() => !cancelled && setServers(local));
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title.id, title.detailed, title.tmdbId, episode?.id, offlineUri, waitingForEpisodes]);
 
-    if (title.kind === 'series' && found && episode) {
-      if (episode.video && /\.(mp4|m3u8)(\?|$)/i.test(episode.video)) {
-        list.push({
-          id: `ep-direct-${episode.id}`,
-          name: 'Server 1 • Episode Direct HD (Native)',
-          url: episode.video,
-          kind: episode.video.includes('.m3u8') ? 'hls' : 'mp4',
-          quality: '1080p',
-          language: 'Multi-Audio',
-          isDirect: true,
-        });
-      }
-      const epStreams = buildNuvioStreams({
-        id: title.id,
-        kind: 'series',
-        season: found.season?.number ?? 1,
-        episode: episode?.number ?? 1,
-      });
-      epStreams.forEach((s) => {
-        if (!list.some((x) => x.url === s.url) && !isYoutubeOrTrailerStream(s)) {
-          list.push(s);
-        }
-      });
-    } else {
-      const rawStreams = (title.streams ?? []).filter((s) => !isYoutubeOrTrailerStream(s));
-      if (rawStreams.length > 0) {
-        rawStreams.forEach((s, idx) => {
-          if (!list.some((x) => x.url === s.url)) {
-            list.push({
-              id: (s as Partial<StreamSource>).id ?? `stream-${idx}`,
-              name: s.name,
-              url: s.url,
-              kind: (s.kind as StreamSource['kind']) || 'mp4',
-              quality: (s as Partial<StreamSource>).quality ?? '1080p',
-              language: (s as Partial<StreamSource>).language ?? 'Multi-Audio',
-              isDirect: s.kind === 'mp4' || s.kind === 'hls',
-            });
-          }
-        });
-      }
-      if (!list.some((s) => s.kind === 'mp4' || s.kind === 'hls')) {
-        const directFallback =
-          title.video && /\.(mp4|m3u8)(\?|$)/i.test(title.video)
-            ? title.video
-            : pickDirectMp4Url(episode?.id ?? title.id, 0);
-        list.unshift({
-          id: 'direct-fallback-mp4',
-          name: 'Server 1 • Direct HD (Native Player)',
-          url: directFallback,
-          kind: directFallback.includes('.m3u8') ? 'hls' : 'mp4',
-          quality: '1080p',
-          language: 'Multi-Audio',
-          isDirect: true,
-        });
-      }
-    }
-    return list;
-  }, [offline, title, found, episode]);
+  const streams = useMemo<PlayerStream[]>(
+    () =>
+      (servers ?? []).map((sv) => ({
+        id: sv.id,
+        name: sv.name,
+        url: sv.embedUrl ?? '',
+        kind: sv.kind,
+        quality: sv.quality,
+        language: sv.detail,
+      })),
+    [servers],
+  );
 
   const [streamIndex, setStreamIndex] = useState(0);
-  const [embedFailed, setEmbedFailed] = useState(false);
-  const currentStream = streams[streamIndex] ?? streams[0];
-  const isEmbed = Boolean(currentStream && currentStream.kind === 'embed');
-  const nativeSourceUrl = !isEmbed && currentStream?.url ? currentStream.url : null;
+  const [allFailed, setAllFailed] = useState(false);
+  const [source, setSource] = useState<Playable | null>(null);
+  const currentServer = servers?.[streamIndex];
+  const currentStream = streams[streamIndex];
+  const isEmbed = currentStream?.kind === 'embed';
+  const embedFailed = allFailed;
 
-  const player = useVideoPlayer(nativeSourceUrl, (p) => {
+  const player = useVideoPlayer(null, (p) => {
     p.timeUpdateEventInterval = 0.25;
     p.keepScreenOnWhilePlaying = true;
-    p.play();
   });
 
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
@@ -292,15 +247,17 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const [speed, setSpeed] = useState(1);
   const [muted, setMuted] = useState(false);
   const [fitIndex, setFitIndex] = useState(0);
-  const [audio, setAudio] = useState(state.settings.preferredLanguage || AUDIO[0]);
-  const [subtitle, setSubtitle] = useState(SUBTITLES[0]);
+  const [audioTracks, setAudioTracks] = useState<AudioTrack[]>([]);
+  const [subtitleTracks, setSubtitleTracks] = useState<SubtitleTrack[]>([]);
+  const [audioId, setAudioId] = useState<string | null>(null);
+  const [subtitleId, setSubtitleId] = useState<string | null>(null);
   const [seekHint, setSeekHint] = useState<{ side: 'back' | 'forward'; seconds: number } | null>(null);
   const [brightness, setBrightness] = useState(1.0);
   const [volume, setVolume] = useState(1.0);
   const [gestureHUD, setGestureHUD] = useState<{ icon: MciName; text: string } | null>(null);
   const gestureTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const resumedRef = useRef(false);
-  const lastLoadedUrlRef = useRef<string | null>(nativeSourceUrl);
+  const latest = useRef({ position: 0, duration: 0 });
 
   const showHUD = useCallback((icon: MciName, text: string) => {
     setGestureHUD({ icon, text });
@@ -308,73 +265,81 @@ export default function PlayerScreen({ navigation, route }: Props) {
     gestureTimer.current = setTimeout(() => setGestureHUD(null), 1300);
   }, []);
 
-  // Dynamically replace video source in expo-video whenever user switches servers or offline file finishes
+  // Fall through to the next server (never an error screen until every server failed).
+  const tryNextStream = useCallback(() => {
+    setStreamIndex((prev) => {
+      const count = servers?.length ?? 0;
+      if (prev + 1 < count) {
+        showToast(`Switching to ${servers![prev + 1].name}`);
+        return prev + 1;
+      }
+      setAllFailed(true);
+      return prev;
+    });
+  }, [servers, showToast]);
+
+  // Resolve the selected native server into a verified media URL, then load it.
   useEffect(() => {
-    if (!nativeSourceUrl) {
+    setSource(null);
+    if (!currentServer || currentServer.kind !== 'native' || !currentServer.resolve) {
       player.pause();
-      lastLoadedUrlRef.current = null;
       return;
     }
-    if (lastLoadedUrlRef.current === nativeSourceUrl) return;
-    lastLoadedUrlRef.current = nativeSourceUrl;
-    player
-      .replaceAsync(nativeSourceUrl)
-      .then(() => {
+    let cancelled = false;
+    currentServer
+      .resolve()
+      .then(async (p) => {
+        if (cancelled) return;
+        setSource(p);
+        await player.replaceAsync({ uri: p.url, headers: p.headers });
+        if (cancelled) return;
         player.playbackRate = speed;
-        player.volume = muted ? 0 : volume;
-        if (latest.current.position > 2) {
-          player.currentTime = latest.current.position;
-        }
+        player.muted = muted;
+        player.volume = volume;
+        if (latest.current.position > 2) player.currentTime = latest.current.position;
         player.play();
       })
-      .catch(() => undefined);
-  }, [nativeSourceUrl, player, speed, muted, volume]);
+      .catch(() => {
+        if (!cancelled) tryNextStream();
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentServer?.id, player]);
 
-  // Resume from saved watch progress once when player becomes ready
+  // Resume from saved watch progress once when the first stream is ready.
   useEffect(() => {
     if (resumedRef.current || status !== 'readyToPlay' || isEmbed) return;
     resumedRef.current = true;
     const saved = progressFor(profileData, title.id);
-    if (
-      saved &&
-      (!episode || saved.episodeId === episode.id) &&
-      saved.position > 5 &&
-      (saved.duration <= 0 || saved.position < saved.duration - 15)
-    ) {
+    if (saved && (!episode || saved.episodeId === episode.id) && saved.position > 5 && (saved.duration <= 0 || saved.position < saved.duration - 15)) {
       player.currentTime = saved.position;
       setPosition(saved.position);
+      latest.current.position = saved.position;
       showHUD('history', `Resumed at ${formatClock(saved.position)}`);
     }
   }, [status, isEmbed, profileData, title.id, episode, player, showHUD]);
 
-  // Auto-failover to next stream if current native stream errors or times out
-  const tryNextStream = useCallback(() => {
-    setStreamIndex((prev) => {
-      if (prev + 1 < streams.length) {
-        const nextStream = streams[prev + 1];
-        showToast(`Switching to ${nextStream.name}`);
-        return prev + 1;
-      }
-      setEmbedFailed(true);
-      return prev;
-    });
-  }, [streams, showToast]);
-
   useEventListener(player, 'statusChange', ({ status: s }) => {
-    if (!isEmbed && s === 'error') {
-      tryNextStream();
-    }
+    if (!isEmbed && source && s === 'error') tryNextStream();
   });
 
+  useEventListener(player, 'sourceLoad', ({ availableAudioTracks, availableSubtitleTracks }) => {
+    setAudioTracks(availableAudioTracks ?? []);
+    setSubtitleTracks(availableSubtitleTracks ?? []);
+    setAudioId(player.audioTrack?.id ?? null);
+    setSubtitleId(player.subtitleTrack?.id ?? null);
+  });
+
+  // A stream that never becomes ready within the budget is skipped.
   useEffect(() => {
-    if (isEmbed || status === 'readyToPlay' || embedFailed) return;
+    if (isEmbed || !source || status === 'readyToPlay' || allFailed) return;
     const timer = setTimeout(() => {
-      if (player.status !== 'readyToPlay' && !player.playing) {
-        tryNextStream();
-      }
+      if (player.status !== 'readyToPlay' && !player.playing) tryNextStream();
     }, STREAM_TIMEOUT_MS);
     return () => clearTimeout(timer);
-  }, [isEmbed, status, streamIndex, embedFailed, player, tryNextStream]);
+  }, [isEmbed, source, status, allFailed, player, tryNextStream]);
 
   const screenWidth = useRef(1);
   const screenHeight = useRef(1);
@@ -385,7 +350,6 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const isLeft = useRef(false);
   const gestureMode = useRef<'none' | 'vertical' | 'horizontal'>('none');
 
-  const latest = useRef({ position: 0, duration: 0 });
   const lastTap = useRef<{ side: 'left' | 'right'; at: number } | null>(null);
 
   const seekBy = useCallback(
@@ -595,14 +559,6 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const pointer = (visible || isEmbed) && !locked ? 'box-none' : 'none';
   const currentFit = FIT_MODES[fitIndex];
 
-  // Active subtitle cue when subtitles are enabled
-  const activeCaption = useMemo(() => {
-    if (isEmbed || subtitle === 'Off') return null;
-    const pool = SAMPLE_CAPTIONS[subtitle] ?? SAMPLE_CAPTIONS.English;
-    const idx = Math.floor(position / 6) % pool.length;
-    return pool[idx];
-  }, [isEmbed, subtitle, position]);
-
   const handleDownloadAction = () => {
     if (offline?.status === 'downloading') {
       deleteDownload(title.id, episode?.id);
@@ -613,7 +569,11 @@ export default function PlayerScreen({ navigation, route }: Props) {
       showToast('Already downloaded for offline playback');
       return;
     }
-    startDownload(title.id, episode ? episode.runtime * 6 : 845, episode?.id);
+    if (!servers?.some((x) => x.downloadable)) {
+      showToast(servers === null ? 'Still finding sources…' : 'Download is not available for this title');
+      return;
+    }
+    startDownload(title.id, episode?.id);
   };
 
   const downloadLabel =
@@ -690,19 +650,19 @@ export default function PlayerScreen({ navigation, route }: Props) {
             <View style={[StyleSheet.absoluteFill, styles.embedErrorOverlay]}>
               <MaterialCommunityIcons name="server-network-off" size={44} color={colors.red} />
               <Txt weight="bold" align="center" size={16} color={colors.text} style={{ marginTop: 12 }}>
-                This embed server is currently unavailable.
+                None of the servers could play this right now.
               </Txt>
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
                 <Pressable
                   onPress={() => {
                     setStreamIndex(0);
-                    setEmbedFailed(false);
-                    showToast('Switched to Native Direct Player');
+                    setAllFailed(false);
+                    showToast('Retrying from the first server');
                   }}
                   style={styles.primaryErrorBtn}
                 >
                   <Txt weight="bold" size={14} color="#000000">
-                    Use Native Player
+                    Retry
                   </Txt>
                 </Pressable>
                 <Pressable onPress={() => setPanel('audio')} style={styles.secondaryErrorBtn}>
@@ -724,22 +684,31 @@ export default function PlayerScreen({ navigation, route }: Props) {
         />
       )}
 
+      {allFailed && !isEmbed ? (
+        <View style={[StyleSheet.absoluteFill, styles.embedErrorOverlay]}>
+          <MaterialCommunityIcons name="server-network-off" size={44} color={colors.red} />
+          <Txt weight="bold" align="center" size={16} color={colors.text} style={{ marginTop: 12 }}>
+            None of the servers could play this right now.
+          </Txt>
+          <Txt size={13} align="center" color={colors.textMuted} style={{ marginTop: 6 }}>
+            {servers && servers.length === 0 ? 'No source has this title yet.' : 'Check your connection or try another server.'}
+          </Txt>
+          <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
+            <Pressable onPress={() => { setStreamIndex(0); setAllFailed(false); }} style={styles.primaryErrorBtn}>
+              <Txt weight="bold" size={14} color="#000000">Retry</Txt>
+            </Pressable>
+            <Pressable onPress={() => navigation.goBack()} style={styles.secondaryErrorBtn}>
+              <Txt weight="bold" size={14} color={colors.text}>Go Back</Txt>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+
       {/* Dimmer overlay for swipe brightness control */}
       <View
         pointerEvents="none"
         style={[StyleSheet.absoluteFill, { backgroundColor: '#000000', opacity: (1 - brightness) * 0.82 }]}
       />
-
-      {/* Subtitle / CC Overlay */}
-      {activeCaption ? (
-        <View pointerEvents="none" style={[styles.captionWrap, { bottom: visible ? 108 : 34 }]}>
-          <View style={styles.captionBox}>
-            <Txt weight="semibold" size={15} align="center" color="#FFFFFF">
-              {activeCaption}
-            </Txt>
-          </View>
-        </View>
-      ) : null}
 
       {/* Gesture surface tracking touches & swipes ONLY in native player mode so WebView touches are never blocked */}
       {!isEmbed ? (
@@ -753,11 +722,11 @@ export default function PlayerScreen({ navigation, route }: Props) {
         />
       ) : null}
 
-      {!isEmbed && status === 'loading' ? (
+      {!isEmbed && !allFailed && (servers === null || waitingForEpisodes || !source || status === 'loading') ? (
         <View pointerEvents="none" style={styles.center}>
           <ActivityIndicator size="large" color={colors.red} />
           <Txt size={12} color={colors.textMuted} style={{ marginTop: 8 }}>
-            Loading {currentStream?.quality || 'HD'} stream…
+            {servers === null || waitingForEpisodes ? 'Finding the best source…' : !source ? `Connecting to ${currentStream?.name ?? 'server'}…` : 'Buffering…'}
           </Txt>
         </View>
       ) : null}
@@ -813,7 +782,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
               hitSlop={10}
               onPress={() => {
                 setStreamIndex(0);
-                setEmbedFailed(false);
+                setAllFailed(false);
                 showToast('Switched to Native Player');
               }}
               style={[styles.topPill, { marginRight: 8, backgroundColor: colors.red }]}
@@ -906,8 +875,8 @@ export default function PlayerScreen({ navigation, route }: Props) {
               />
               <BottomAction
                 icon="subtitles-outline"
-                label={subtitle === 'Off' ? 'Audio & CC' : `CC: ${subtitle}`}
-                active={subtitle !== 'Off'}
+                label={subtitleId ? 'Audio & CC • On' : 'Audio & CC'}
+                active={!!subtitleId}
                 onPress={() => setPanel('audio')}
               />
               {next ? (
@@ -1010,7 +979,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
                       key={s.id + idx}
                       onPress={() => {
                         setStreamIndex(idx);
-                        setEmbedFailed(false);
+                        setAllFailed(false);
                         setPanel('none');
                         showToast(`Switched server: ${s.name}`);
                       }}
@@ -1029,7 +998,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
                           {s.name}
                         </Txt>
                         <Txt size={11} color={colors.textDim}>
-                          {s.quality || '1080p'} • {s.kind === 'embed' ? 'Web Embed' : 'Direct Native'} • {s.language || 'Multi-Audio'}
+                          {s.quality} • {s.language}
                         </Txt>
                       </View>
                     </Pressable>
@@ -1037,59 +1006,67 @@ export default function PlayerScreen({ navigation, route }: Props) {
                 </ScrollView>
               </View>
 
-              {/* Column 2: Audio Language */}
+              {/* Column 2: Audio tracks reported by the stream */}
               <View style={{ flex: 1, marginRight: 16 }}>
                 <Txt weight="bold" size={18} style={{ marginBottom: 14 }}>
                   Audio Track
                 </Txt>
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  {AUDIO.map((o) => (
-                    <Pressable
-                      key={o}
-                      onPress={() => {
-                        setAudio(o);
-                        showToast(`Audio set to ${o}`);
-                      }}
-                      style={styles.audioOption}
-                    >
-                      <View style={{ width: 24 }}>
-                        {o === audio ? <Ionicons name="checkmark" size={20} color={colors.red} /> : null}
-                      </View>
-                      <Txt weight={o === audio ? 'bold' : 'regular'} size={15} color={o === audio ? colors.text : colors.textMuted}>
-                        {o}
-                      </Txt>
-                    </Pressable>
-                  ))}
+                  {audioTracks.length === 0 ? (
+                    <Txt size={13} color={colors.textDim}>Single audio track</Txt>
+                  ) : (
+                    audioTracks.map((t, i) => {
+                      const active = (t.id ?? String(i)) === (audioId ?? audioTracks[0].id);
+                      return (
+                        <Pressable
+                          key={t.id ?? i}
+                          onPress={() => {
+                            player.audioTrack = t;
+                            setAudioId(t.id ?? String(i));
+                            showToast(`Audio: ${t.label || t.language || `Track ${i + 1}`}`);
+                          }}
+                          style={styles.audioOption}
+                        >
+                          <View style={{ width: 24 }}>{active ? <Ionicons name="checkmark" size={20} color={colors.red} /> : null}</View>
+                          <Txt weight={active ? 'bold' : 'regular'} size={15} color={active ? colors.text : colors.textMuted}>
+                            {t.label || t.language || `Track ${i + 1}`}
+                          </Txt>
+                        </Pressable>
+                      );
+                    })
+                  )}
                 </ScrollView>
               </View>
 
-              {/* Column 3: Subtitles */}
+              {/* Column 3: Embedded subtitle tracks */}
               <View style={{ flex: 0.9 }}>
                 <Txt weight="bold" size={18} style={{ marginBottom: 14 }}>
                   Subtitles (CC)
                 </Txt>
                 <ScrollView showsVerticalScrollIndicator={false}>
-                  {SUBTITLES.map((o) => (
-                    <Pressable
-                      key={o}
-                      onPress={() => {
-                        setSubtitle(o);
-                        showToast(o === 'Off' ? 'Subtitles turned off' : `Subtitles: ${o}`);
-                      }}
-                      style={styles.audioOption}
-                    >
-                      <View style={{ width: 24 }}>
-                        {o === subtitle ? <Ionicons name="checkmark" size={20} color={colors.red} /> : null}
-                      </View>
-                      <Txt
-                        weight={o === subtitle ? 'bold' : 'regular'}
-                        size={15}
-                        color={o === subtitle ? colors.text : colors.textMuted}
-                      >
-                        {o}
-                      </Txt>
-                    </Pressable>
-                  ))}
+                  {subtitleTracks.length === 0 ? (
+                    <Txt size={13} color={colors.textDim}>No subtitles in this stream</Txt>
+                  ) : (
+                    [{ id: null as string | null, label: 'Off' }, ...subtitleTracks.map((t, i) => ({ id: t.id ?? String(i), label: t.label || t.language || `Track ${i + 1}`, track: t }))].map((o) => {
+                      const active = o.id === subtitleId;
+                      return (
+                        <Pressable
+                          key={o.id ?? 'off'}
+                          onPress={() => {
+                            player.subtitleTrack = 'track' in o ? o.track : null;
+                            setSubtitleId(o.id);
+                            showToast(o.id ? `Subtitles: ${o.label}` : 'Subtitles turned off');
+                          }}
+                          style={styles.audioOption}
+                        >
+                          <View style={{ width: 24 }}>{active ? <Ionicons name="checkmark" size={20} color={colors.red} /> : null}</View>
+                          <Txt weight={active ? 'bold' : 'regular'} size={15} color={active ? colors.text : colors.textMuted}>
+                            {o.label}
+                          </Txt>
+                        </Pressable>
+                      );
+                    })
+                  )}
                 </ScrollView>
               </View>
             </View>
@@ -1128,7 +1105,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
                     style={{ width: 220 }}
                   >
                     <View style={[styles.epThumb, e.id === episode?.id ? styles.epThumbActive : null]}>
-                      <Image source={img.still(e.seed)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
+                      <Image source={e.still ? { uri: e.still } : undefined} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
                       <View style={styles.epPlayBadge}>
                         <Ionicons name={e.id === episode?.id ? 'volume-high' : 'play'} size={16} color={colors.text} />
                       </View>

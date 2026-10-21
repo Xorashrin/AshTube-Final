@@ -9,8 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/Buttons';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
-import { img } from '../data/images';
-import { RESOLVED_TITLES } from '../data/resolveTitle';
+import { HOME_ROWS, useRows } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
@@ -26,22 +25,26 @@ interface Slide {
 
 // Copy mirrors the structure of the M03.1 landing carousel, rewritten for MythTube.
 const SLIDES: Slide[] = [
-  { key: 'collage', title: 'Unlimited movies, TV shows & more', body: 'Watch anywhere. Cancel anytime.' },
+  { key: 'collage', title: 'Unlimited movies, TV shows & more', body: 'Fresh uploads, every day.' },
   { key: 'download', title: 'Download and watch offline', body: 'Always have something to watch offline.', icon: 'download-outline' },
-  { key: 'devices', title: 'No pesky contracts', body: 'Join today, cancel anytime.', icon: 'checkmark-circle-outline' },
+  { key: 'devices', title: 'Smooth playback', body: 'Seek, resume and switch servers instantly.', icon: 'checkmark-circle-outline' },
   { key: 'everywhere', title: 'Watch everywhere', body: 'Stream on your phone, tablet, laptop, TV and more.', icon: 'tv-outline' },
 ];
 
+const COLLAGE_ROWS = [HOME_ROWS[1]];
+
 function Collage() {
   const { width } = useWindowDimensions();
+  const { rows } = useRows(COLLAGE_ROWS);
+  const posters = (rows[0]?.items ?? []).filter((t) => t.poster).slice(0, 18);
   const tile = width / 3.2;
   return (
     <View style={[StyleSheet.absoluteFill, { overflow: 'hidden' }]}>
       <View style={[styles.collage, { transform: [{ rotate: '-12deg' }, { scale: 1.35 }] }]}>
-        {RESOLVED_TITLES.slice(0, 18).map((t) => (
+        {posters.map((t) => (
           <Image
             key={t.id}
-            source={{ uri: t.poster || t.background || img.poster(t.seed) }}
+            source={{ uri: t.poster! }}
             style={{ width: tile, height: tile * 1.5, margin: 3, borderRadius: 4 }}
             contentFit="cover"
             cachePolicy="memory-disk"
@@ -70,10 +73,10 @@ export default function LandingScreen({ navigation }: Props) {
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
         <Wordmark size={30} />
         <View style={styles.topLinks}>
-          <Pressable hitSlop={8} onPress={() => showToast('Privacy Statement is not part of this demo')}>
+          <Pressable hitSlop={8} onPress={() => showToast('MythTube does not collect personal data beyond your sign-in')}>
             <Txt weight="bold" size={13}>PRIVACY</Txt>
           </Pressable>
-          <Pressable hitSlop={8} onPress={() => showToast('Help Center is not part of this demo')}>
+          <Pressable hitSlop={8} onPress={() => showToast('Sign in or create an account to start watching')}>
             <Txt weight="bold" size={13}>HELP</Txt>
           </Pressable>
           <Pressable hitSlop={8} onPress={() => navigation.navigate('SignIn')}>

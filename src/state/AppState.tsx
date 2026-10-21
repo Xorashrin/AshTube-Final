@@ -1,10 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 
-import { MAIN_PROFILE_ID, PROFILE_COLOR, findEpisode, getTitle, type Profile } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
-import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo, isActive } from '../services/downloads';
-import { pickDirectMp4Url, resolveDownloadableMp4Url } from '../services/providers/nuvioProviders';
+import { MAIN_PROFILE_ID, PROFILE_COLOR, type Profile } from '../data/types';
+import { loadSavedTitles, resolveTitle, saveTitles } from '../services/catalog';
+import { cancelDownload, deleteLocalFile, downloadFrom, downloadKey, isActive } from '../services/downloads';
+import { directServers } from '../services/playback';
 import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
 export type Rating = 'down' | 'up' | 'love';
@@ -24,8 +24,7 @@ export interface DownloadEntry {
   progress: number;
   sizeMB: number;
   localUri?: string;
-  savedToDevice?: boolean;
-}
+  }
 
 export interface ProfileData {
   myList: string[];
@@ -78,7 +77,7 @@ type Action =
   | { type: 'REMOVE_PROGRESS'; titleId: string }
   | { type: 'DOWNLOAD_START'; titleId: string; episodeId?: string; sizeMB: number }
   | { type: 'DOWNLOAD_PROGRESS'; titleId: string; episodeId?: string; progress: number }
-  | { type: 'DOWNLOAD_DONE'; titleId: string; episodeId?: string; localUri: string; sizeMB: number; savedToDevice: boolean }
+  | { type: 'DOWNLOAD_DONE'; titleId: string; episodeId?: string; localUri: string; sizeMB: number }
   | { type: 'DOWNLOAD_FAILED'; titleId: string; episodeId?: string }
   | { type: 'DOWNLOAD_REMOVE'; titleId: string; episodeId?: string }
   | { type: 'TOGGLE_SETTING'; key: keyof Settings }
@@ -88,16 +87,11 @@ type Action =
 
 const STORAGE_KEY = 'mythtube:v2';
 
-const now = Date.now();
 const starterData: ProfileData = {
-  myList: ['ashen-crown', 'glass-horizon', 'hollow-pines', 'monsoon-heist', 'starfall-academy'],
-  ratings: { 'neon-monsoon': 'love' },
+  myList: [],
+  ratings: {},
   reminders: [],
-  progress: [
-    { titleId: 'ninth-oracle', episodeId: 'ninth-oracle-s1e3', position: 410, duration: 596, updatedAt: now - 1000 },
-    { titleId: 'last-lantern', position: 260, duration: 653, updatedAt: now - 2000 },
-    { titleId: 'neon-monsoon', episodeId: 'neon-monsoon-s2e1', position: 120, duration: 888, updatedAt: now - 3000 },
-  ],
+  progress: [],
   downloads: [],
 };
 
@@ -211,7 +205,6 @@ function reducer(state: State, action: Action): State {
         progress: 1,
         localUri: action.localUri,
         sizeMB: action.sizeMB,
-        savedToDevice: action.savedToDevice,
       });
     case 'DOWNLOAD_FAILED':
       return patchDownload(state, action.titleId, action.episodeId, { status: 'failed' });
@@ -246,7 +239,7 @@ interface AppContextValue {
   toggleReminder: (id: string) => void;
   setProgress: (entry: ProgressEntry) => void;
   removeProgress: (titleId: string) => void;
-  startDownload: (titleId: string, sizeMB: number, episodeId?: string) => void;
+  startDownload: (titleId: string, episodeId?: string) => void;
   deleteDownload: (titleId: string, episodeId?: string) => void;
   toggleSetting: (key: keyof Settings) => void;
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
@@ -262,7 +255,8 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   stateRef.current = state;
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    loadSavedTitles()
+      .then(() => AsyncStorage.getItem(STORAGE_KEY))
       .then((raw) => dispatch({ type: 'HYDRATE', saved: raw ? (JSON.parse(raw) as Partial<State>) : null }))
       .catch(() => dispatch({ type: 'HYDRATE', saved: null }));
   }, []);
@@ -271,6 +265,13 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     if (!state.hydrated) return;
     const { creditSeen, data, settings, profiles, activeProfileId } = state;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ creditSeen, data, settings, profiles, activeProfileId })).catch(() => undefined);
+    saveTitles([
+      ...data.myList,
+      ...Object.keys(data.ratings),
+      ...data.reminders,
+      ...data.progress.map((p) => p.titleId),
+      ...data.downloads.map((d) => d.titleId),
+    ]);
   }, [state]);
 
   useEffect(() => watchAuth((user) => dispatch({ type: 'AUTH', user })), []);
@@ -278,48 +279,39 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const showToast = useCallback((message: string) => dispatch({ type: 'TOAST', message }), []);
 
   const startDownload = useCallback(
-    (titleId: string, sizeMB: number, episodeId?: string) => {
+    (titleId: string, episodeId?: string) => {
       const key = downloadKey(titleId, episodeId);
       if (isActive(key)) {
         showToast('Download already in progress');
         return;
       }
       const title = resolveTitle(titleId);
-      const ep = episodeId ? findEpisode(title, episodeId)?.episode : undefined;
-      const rawUrl = ep?.video ?? title.video;
-      const seed = episodeId ?? titleId;
-      const url = resolveDownloadableMp4Url(seed, title.streams, rawUrl);
-      const fallbackUrls = [
-        pickDirectMp4Url(seed, 1),
-        pickDirectMp4Url(seed, 2),
-      ];
-      dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB });
-      showToast(`Downloading ${ep ? `${title.name} • ${ep.name}` : title.name}…`);
+      dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB: 0 });
+      showToast(`Preparing download: ${title.name}…`);
       let last = 0;
-      downloadVideo(
-        key,
-        url,
-        (ratio) => {
-          if (ratio - last >= 0.02 || ratio >= 1) {
-            last = ratio;
-            dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
-          }
-        },
-        fallbackUrls,
-      )
+      directServers(title, stateRef.current.settings.defaultDownloadQuality)
+        .then((servers) => {
+          if (servers.length === 0) throw new Error('No downloadable source');
+          return downloadFrom(key, servers, (ratio) => {
+            if (ratio - last >= 0.01 || ratio >= 1) {
+              last = ratio;
+              dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
+            }
+          });
+        })
         .then((r) => {
           const stillWanted = stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId));
           if (!stillWanted) {
             deleteLocalFile(r.localUri);
             return;
           }
-          dispatch({ type: 'DOWNLOAD_DONE', titleId, episodeId, localUri: r.localUri, sizeMB: r.sizeMB, savedToDevice: r.savedToDevice });
-          showToast(r.savedToDevice ? `${title.name} saved to device storage (MythTube)` : `${title.name} downloaded for offline playback`);
+          dispatch({ type: 'DOWNLOAD_DONE', titleId, episodeId, localUri: r.localUri, sizeMB: r.sizeMB });
+          showToast(`${title.name} is ready to watch offline`);
         })
-        .catch(() => {
+        .catch((e) => {
           if (stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId))) {
             dispatch({ type: 'DOWNLOAD_FAILED', titleId, episodeId });
-            showToast('Download failed. Tap retry to try again.');
+            showToast(e instanceof Error && e.message === 'No downloadable source' ? 'No downloadable source found for this title' : 'Download failed. Tap retry to try again.');
           }
         });
     },

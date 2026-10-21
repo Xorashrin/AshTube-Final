@@ -1,149 +1,73 @@
-# MythTube — Phase 5 Build (Multi-Source Full-Movie Backend)
+# MythTube
 
-Streaming app (Expo / React Native) with **Firebase auth** + **real
-multi-source full-movie backend** (2embed.cc + multiembed.mov + vidsrc.to
-+ YouTube trailers) for 369 Cinemeta VOD titles + **200 real adult VOD
-titles** scraped from public xvideos listings + **4,452 live IPTV channels**
-parsed from iptv-org.
+A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every row, title, poster and stream is loaded **live** from public sources, so new content shows up without an app update.
 
-## What's actually real now
+## What it does
 
-### VOD (individual movies / series / anime / cartoons)
+| Feature | How it works |
+|---|---|
+| **Home / New & Hot** | Live rows from the sources below. Cached for instant open (stale-while-revalidate); refreshes when the app returns to the foreground or on pull-to-refresh. Titles from the last 72 h get a **New** badge. |
+| **Search** | Fans out to every source in parallel (12 s ceiling per source). One dead source never blocks the rest; if all fail, the last good result for that query is served. |
+| **Playback** | Native player (ExoPlayer) with seek, double-tap seek, swipe volume/brightness/scrub, speed, fit modes, lock, real audio/subtitle tracks, next episode. |
+| **Resume** | Position is saved per title/episode and restored on open; survives server switches. |
+| **Downloads** | Resumable offline downloads. The **Download button is disabled** when no direct file source exists for a title (embed-only titles, series). |
+| **Fallbacks** | See below. |
+| **Live TV** | 4,400+ free-to-air channels (bundled list) with per-channel fallback URLs. |
 
-Each Cinemeta title now carries a **multi-source `streams[]` array** —
-PlayerScreen rotates through them in fallback order:
+## Sources
 
-| Source | URL pattern | Reachable from server | Plays on device |
-|---|---|---|---|
-| 2embed.cc | `https://www.2embed.cc/embed/{tmdb_id}` (movies) / `embedtv/{tmdb_id}&s=1&e=1` (series) | ✅ | ✅ WebView |
-| multiembed.mov | `https://multiembed.mov/?video_id={tmdb_id}&tmdb=1` | ✅ (302) | ✅ WebView |
-| vidsrc.to | `https://vidsrc.to/embed/movie/{imdb_id}` / `embed/tv/{imdb_id}/1/1` | ✅ (fixed 2026-10-21 — the old `/v2/` path 404s and is no longer used) | ✅ WebView |
-| vidsrc.pm / vidsrc.sh | `https://vidsrc.pm/embed/movie/{imdb_id}` / `https://vidsrc.sh/embed/movie?imdb={imdb_id}` | ✅ | ✅ WebView |
-| videasy | `https://player.videasy.to/movie/{tmdb_or_imdb_id}` | ✅ | ✅ WebView |
-| trailer (fallback) | `https://www.youtube.com/embed/{ytId}` | ✅ | ✅ WebView |
-
-`src/services/providers/nuvioProviders.ts` builds the first 6 rows of every
-title's server list (vidsrc.to → vidsrc.pm → vidsrc.sh → 2embed → multiembed →
-videasy, all IMDb-id based); the per-title `streams[]` baked into `vod.ts` by
-`tools/build_vod_backend.py` (TMDB-id based 2embed/multiembed/vidsrc) are
-appended after as extra fallbacks. All of the above were re-verified live
-(HTTP 200, real player HTML) on 2026-10-21.
-
-PlayerScreen detects the source kind:
-- HLS / mp4 → `expo-video` `VideoView` (native player)
-- embed URL → `react-native-webview` `WebView` (iframe-style player)
-
-If a source errors out, it auto-rotates to the next in the list. If all
-fail, an error toast is shown.
-
-### Adult content (VOD + Live) — richer section (2026-10-21)
-
-200 real adult videos scraped from public xvideos listing pages using
-15 search terms (Bangladeshi, Indian, desi, hindi, bhabhi, aunty,
-tamil, mallu, bengali, pakistani, south+indian, amateur, hardcore,
-teen, asian, college). Each entry has:
-- real title (from the listing page)
-- real thumbnail (`data-src` from CDN)
-- real embed URL `https://www.xvideos.com/embedframe/{id}` (WebView-playable)
-
-`AdultContentScreen` now mirrors the Home screen's Netflix-style layout
-instead of one flat grid: **Live Category Feeds**, **Premium Live Channels**,
-**Trending Adult VOD**, then keyword-derived rows (**Desi & Indian**,
-**Bangladeshi**, **Hardcore**, **Teen & College**, **Amateur & Homemade**),
-with the full 200-title grid still underneath for exhaustive browsing.
-
-Live adult channels grew from 2 → **21**, re-probed live on 2026-10-21:
-- 13 category feeds from `cdn.adultiptv.net` (MILF, Hardcore, Anal, Lesbian,
-  Asian, Big Tits, Big Ass, POV, Interracial, Latina, Blowjob, Fetish,
-  Pornstar) — real HLS, confirmed `#EXTM3U` content.
-- 6 named premium channels (Brazzers, Desire, Dorcel, Erox HD, Eroxxx,
-  Extasy) pulled from public GitHub adult `.m3u` lists and re-probed.
-- The original 2 (Music Box Sexy, Stingray Pop Adult) are unchanged.
-- `livecams.m3u8` and most of the xprime.one / ukminlt.fun candidates were
-  dropped — they returned non-200 / dead on probe, so they were not added
-  (same "only ship what currently responds" rule as `build_channels.py`).
-
-### Live IPTV
-
-4,471 channels from iptv-org + the adult augmentation above, scraped +
-HTTP-probed + deduplicated. Adult category now preserved (was previously
-filtered out).
-
-## Total real content
-
-| Surface | Count | Playback |
+| Source | Used for | Notes |
 |---|---|---|
-| Movies (Cinemeta) | 49 | WebView embed (multi-source) |
-| Series (Cinemeta) | 50 | WebView embed |
-| Cartoons (Cinemeta Animation) | 93 | WebView embed |
-| Kids (Cinemeta Family) | 61 | WebView embed |
-| Sci-Fi (Cinemeta) | 60 | WebView embed |
-| Documentary (Cinemeta) | 30 | WebView embed |
-| Anime (Cinemeta search=anime) | 26 | WebView embed |
-| Adult VOD (xvideos scrape) | 200 | WebView embed |
-| Adult IPTV (category + premium + legacy) | 21 | Live HLS |
-| Live IPTV (all categories) | 4,471 | Live HLS |
-| **TOTAL** | **~5,042** | |
+| southfreak.club (WordPress REST) | Movies; metadata from post excerpts; download links | `emd_dl` buttons → TechZed → mirrors |
+| southfreak.in | 18+ section (age-gated) | Same adapter |
+| amaderftp.net (BDIX) | Fast direct MP4/MKV with HTTP Range | Looked up by TMDB id; public host used, private BDIX IPs ignored |
+| Cinemeta (Stremio) | Trending, search, cast, real season/episode lists | Metadata only |
+| AniList GraphQL | Anime trending, airing schedule, search | Metadata only |
+| VidSrc / 2Embed / MultiEmbed | Last-resort web players for Cinemeta titles | Needs IMDb/TMDB id |
 
-## File layout (Phase 5 additions / changes)
+Adapters live in `src/services/sources/`; details in [`docs/BACKEND.md`](docs/BACKEND.md).
+
+## Fallback chain
 
 ```
-src/data/vod.ts                  # regenerated — now includes tmdb_id + streams[]
-src/data/adult_vod.ts            # NEW — 200 xvideos VOD titles
-src/data/channels.ts             # + adultVodTitles() helper
-src/data/resolveTitle.ts        # bridges Adult VOD titles into Title shape
-src/screens/PlayerScreen.tsx     # + WebView for embed URLs + source rotation
-src/screens/AdultContentScreen.tsx # + Adult VOD grid (above live IPTV)
-package.json                     # + react-native-webview
-tools/build_vod_backend.py       # updated — captures TMDB id, builds streams[]
-tools/build_adult_vod.py         # NEW — xvideos listing scraper
+provider        own source → same movie on other sources (matched by TMDB id, or name + year) → web embeds
+  └ variant     preferred quality first (Settings → Default Video Quality)
+      └ mirror  ranked by host + live success rate; each attempt capped at 30 s
+          └ probe   Range request must return media (206 = seek + resume works)
 ```
 
-## Regenerate any time
+Any failure falls through to the next sibling automatically. The player also skips a stream that does not become ready within 25 s. Hosts that fail four times in a row are paused for three minutes (circuit breaker), and requests are capped per host so WordPress is not hammered.
 
-```bash
-# 1. Live IPTV catalog (requires the original scraper)
-python3 /home/z/my-project/scripts/iptv_scraper.py
-python3 tools/build_channels.py \
-  /home/z/my-project/download/iptv_working.m3u \
-  src/data/channels.json
+## Build
 
-# 2. Cinemeta VOD catalog (movies/series/anime — multi-source)
-python3 tools/build_vod_backend.py
+Nothing builds locally. Push to `main` and GitHub Actions does everything:
 
-# 3. Adult VOD catalog (xvideos scrape)
-python3 tools/build_adult_vod.py
+1. **Actions → Android APK** (runs on every push, or **Run workflow**).
+2. Download the **MythTube-apk** artifact, or the APK attached to the latest **Release**.
+
+The workflow runs `npm install`, `expo install --fix`, `tsc --noEmit`, `expo prebuild`, then Gradle `assembleRelease` for arm64-v8a with R8 minification and resource shrinking. The APK is signed with the Expo template keystore, which is stable, so new builds install over old ones.
+
+## Project layout
+
+```
+App.tsx                      fonts, splash, providers
+src/data/types.ts            Title / Episode / Profile types
+src/data/channels.*          bundled live-TV channel list
+src/services/http.ts         fetch wrapper: timeouts, retry+jitter, circuit breaker, per-host limits, Range probe
+src/services/cache.ts        memory + AsyncStorage cache
+src/services/sources/        wordpress, amaderftp, cinemeta, anilist adapters
+src/services/resolvers.ts    mirror pages → verified media URL
+src/services/playback.ts     fallback chain, server list
+src/services/downloads.ts    resumable downloads
+src/services/catalog.ts      feeds, search, title registry, hooks
+src/state/AppState.tsx       profile data, progress, downloads (persisted)
+src/screens, src/components  UI
+tools/                       build_channels.py (live-TV list), make_icons.py
 ```
 
-## Run
+## Notes
 
-```bash
-npm install
-npm start               # Metro dev server
-# or
-npm run prebuild:android # → android/, then assembleRelease
-```
-
-## Honest notes
-
-- 2026-10-21 verification pass: every provider domain in
-  `nuvioProviders.ts` (vidsrc.to, vidsrc.pm, vidsrc.sh, 2embed.cc,
-  multiembed.mov, videasy) was curled live and returned a real player
-  page (HTTP 200, no frame-ancestors block). The one confirmed-dead
-  link was the legacy `vidsrc.to/v2/...` format baked into 369 entries
-  of `vod.ts` by an older run of `build_vod_backend.py` (404 — the API
-  was retired) — it has been rewritten in place to the current
-  `vidsrc.to/embed/...` format, and the generator script now emits the
-  correct format going forward.
-- multiembed.mov redirects through a one-tap "click to play" gate
-  (`streamingnow.mov`) before the video starts — this is normal for
-  that provider and works fine inside the WebView; it is simply not an
-  instant-start source like the others.
-- Adult VOD metadata is whatever the listing page exposed (title +
-  thumbnail). xvideos rotates listings daily; re-run
-  `tools/build_adult_vod.py` to refresh.
-- Some 2embed.cc / multiembed streams may themselves fail in specific
-  regions due to upstream provider availability — the multi-source
-  rotation in PlayerScreen catches this and tries the next source.
-- Firebase config (`src/services/firebase.ts`) is the live project
-  `mythtube-asraful` — sign in / sign up with any email works.
+- Which files exist on each host changes constantly; the app never ships a fixed catalog.
+- Stream links from file hosts expire, so they are resolved on demand and cached for four minutes only.
+- Premium or captcha lockers (1fichier, Rapidgator, …) are skipped.
+- Sign-in uses Firebase Authentication (`src/services/firebase.ts`).
