@@ -22,8 +22,9 @@ For each title with a TMDB id, we build stream URLs:
   - https://www.2embed.cc/embed/{tmdb_id}                            (movies)
   - https://www.2embed.cc/embedtv/{tmdb_id}&s=1&e=1                  (series)
   - https://multiembed.mov/?video_id={tmdb_id}&tmdb=1                (movies)
-  - https://vidsrc.to/v2/movie/{tmdb_id}                              (movies, fallback)
-  - https://vidsrc.to/v2/tv/{tmdb_id}/{s}/{e}                        (series, fallback)
+  - https://vidsrc.to/embed/movie/{imdb_id}                          (movies, fallback)
+  - https://vidsrc.to/embed/tv/{imdb_id}/{s}/{e}                     (series, fallback)
+  (the legacy /v2/ vidsrc.to path is dead — HTTP 404 — and must never be used)
 
 These are iframe-embeddable players — open in a WebView on device.
 """
@@ -96,42 +97,47 @@ def genres_for(meta, category):
     return g[:4]
 
 def build_streams(meta, category):
-    """Build multi-source stream URLs from TMDB id."""
+    """Build multi-source stream URLs from TMDB id + IMDb id."""
     tmdb_id = meta.get("moviedb_id") or meta.get("tmdb_id")
-    if not tmdb_id:
+    imdb_id = meta.get("imdb_id") or meta.get("id") or ""
+    if not tmdb_id and not imdb_id:
         return []
     is_series = meta.get("type") == "series"
+    primary = tmdb_id or imdb_id
     streams = []
-    # Primary source — 2embed.cc (reachable, no API key)
+    # Primary source — 2embed.cc (reachable, no API key, accepts tmdb or imdb id)
     if is_series:
         streams.append({
             "name": "2embed",
-            "url": f"https://www.2embed.cc/embedtv/{tmdb_id}&s=1&e=1",
+            "url": f"https://www.2embed.cc/embedtv/{primary}&s=1&e=1",
             "kind": "embed",
         })
     else:
         streams.append({
             "name": "2embed",
-            "url": f"https://www.2embed.cc/embed/{tmdb_id}",
+            "url": f"https://www.2embed.cc/embed/{primary}",
             "kind": "embed",
         })
-    # Secondary — multiembed.mov
-    streams.append({
-        "name": "multiembed",
-        "url": f"https://multiembed.mov/?video_id={tmdb_id}&tmdb=1",
-        "kind": "embed",
-    })
-    # Tertiary — vidsrc.to (Cloudflare-blocked from server, but works on device WebView)
+    # Secondary — multiembed.mov (tmdb_id required for the tmdb=1 flag)
+    if tmdb_id:
+        streams.append({
+            "name": "multiembed",
+            "url": f"https://multiembed.mov/?video_id={tmdb_id}&tmdb=1" + ("&s=1&e=1" if is_series else ""),
+            "kind": "embed",
+        })
+    # Tertiary — vidsrc.to current embed API (verified 2026-10-21; the old /v2/
+    # path returns 404 and must not be used). Prefers IMDb id, falls back to TMDB id.
+    vidsrc_id = imdb_id or tmdb_id
     if is_series:
         streams.append({
             "name": "vidsrc",
-            "url": f"https://vidsrc.to/v2/tv/{tmdb_id}/1/1",
+            "url": f"https://vidsrc.to/embed/tv/{vidsrc_id}/1/1",
             "kind": "embed",
         })
     else:
         streams.append({
             "name": "vidsrc",
-            "url": f"https://vidsrc.to/v2/movie/{tmdb_id}",
+            "url": f"https://vidsrc.to/embed/movie/{vidsrc_id}",
             "kind": "embed",
         })
     return streams

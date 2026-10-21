@@ -79,7 +79,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1381078",
+        "url": "https://vidsrc.to/embed/movie/tt34384900",
         "kind": "embed"
       },
       {
@@ -141,7 +141,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1288069",
+        "url": "https://vidsrc.to/embed/movie/tt6262770",
         "kind": "embed"
       },
       {
@@ -203,7 +203,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1058424",
+        "url": "https://vidsrc.to/embed/movie/tt27369017",
         "kind": "embed"
       },
       {
@@ -264,7 +264,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/969681",
+        "url": "https://vidsrc.to/embed/movie/tt22084616",
         "kind": "embed"
       },
       {
@@ -324,7 +324,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1514026",
+        "url": "https://vidsrc.to/embed/movie/tt37281055",
         "kind": "embed"
       },
       {
@@ -386,7 +386,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1275779",
+        "url": "https://vidsrc.to/embed/movie/tt15047880",
         "kind": "embed"
       },
       {
@@ -447,7 +447,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1339713",
+        "url": "https://vidsrc.to/embed/movie/tt37287335",
         "kind": "embed"
       },
       {
@@ -509,7 +509,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1083381",
+        "url": "https://vidsrc.to/embed/movie/tt26657236",
         "kind": "embed"
       },
       {
@@ -571,7 +571,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1492640",
+        "url": "https://vidsrc.to/embed/movie/tt6933238",
         "kind": "embed"
       },
       {
@@ -633,7 +633,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1302904",
+        "url": "https://vidsrc.to/embed/movie/tt32588798",
         "kind": "embed"
       },
       {
@@ -695,7 +695,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1284465",
+        "url": "https://vidsrc.to/embed/movie/tt32273171",
         "kind": "embed"
       },
       {
@@ -757,7 +757,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1377237",
+        "url": "https://vidsrc.to/embed/movie/tt31349844",
         "kind": "embed"
       },
       {
@@ -819,7 +819,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1368166",
+        "url": "https://vidsrc.to/embed/movie/tt27543632",
         "kind": "embed"
       },
       {
@@ -879,7 +879,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/7340",
+        "url": "https://vidsrc.to/embed/movie/tt0074285",
         "kind": "embed"
       },
       {
@@ -941,7 +941,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1548113",
+        "url": "https://vidsrc.to/embed/movie/tt37969426",
         "kind": "embed"
       },
       {
@@ -1004,7 +1004,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/687163",
+        "url": "https://vidsrc.to/embed/movie/tt12042730",
         "kind": "embed"
       },
       {
@@ -1066,7 +1066,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/31767",
+        "url": "https://vidsrc.to/embed/movie/tt0066993",
         "kind": "embed"
       },
       {
@@ -1128,7 +1128,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/950028",
+        "url": "https://vidsrc.to/embed/movie/tt14173636",
         "kind": "embed"
       },
       {
@@ -1188,7 +1188,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1212763",
+        "url": "https://vidsrc.to/embed/movie/tt31170389",
         "kind": "embed"
       },
       {
@@ -1250,7 +1250,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/977942",
+        "url": "https://vidsrc.to/embed/movie/tt36983905",
         "kind": "embed"
       },
       {
@@ -1312,7 +1312,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/4488",
+        "url": "https://vidsrc.to/embed/movie/tt0080761",
         "kind": "embed"
       },
       {
@@ -1373,7 +1373,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1032863",
+        "url": "https://vidsrc.to/embed/movie/tt22526100",
         "kind": "embed"
       },
       {
@@ -1435,7 +1435,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1101383",
+        "url": "https://vidsrc.to/embed/movie/tt27165187",
         "kind": "embed"
       },
       {
@@ -1497,7 +1497,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/860508",
+        "url": "https://vidsrc.to/embed/movie/tt11561116",
         "kind": "embed"
       },
       {
@@ -1559,7 +1559,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/6435",
+        "url": "https://vidsrc.to/embed/movie/tt0120791",
         "kind": "embed"
       },
       {
@@ -1619,7 +1619,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1487317",
+        "url": "https://vidsrc.to/embed/movie/tt37027309",
         "kind": "embed"
       },
       {
@@ -1681,7 +1681,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10439",
+        "url": "https://vidsrc.to/embed/movie/tt0107120",
         "kind": "embed"
       },
       {
@@ -1744,7 +1744,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1137844",
+        "url": "https://vidsrc.to/embed/movie/tt28014327",
         "kind": "embed"
       },
       {
@@ -1804,7 +1804,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/278",
+        "url": "https://vidsrc.to/embed/movie/tt0111161",
         "kind": "embed"
       },
       {
@@ -1865,7 +1865,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1430077",
+        "url": "https://vidsrc.to/embed/movie/tt35672862",
         "kind": "embed"
       },
       {
@@ -1926,7 +1926,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1078605",
+        "url": "https://vidsrc.to/embed/movie/tt26581740",
         "kind": "embed"
       },
       {
@@ -1986,7 +1986,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/220",
+        "url": "https://vidsrc.to/embed/movie/tt0048028",
         "kind": "embed"
       },
       {
@@ -2048,7 +2048,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1240889",
+        "url": "https://vidsrc.to/embed/movie/tt35298123",
         "kind": "embed"
       },
       {
@@ -2110,7 +2110,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1246049",
+        "url": "https://vidsrc.to/embed/movie/tt31434030",
         "kind": "embed"
       },
       {
@@ -2172,7 +2172,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1375646",
+        "url": "https://vidsrc.to/embed/movie/tt34385135",
         "kind": "embed"
       },
       {
@@ -2234,7 +2234,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1204680",
+        "url": "https://vidsrc.to/embed/movie/tt1756855",
         "kind": "embed"
       },
       {
@@ -2296,7 +2296,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1122573",
+        "url": "https://vidsrc.to/embed/movie/tt27681354",
         "kind": "embed"
       },
       {
@@ -2358,7 +2358,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1433367",
+        "url": "https://vidsrc.to/embed/movie/tt37853455",
         "kind": "embed"
       },
       {
@@ -2414,7 +2414,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/298505",
+        "url": "https://vidsrc.to/embed/movie/tt36064406",
         "kind": "embed"
       }
     ],
@@ -2471,7 +2471,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1340206",
+        "url": "https://vidsrc.to/embed/movie/tt33296751",
         "kind": "embed"
       },
       {
@@ -2533,7 +2533,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1318413",
+        "url": "https://vidsrc.to/embed/movie/tt32547691",
         "kind": "embed"
       },
       {
@@ -2596,7 +2596,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1084244",
+        "url": "https://vidsrc.to/embed/movie/tt29355505",
         "kind": "embed"
       },
       {
@@ -2657,7 +2657,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/4232",
+        "url": "https://vidsrc.to/embed/movie/tt0117571",
         "kind": "embed"
       },
       {
@@ -2719,7 +2719,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/792307",
+        "url": "https://vidsrc.to/embed/movie/tt14230458",
         "kind": "embed"
       },
       {
@@ -2779,7 +2779,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1233413",
+        "url": "https://vidsrc.to/embed/movie/tt31193180",
         "kind": "embed"
       },
       {
@@ -2841,7 +2841,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1124",
+        "url": "https://vidsrc.to/embed/movie/tt0482571",
         "kind": "embed"
       },
       {
@@ -2903,7 +2903,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1228710",
+        "url": "https://vidsrc.to/embed/movie/tt30825738",
         "kind": "embed"
       },
       {
@@ -2965,7 +2965,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1301421",
+        "url": "https://vidsrc.to/embed/movie/tt32565993",
         "kind": "embed"
       },
       {
@@ -3027,7 +3027,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1119449",
+        "url": "https://vidsrc.to/embed/movie/tt1341338",
         "kind": "embed"
       },
       {
@@ -3086,7 +3086,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/288673/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt11540908/1/1",
         "kind": "embed"
       },
       {
@@ -3146,7 +3146,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/285322/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt35934755/1/1",
         "kind": "embed"
       },
       {
@@ -3206,7 +3206,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/213562/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt23148340/1/1",
         "kind": "embed"
       },
       {
@@ -3264,7 +3264,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/258165/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt21097264/1/1",
         "kind": "embed"
       },
       {
@@ -3324,7 +3324,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/213375/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt23112594/1/1",
         "kind": "embed"
       },
       {
@@ -3383,7 +3383,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/203857/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt17491088/1/1",
         "kind": "embed"
       },
       {
@@ -3442,7 +3442,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/247718/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt31510819/1/1",
         "kind": "embed"
       },
       {
@@ -3501,7 +3501,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95480/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5875444/1/1",
         "kind": "embed"
       },
       {
@@ -3556,7 +3556,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/298852/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt37972251/1/1",
         "kind": "embed"
       },
       {
@@ -3616,7 +3616,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95350/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt26545992/1/1",
         "kind": "embed"
       },
       {
@@ -3676,7 +3676,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/97546/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt10986410/1/1",
         "kind": "embed"
       },
       {
@@ -3736,7 +3736,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/153312/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt16358384/1/1",
         "kind": "embed"
       },
       {
@@ -3796,7 +3796,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1413/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1844624/1/1",
         "kind": "embed"
       },
       {
@@ -3855,7 +3855,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/236235/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13210838/1/1",
         "kind": "embed"
       },
       {
@@ -3915,7 +3915,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1396/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0903747/1/1",
         "kind": "embed"
       },
       {
@@ -3975,7 +3975,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/5920/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1196946/1/1",
         "kind": "embed"
       },
       {
@@ -4035,7 +4035,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/284833/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt35854736/1/1",
         "kind": "embed"
       },
       {
@@ -4094,7 +4094,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/126116/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13138834/1/1",
         "kind": "embed"
       },
       {
@@ -4153,7 +4153,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1399/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0944947/1/1",
         "kind": "embed"
       },
       {
@@ -4213,7 +4213,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/196322/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt19231492/1/1",
         "kind": "embed"
       },
       {
@@ -4273,7 +4273,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/270476/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt33332385/1/1",
         "kind": "embed"
       },
       {
@@ -4333,7 +4333,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/73223/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt7441658/1/1",
         "kind": "embed"
       },
       {
@@ -4393,7 +4393,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/273207/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt33539520/1/1",
         "kind": "embed"
       },
       {
@@ -4453,7 +4453,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/108978/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt9288030/1/1",
         "kind": "embed"
       },
       {
@@ -4513,7 +4513,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/125988/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt14688458/1/1",
         "kind": "embed"
       },
       {
@@ -4573,7 +4573,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/79744/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt7587890/1/1",
         "kind": "embed"
       },
       {
@@ -4633,7 +4633,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/46648/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2356777/1/1",
         "kind": "embed"
       },
       {
@@ -4693,7 +4693,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/113962/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13111078/1/1",
         "kind": "embed"
       },
       {
@@ -4752,7 +4752,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2190/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0121955/1/1",
         "kind": "embed"
       },
       {
@@ -4810,7 +4810,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/303630/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt33270224/1/1",
         "kind": "embed"
       },
       {
@@ -4870,7 +4870,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/273247/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt31289994/1/1",
         "kind": "embed"
       },
       {
@@ -4930,7 +4930,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/256711/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt6151526/1/1",
         "kind": "embed"
       },
       {
@@ -4989,7 +4989,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1416/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0413573/1/1",
         "kind": "embed"
       }
     ],
@@ -5044,7 +5044,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/97951/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt11712058/1/1",
         "kind": "embed"
       },
       {
@@ -5103,7 +5103,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1398/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0141842/1/1",
         "kind": "embed"
       },
       {
@@ -5163,7 +5163,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1429/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2560140/1/1",
         "kind": "embed"
       },
       {
@@ -5223,7 +5223,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/255752/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt32499579/1/1",
         "kind": "embed"
       },
       {
@@ -5283,7 +5283,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1402/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1520211/1/1",
         "kind": "embed"
       },
       {
@@ -5343,7 +5343,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/4614/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0364845/1/1",
         "kind": "embed"
       },
       {
@@ -5403,7 +5403,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2734/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0203259/1/1",
         "kind": "embed"
       }
     ],
@@ -5457,7 +5457,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/305357/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt33081352/1/1",
         "kind": "embed"
       },
       {
@@ -5517,7 +5517,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1622/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0460681/1/1",
         "kind": "embed"
       },
       {
@@ -5575,7 +5575,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/250307/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt31938062/1/1",
         "kind": "embed"
       },
       {
@@ -5633,7 +5633,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/250203/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt6773088/1/1",
         "kind": "embed"
       },
       {
@@ -5692,7 +5692,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/291084/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt36885662/1/1",
         "kind": "embed"
       },
       {
@@ -5752,7 +5752,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/117488/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt11041332/1/1",
         "kind": "embed"
       },
       {
@@ -5811,7 +5811,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/60059/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt3032476/1/1",
         "kind": "embed"
       },
       {
@@ -5871,7 +5871,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/66732/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt4574334/1/1",
         "kind": "embed"
       },
       {
@@ -5929,7 +5929,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2710/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0472954/1/1",
         "kind": "embed"
       },
       {
@@ -5987,7 +5987,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/285418/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt35949226/1/1",
         "kind": "embed"
       },
       {
@@ -6049,7 +6049,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/14836",
+        "url": "https://vidsrc.to/embed/movie/tt0327597",
         "kind": "embed"
       },
       {
@@ -6111,7 +6111,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9479",
+        "url": "https://vidsrc.to/embed/movie/tt0107688",
         "kind": "embed"
       },
       {
@@ -6174,7 +6174,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/980431",
+        "url": "https://vidsrc.to/embed/movie/tt18259538",
         "kind": "embed"
       },
       {
@@ -6236,7 +6236,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/129",
+        "url": "https://vidsrc.to/embed/movie/tt0245429",
         "kind": "embed"
       },
       {
@@ -6299,7 +6299,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/425",
+        "url": "https://vidsrc.to/embed/movie/tt0268380",
         "kind": "embed"
       },
       {
@@ -6361,7 +6361,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9297",
+        "url": "https://vidsrc.to/embed/movie/tt0385880",
         "kind": "embed"
       },
       {
@@ -6424,7 +6424,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/3933",
+        "url": "https://vidsrc.to/embed/movie/tt0121164",
         "kind": "embed"
       },
       {
@@ -6486,7 +6486,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/76492",
+        "url": "https://vidsrc.to/embed/movie/tt0837562",
         "kind": "embed"
       },
       {
@@ -6548,7 +6548,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1315772",
+        "url": "https://vidsrc.to/embed/movie/tt32890033",
         "kind": "embed"
       },
       {
@@ -6611,7 +6611,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1226863",
+        "url": "https://vidsrc.to/embed/movie/tt28650488",
         "kind": "embed"
       },
       {
@@ -6673,7 +6673,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1327819",
+        "url": "https://vidsrc.to/embed/movie/tt26443616",
         "kind": "embed"
       },
       {
@@ -6736,7 +6736,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/77174",
+        "url": "https://vidsrc.to/embed/movie/tt1623288",
         "kind": "embed"
       },
       {
@@ -6799,7 +6799,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/569094",
+        "url": "https://vidsrc.to/embed/movie/tt9362722",
         "kind": "embed"
       },
       {
@@ -6862,7 +6862,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/354912",
+        "url": "https://vidsrc.to/embed/movie/tt2380307",
         "kind": "embed"
       },
       {
@@ -6925,7 +6925,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/324857",
+        "url": "https://vidsrc.to/embed/movie/tt4633694",
         "kind": "embed"
       },
       {
@@ -6987,7 +6987,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/862",
+        "url": "https://vidsrc.to/embed/movie/tt0114709",
         "kind": "embed"
       },
       {
@@ -7050,7 +7050,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1311031",
+        "url": "https://vidsrc.to/embed/movie/tt32820897",
         "kind": "embed"
       },
       {
@@ -7112,7 +7112,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/12477",
+        "url": "https://vidsrc.to/embed/movie/tt0095327",
         "kind": "embed"
       },
       {
@@ -7174,7 +7174,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1560520",
+        "url": "https://vidsrc.to/embed/movie/tt32333324",
         "kind": "embed"
       },
       {
@@ -7237,7 +7237,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/920",
+        "url": "https://vidsrc.to/embed/movie/tt0317219",
         "kind": "embed"
       },
       {
@@ -7299,7 +7299,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/372058",
+        "url": "https://vidsrc.to/embed/movie/tt5311514",
         "kind": "embed"
       },
       {
@@ -7362,7 +7362,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/8587",
+        "url": "https://vidsrc.to/embed/movie/tt0110357",
         "kind": "embed"
       },
       {
@@ -7424,7 +7424,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1184918",
+        "url": "https://vidsrc.to/embed/movie/tt29623480",
         "kind": "embed"
       },
       {
@@ -7487,7 +7487,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/2062",
+        "url": "https://vidsrc.to/embed/movie/tt0382932",
         "kind": "embed"
       },
       {
@@ -7550,7 +7550,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1084242",
+        "url": "https://vidsrc.to/embed/movie/tt26443597",
         "kind": "embed"
       },
       {
@@ -7613,7 +7613,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/585",
+        "url": "https://vidsrc.to/embed/movie/tt0198781",
         "kind": "embed"
       },
       {
@@ -7675,7 +7675,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1185806",
+        "url": "https://vidsrc.to/embed/movie/tt29356163",
         "kind": "embed"
       },
       {
@@ -7737,7 +7737,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9806",
+        "url": "https://vidsrc.to/embed/movie/tt0317705",
         "kind": "embed"
       },
       {
@@ -7799,7 +7799,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10193",
+        "url": "https://vidsrc.to/embed/movie/tt0435761",
         "kind": "embed"
       },
       {
@@ -7862,7 +7862,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/57800",
+        "url": "https://vidsrc.to/embed/movie/tt1667889",
         "kind": "embed"
       },
       {
@@ -7924,7 +7924,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10681",
+        "url": "https://vidsrc.to/embed/movie/tt0910970",
         "kind": "embed"
       },
       {
@@ -7987,7 +7987,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/808",
+        "url": "https://vidsrc.to/embed/movie/tt0126029",
         "kind": "embed"
       },
       {
@@ -8050,7 +8050,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/803796",
+        "url": "https://vidsrc.to/embed/movie/tt14205554",
         "kind": "embed"
       },
       {
@@ -8112,7 +8112,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10315",
+        "url": "https://vidsrc.to/embed/movie/tt0432283",
         "kind": "embed"
       },
       {
@@ -8174,7 +8174,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/4935",
+        "url": "https://vidsrc.to/embed/movie/tt0347149",
         "kind": "embed"
       },
       {
@@ -8237,7 +8237,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1297842",
+        "url": "https://vidsrc.to/embed/movie/tt27613895",
         "kind": "embed"
       },
       {
@@ -8300,7 +8300,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/12",
+        "url": "https://vidsrc.to/embed/movie/tt0266543",
         "kind": "embed"
       },
       {
@@ -8363,7 +8363,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/14160",
+        "url": "https://vidsrc.to/embed/movie/tt1049413",
         "kind": "embed"
       },
       {
@@ -8425,7 +8425,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/698687",
+        "url": "https://vidsrc.to/embed/movie/tt8864596",
         "kind": "embed"
       },
       {
@@ -8488,7 +8488,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10191",
+        "url": "https://vidsrc.to/embed/movie/tt0892769",
         "kind": "embed"
       },
       {
@@ -8551,7 +8551,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1333100",
+        "url": "https://vidsrc.to/embed/movie/tt33175825",
         "kind": "embed"
       },
       {
@@ -8613,7 +8613,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/128",
+        "url": "https://vidsrc.to/embed/movie/tt0119698",
         "kind": "embed"
       },
       {
@@ -8675,7 +8675,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/301528",
+        "url": "https://vidsrc.to/embed/movie/tt1979376",
         "kind": "embed"
       },
       {
@@ -8738,7 +8738,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/863",
+        "url": "https://vidsrc.to/embed/movie/tt0120363",
         "kind": "embed"
       },
       {
@@ -8800,7 +8800,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10494",
+        "url": "https://vidsrc.to/embed/movie/tt0156887",
         "kind": "embed"
       },
       {
@@ -8863,7 +8863,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/150540",
+        "url": "https://vidsrc.to/embed/movie/tt2096673",
         "kind": "embed"
       },
       {
@@ -8926,7 +8926,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/315162",
+        "url": "https://vidsrc.to/embed/movie/tt3915174",
         "kind": "embed"
       },
       {
@@ -8988,7 +8988,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/62214",
+        "url": "https://vidsrc.to/embed/movie/tt1142977",
         "kind": "embed"
       },
       {
@@ -9048,7 +9048,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/65942/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5607616/1/1",
         "kind": "embed"
       },
       {
@@ -9108,7 +9108,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/37854/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0388629/1/1",
         "kind": "embed"
       },
       {
@@ -9168,7 +9168,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/60625/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2861424/1/1",
         "kind": "embed"
       },
       {
@@ -9227,7 +9227,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/456/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0096697/1/1",
         "kind": "embed"
       },
       {
@@ -9287,7 +9287,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/105248/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt12590266/1/1",
         "kind": "embed"
       },
       {
@@ -9346,7 +9346,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1434/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0182576/1/1",
         "kind": "embed"
       },
       {
@@ -9406,7 +9406,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95479/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt12343534/1/1",
         "kind": "embed"
       },
       {
@@ -9466,7 +9466,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/94664/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13293588/1/1",
         "kind": "embed"
       },
       {
@@ -9526,7 +9526,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/45790/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2359704/1/1",
         "kind": "embed"
       },
       {
@@ -9586,7 +9586,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/246/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0417299/1/1",
         "kind": "embed"
       },
       {
@@ -9646,7 +9646,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/337938/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt35459966/1/1",
         "kind": "embed"
       },
       {
@@ -9706,7 +9706,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95557/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt6741278/1/1",
         "kind": "embed"
       },
       {
@@ -9766,7 +9766,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/61617/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt3718778/1/1",
         "kind": "embed"
       },
       {
@@ -9826,7 +9826,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/85937/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt9335498/1/1",
         "kind": "embed"
       },
       {
@@ -9886,7 +9886,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/220542/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt26743760/1/1",
         "kind": "embed"
       },
       {
@@ -9946,7 +9946,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/65930/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5626028/1/1",
         "kind": "embed"
       },
       {
@@ -10006,7 +10006,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/94605/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt11126994/1/1",
         "kind": "embed"
       },
       {
@@ -10066,7 +10066,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/46298/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2098220/1/1",
         "kind": "embed"
       },
       {
@@ -10126,7 +10126,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/88803/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt10233448/1/1",
         "kind": "embed"
       },
       {
@@ -10186,7 +10186,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/31911/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1355642/1/1",
         "kind": "embed"
       },
       {
@@ -10246,7 +10246,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/13916/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0877057/1/1",
         "kind": "embed"
       },
       {
@@ -10306,7 +10306,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/33880/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1695360/1/1",
         "kind": "embed"
       },
       {
@@ -10366,7 +10366,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/31910/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0988824/1/1",
         "kind": "embed"
       },
       {
@@ -10425,7 +10425,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/32726/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1561755/1/1",
         "kind": "embed"
       },
       {
@@ -10485,7 +10485,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/61222/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt3398228/1/1",
         "kind": "embed"
       },
       {
@@ -10545,7 +10545,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/30981/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0434706/1/1",
         "kind": "embed"
       },
       {
@@ -10605,7 +10605,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/615/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0149460/1/1",
         "kind": "embed"
       },
       {
@@ -10665,7 +10665,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/30984/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0434665/1/1",
         "kind": "embed"
       },
       {
@@ -10725,7 +10725,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/105009/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13196080/1/1",
         "kind": "embed"
       },
       {
@@ -10785,7 +10785,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/209867/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt22248376/1/1",
         "kind": "embed"
       },
       {
@@ -10845,7 +10845,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/127532/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt21209876/1/1",
         "kind": "embed"
       },
       {
@@ -10905,7 +10905,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/46260/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0409591/1/1",
         "kind": "embed"
       },
       {
@@ -10965,7 +10965,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/86831/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt9561862/1/1",
         "kind": "embed"
       },
       {
@@ -11025,7 +11025,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/40075/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1865718/1/1",
         "kind": "embed"
       },
       {
@@ -11085,7 +11085,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/15260/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1305826/1/1",
         "kind": "embed"
       },
       {
@@ -11145,7 +11145,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/387/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0206512/1/1",
         "kind": "embed"
       }
     ],
@@ -11200,7 +11200,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/138502/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt16026746/1/1",
         "kind": "embed"
       },
       {
@@ -11260,7 +11260,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/35935/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0318871/1/1",
         "kind": "embed"
       },
       {
@@ -11320,7 +11320,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/63926/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt4508902/1/1",
         "kind": "embed"
       },
       {
@@ -11380,7 +11380,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/296756/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt37692332/1/1",
         "kind": "embed"
       },
       {
@@ -11440,7 +11440,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/91363/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt10168312/1/1",
         "kind": "embed"
       },
       {
@@ -11500,7 +11500,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/31724/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0994314/1/1",
         "kind": "embed"
       },
       {
@@ -11560,7 +11560,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2098/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0103359/1/1",
         "kind": "embed"
       }
     ],
@@ -11614,7 +11614,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1433/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0397306/1/1",
         "kind": "embed"
       },
       {
@@ -11674,7 +11674,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/114410/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13616990/1/1",
         "kind": "embed"
       },
       {
@@ -11737,7 +11737,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/8839",
+        "url": "https://vidsrc.to/embed/movie/tt0112642",
         "kind": "embed"
       },
       {
@@ -11799,7 +11799,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/671",
+        "url": "https://vidsrc.to/embed/movie/tt0241527",
         "kind": "embed"
       },
       {
@@ -11861,7 +11861,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/642885",
+        "url": "https://vidsrc.to/embed/movie/tt11909878",
         "kind": "embed"
       },
       {
@@ -11923,7 +11923,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/27850",
+        "url": "https://vidsrc.to/embed/movie/tt0173886",
         "kind": "embed"
       },
       {
@@ -11985,7 +11985,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9340",
+        "url": "https://vidsrc.to/embed/movie/tt0089218",
         "kind": "embed"
       },
       {
@@ -12047,7 +12047,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/12445",
+        "url": "https://vidsrc.to/embed/movie/tt1201607",
         "kind": "embed"
       },
       {
@@ -12109,7 +12109,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/2493",
+        "url": "https://vidsrc.to/embed/movie/tt0093779",
         "kind": "embed"
       },
       {
@@ -12171,7 +12171,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/674",
+        "url": "https://vidsrc.to/embed/movie/tt0330373",
         "kind": "embed"
       },
       {
@@ -12233,7 +12233,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1140521",
+        "url": "https://vidsrc.to/embed/movie/tt7734244",
         "kind": "embed"
       },
       {
@@ -12295,7 +12295,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/672",
+        "url": "https://vidsrc.to/embed/movie/tt0295297",
         "kind": "embed"
       },
       {
@@ -12357,7 +12357,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/673",
+        "url": "https://vidsrc.to/embed/movie/tt0304141",
         "kind": "embed"
       },
       {
@@ -12419,7 +12419,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/601",
+        "url": "https://vidsrc.to/embed/movie/tt0083866",
         "kind": "embed"
       },
       {
@@ -12481,7 +12481,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1087192",
+        "url": "https://vidsrc.to/embed/movie/tt26743210",
         "kind": "embed"
       },
       {
@@ -12543,7 +12543,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/252",
+        "url": "https://vidsrc.to/embed/movie/tt0067992",
         "kind": "embed"
       },
       {
@@ -12605,7 +12605,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1585",
+        "url": "https://vidsrc.to/embed/movie/tt0038650",
         "kind": "embed"
       },
       {
@@ -12667,7 +12667,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/879",
+        "url": "https://vidsrc.to/embed/movie/tt0102057",
         "kind": "embed"
       },
       {
@@ -12729,7 +12729,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/12444",
+        "url": "https://vidsrc.to/embed/movie/tt0926084",
         "kind": "embed"
       },
       {
@@ -12791,7 +12791,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/118",
+        "url": "https://vidsrc.to/embed/movie/tt0367594",
         "kind": "embed"
       },
       {
@@ -12852,7 +12852,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/771",
+        "url": "https://vidsrc.to/embed/movie/tt0099785",
         "kind": "embed"
       },
       {
@@ -12914,7 +12914,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/8844",
+        "url": "https://vidsrc.to/embed/movie/tt0113497",
         "kind": "embed"
       },
       {
@@ -12976,7 +12976,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/10166",
+        "url": "https://vidsrc.to/embed/movie/tt0100944",
         "kind": "embed"
       },
       {
@@ -13036,7 +13036,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/103540/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt12324366/1/1",
         "kind": "embed"
       },
       {
@@ -13094,7 +13094,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/71728/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt6226232/1/1",
         "kind": "embed"
       },
       {
@@ -13154,7 +13154,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/201836/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt20221678/1/1",
         "kind": "embed"
       },
       {
@@ -13213,7 +13213,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1422/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1442464/1/1",
         "kind": "embed"
       },
       {
@@ -13273,7 +13273,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/82452/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt9018736/1/1",
         "kind": "embed"
       },
       {
@@ -13333,7 +13333,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/85077/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5622316/1/1",
         "kind": "embed"
       },
       {
@@ -13391,7 +13391,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/309798/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt37352716/1/1",
         "kind": "embed"
       },
       {
@@ -13451,7 +13451,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2004/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0212671/1/1",
         "kind": "embed"
       },
       {
@@ -13509,7 +13509,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/3452/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0106004/1/1",
         "kind": "embed"
       },
       {
@@ -13568,7 +13568,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/14929/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1094229/1/1",
         "kind": "embed"
       },
       {
@@ -13628,7 +13628,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/4324/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0103405/1/1",
         "kind": "embed"
       },
       {
@@ -13686,7 +13686,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/115/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0092339/1/1",
         "kind": "embed"
       }
     ],
@@ -13741,7 +13741,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1781/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0071007/1/1",
         "kind": "embed"
       },
       {
@@ -13799,7 +13799,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1950/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0318883/1/1",
         "kind": "embed"
       }
     ],
@@ -13854,7 +13854,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/283304/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2431250/1/1",
         "kind": "embed"
       },
       {
@@ -13914,7 +13914,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/605/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0115341/1/1",
         "kind": "embed"
       },
       {
@@ -13974,7 +13974,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2122/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0118375/1/1",
         "kind": "embed"
       },
       {
@@ -14033,7 +14033,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/275722/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt34385400/1/1",
         "kind": "embed"
       },
       {
@@ -14092,7 +14092,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/68595/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5491994/1/1",
         "kind": "embed"
       },
       {
@@ -14152,7 +14152,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/82728/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt7678620/1/1",
         "kind": "embed"
       },
       {
@@ -14212,7 +14212,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/52/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0165598/1/1",
         "kind": "embed"
       },
       {
@@ -14272,7 +14272,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/65294/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt4834206/1/1",
         "kind": "embed"
       },
       {
@@ -14331,7 +14331,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/2352/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0106080/1/1",
         "kind": "embed"
       },
       {
@@ -14391,7 +14391,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1712/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0057773/1/1",
         "kind": "embed"
       },
       {
@@ -14450,7 +14450,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/70785/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5421602/1/1",
         "kind": "embed"
       },
       {
@@ -14510,7 +14510,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/37632/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1758772/1/1",
         "kind": "embed"
       },
       {
@@ -14569,7 +14569,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1777/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0105958/1/1",
         "kind": "embed"
       },
       {
@@ -14629,7 +14629,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/75758/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5232792/1/1",
         "kind": "embed"
       },
       {
@@ -14689,7 +14689,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1877/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0852863/1/1",
         "kind": "embed"
       },
       {
@@ -14749,7 +14749,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/4482/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0057733/1/1",
         "kind": "embed"
       },
       {
@@ -14807,7 +14807,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1892/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0098800/1/1",
         "kind": "embed"
       },
       {
@@ -14867,7 +14867,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/31251/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1604099/1/1",
         "kind": "embed"
       },
       {
@@ -14926,7 +14926,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/58474/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2395695/1/1",
         "kind": "embed"
       },
       {
@@ -14986,7 +14986,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/121/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0056751/1/1",
         "kind": "embed"
       },
       {
@@ -15046,7 +15046,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/252/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0460637/1/1",
         "kind": "embed"
       }
     ],
@@ -15100,7 +15100,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/4345/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0096694/1/1",
         "kind": "embed"
       },
       {
@@ -15160,7 +15160,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/92685/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt8050756/1/1",
         "kind": "embed"
       },
       {
@@ -15220,7 +15220,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/3845/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0070992/1/1",
         "kind": "embed"
       }
     ],
@@ -15274,7 +15274,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/79257/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0795176/1/1",
         "kind": "embed"
       },
       {
@@ -15334,7 +15334,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/5021/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0068149/1/1",
         "kind": "embed"
       },
       {
@@ -15395,7 +15395,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/157336",
+        "url": "https://vidsrc.to/embed/movie/tt0816692",
         "kind": "embed"
       },
       {
@@ -15457,7 +15457,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/27205",
+        "url": "https://vidsrc.to/embed/movie/tt1375666",
         "kind": "embed"
       },
       {
@@ -15520,7 +15520,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/299534",
+        "url": "https://vidsrc.to/embed/movie/tt4154796",
         "kind": "embed"
       },
       {
@@ -15582,7 +15582,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1091",
+        "url": "https://vidsrc.to/embed/movie/tt0084787",
         "kind": "embed"
       },
       {
@@ -15644,7 +15644,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1576",
+        "url": "https://vidsrc.to/embed/movie/tt0120804",
         "kind": "embed"
       },
       {
@@ -15706,7 +15706,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/842924",
+        "url": "https://vidsrc.to/embed/movie/tt12908150",
         "kind": "embed"
       },
       {
@@ -15768,7 +15768,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/70160",
+        "url": "https://vidsrc.to/embed/movie/tt1392170",
         "kind": "embed"
       },
       {
@@ -15830,7 +15830,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1272837",
+        "url": "https://vidsrc.to/embed/movie/tt32141377",
         "kind": "embed"
       },
       {
@@ -15892,7 +15892,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/800788",
+        "url": "https://vidsrc.to/embed/movie/tt5950044",
         "kind": "embed"
       }
     ],
@@ -15949,7 +15949,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/603",
+        "url": "https://vidsrc.to/embed/movie/tt0133093",
         "kind": "embed"
       },
       {
@@ -16011,7 +16011,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/701387",
+        "url": "https://vidsrc.to/embed/movie/tt12300742",
         "kind": "embed"
       },
       {
@@ -16073,7 +16073,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1265609",
+        "url": "https://vidsrc.to/embed/movie/tt15940132",
         "kind": "embed"
       },
       {
@@ -16135,7 +16135,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/696393",
+        "url": "https://vidsrc.to/embed/movie/tt8879928",
         "kind": "embed"
       },
       {
@@ -16196,7 +16196,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1084199",
+        "url": "https://vidsrc.to/embed/movie/tt26584495",
         "kind": "embed"
       },
       {
@@ -16258,7 +16258,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/99861",
+        "url": "https://vidsrc.to/embed/movie/tt2395427",
         "kind": "embed"
       },
       {
@@ -16320,7 +16320,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1564614",
+        "url": "https://vidsrc.to/embed/movie/tt39143902",
         "kind": "embed"
       },
       {
@@ -16382,7 +16382,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/315635",
+        "url": "https://vidsrc.to/embed/movie/tt2250912",
         "kind": "embed"
       },
       {
@@ -16444,7 +16444,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/220289",
+        "url": "https://vidsrc.to/embed/movie/tt2866360",
         "kind": "embed"
       },
       {
@@ -16506,7 +16506,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/78",
+        "url": "https://vidsrc.to/embed/movie/tt0083658",
         "kind": "embed"
       },
       {
@@ -16568,7 +16568,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/798645",
+        "url": "https://vidsrc.to/embed/movie/tt14107334",
         "kind": "embed"
       },
       {
@@ -16630,7 +16630,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/695721",
+        "url": "https://vidsrc.to/embed/movie/tt10545296",
         "kind": "embed"
       },
       {
@@ -16690,7 +16690,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/348",
+        "url": "https://vidsrc.to/embed/movie/tt0078748",
         "kind": "embed"
       },
       {
@@ -16753,7 +16753,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/299536",
+        "url": "https://vidsrc.to/embed/movie/tt4154756",
         "kind": "embed"
       },
       {
@@ -16815,7 +16815,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/105",
+        "url": "https://vidsrc.to/embed/movie/tt0088763",
         "kind": "embed"
       },
       {
@@ -16876,7 +16876,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/329",
+        "url": "https://vidsrc.to/embed/movie/tt0107290",
         "kind": "embed"
       },
       {
@@ -16938,7 +16938,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/38",
+        "url": "https://vidsrc.to/embed/movie/tt0338013",
         "kind": "embed"
       },
       {
@@ -17000,7 +17000,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/36657",
+        "url": "https://vidsrc.to/embed/movie/tt0120903",
         "kind": "embed"
       },
       {
@@ -17062,7 +17062,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9599",
+        "url": "https://vidsrc.to/embed/movie/tt0094761",
         "kind": "embed"
       },
       {
@@ -17124,7 +17124,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/141",
+        "url": "https://vidsrc.to/embed/movie/tt0246578",
         "kind": "embed"
       },
       {
@@ -17186,7 +17186,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/9276",
+        "url": "https://vidsrc.to/embed/movie/tt0133751",
         "kind": "embed"
       },
       {
@@ -17246,7 +17246,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95396/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt11280740/1/1",
         "kind": "embed"
       },
       {
@@ -17306,7 +17306,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/103516/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt12327578/1/1",
         "kind": "embed"
       },
       {
@@ -17365,7 +17365,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/225171/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt22202452/1/1",
         "kind": "embed"
       },
       {
@@ -17425,7 +17425,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/69478/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5834204/1/1",
         "kind": "embed"
       },
       {
@@ -17485,7 +17485,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/287620/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt27497393/1/1",
         "kind": "embed"
       },
       {
@@ -17544,7 +17544,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/87917/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt7772588/1/1",
         "kind": "embed"
       },
       {
@@ -17604,7 +17604,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/57243/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0436992/1/1",
         "kind": "embed"
       },
       {
@@ -17664,7 +17664,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/63247/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0475784/1/1",
         "kind": "embed"
       },
       {
@@ -17723,7 +17723,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/93740/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0804484/1/1",
         "kind": "embed"
       },
       {
@@ -17783,7 +17783,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/63639/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt3230854/1/1",
         "kind": "embed"
       },
       {
@@ -17843,7 +17843,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1705/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1119644/1/1",
         "kind": "embed"
       },
       {
@@ -17903,7 +17903,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/253/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0060028/1/1",
         "kind": "embed"
       }
     ],
@@ -17958,7 +17958,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/157239/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt13623632/1/1",
         "kind": "embed"
       },
       {
@@ -18018,7 +18018,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1403/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2364582/1/1",
         "kind": "embed"
       },
       {
@@ -18077,7 +18077,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/1437/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt0303461/1/1",
         "kind": "embed"
       },
       {
@@ -18137,7 +18137,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/62017/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt1740299/1/1",
         "kind": "embed"
       },
       {
@@ -18197,7 +18197,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/79696/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt8421350/1/1",
         "kind": "embed"
       },
       {
@@ -18257,7 +18257,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/60802/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt2402207/1/1",
         "kind": "embed"
       },
       {
@@ -18317,7 +18317,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/80752/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt7949218/1/1",
         "kind": "embed"
       },
       {
@@ -18377,7 +18377,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/202411/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt17220216/1/1",
         "kind": "embed"
       },
       {
@@ -18437,7 +18437,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/67195/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5114356/1/1",
         "kind": "embed"
       },
       {
@@ -18497,7 +18497,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/71738/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5691552/1/1",
         "kind": "embed"
       },
       {
@@ -18557,7 +18557,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/62286/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt3743822/1/1",
         "kind": "embed"
       },
       {
@@ -18617,7 +18617,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/256624/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt32596156/1/1",
         "kind": "embed"
       },
       {
@@ -18677,7 +18677,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/127235/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt9737326/1/1",
         "kind": "embed"
       },
       {
@@ -18736,7 +18736,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/252107/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt32140872/1/1",
         "kind": "embed"
       },
       {
@@ -18796,7 +18796,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/95403/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt8291284/1/1",
         "kind": "embed"
       },
       {
@@ -18856,7 +18856,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/157061/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt14379784/1/1",
         "kind": "embed"
       },
       {
@@ -18916,7 +18916,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/73411/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt5580146/1/1",
         "kind": "embed"
       },
       {
@@ -18976,7 +18976,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/tv/79680/1/1",
+        "url": "https://vidsrc.to/embed/tv/tt6156584/1/1",
         "kind": "embed"
       },
       {
@@ -19038,7 +19038,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1447853",
+        "url": "https://vidsrc.to/embed/movie/tt36150957",
         "kind": "embed"
       },
       {
@@ -19098,7 +19098,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1596303",
+        "url": "https://vidsrc.to/embed/movie/tt39150288",
         "kind": "embed"
       },
       {
@@ -19158,7 +19158,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1457124",
+        "url": "https://vidsrc.to/embed/movie/tt36462222",
         "kind": "embed"
       },
       {
@@ -19219,7 +19219,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1758536",
+        "url": "https://vidsrc.to/embed/movie/tt44568097",
         "kind": "embed"
       },
       {
@@ -19280,7 +19280,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1612018",
+        "url": "https://vidsrc.to/embed/movie/tt39316472",
         "kind": "embed"
       },
       {
@@ -19342,7 +19342,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1596335",
+        "url": "https://vidsrc.to/embed/movie/tt39150120",
         "kind": "embed"
       },
       {
@@ -19400,7 +19400,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1752355",
+        "url": "https://vidsrc.to/embed/movie/tt39453404",
         "kind": "embed"
       },
       {
@@ -19461,7 +19461,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/142773",
+        "url": "https://vidsrc.to/embed/movie/tt0093427",
         "kind": "embed"
       },
       {
@@ -19522,7 +19522,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1232493",
+        "url": "https://vidsrc.to/embed/movie/tt30953759",
         "kind": "embed"
       },
       {
@@ -19584,7 +19584,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1400382",
+        "url": "https://vidsrc.to/embed/movie/tt34963732",
         "kind": "embed"
       },
       {
@@ -19644,7 +19644,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1417677",
+        "url": "https://vidsrc.to/embed/movie/tt34686029",
         "kind": "embed"
       },
       {
@@ -19706,7 +19706,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/15584",
+        "url": "https://vidsrc.to/embed/movie/tt1152758",
         "kind": "embed"
       },
       {
@@ -19766,7 +19766,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/638741",
+        "url": "https://vidsrc.to/embed/movie/tt11358166",
         "kind": "embed"
       },
       {
@@ -19826,7 +19826,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1634949",
+        "url": "https://vidsrc.to/embed/movie/tt39847629",
         "kind": "embed"
       },
       {
@@ -19888,7 +19888,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1400782",
+        "url": "https://vidsrc.to/embed/movie/tt34962891",
         "kind": "embed"
       },
       {
@@ -19950,7 +19950,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/84287",
+        "url": "https://vidsrc.to/embed/movie/tt1966604",
         "kind": "embed"
       },
       {
@@ -20011,7 +20011,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/656690",
+        "url": "https://vidsrc.to/embed/movie/tt11464826",
         "kind": "embed"
       },
       {
@@ -20074,7 +20074,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/123678",
+        "url": "https://vidsrc.to/embed/movie/tt2375605",
         "kind": "embed"
       },
       {
@@ -20136,7 +20136,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/627070",
+        "url": "https://vidsrc.to/embed/movie/tt10915286",
         "kind": "embed"
       },
       {
@@ -20196,7 +20196,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/823754",
+        "url": "https://vidsrc.to/embed/movie/tt14544192",
         "kind": "embed"
       },
       {
@@ -20258,7 +20258,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/899082",
+        "url": "https://vidsrc.to/embed/movie/tt16116174",
         "kind": "embed"
       },
       {
@@ -20318,7 +20318,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1400379",
+        "url": "https://vidsrc.to/embed/movie/tt34966678",
         "kind": "embed"
       },
       {
@@ -20380,7 +20380,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/988046",
+        "url": "https://vidsrc.to/embed/movie/tt21059520",
         "kind": "embed"
       },
       {
@@ -20443,7 +20443,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/691179",
+        "url": "https://vidsrc.to/embed/movie/tt11337862",
         "kind": "embed"
       },
       {
@@ -20500,7 +20500,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1699155",
+        "url": "https://vidsrc.to/embed/movie/tt42863533",
         "kind": "embed"
       },
       {
@@ -20561,7 +20561,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/566228",
+        "url": "https://vidsrc.to/embed/movie/tt8488126",
         "kind": "embed"
       },
       {
@@ -20622,7 +20622,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/44639",
+        "url": "https://vidsrc.to/embed/movie/tt1645089",
         "kind": "embed"
       },
       {
@@ -20683,7 +20683,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/501",
+        "url": "https://vidsrc.to/embed/movie/tt0427312",
         "kind": "embed"
       },
       {
@@ -20745,7 +20745,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/489931",
+        "url": "https://vidsrc.to/embed/movie/tt6212478",
         "kind": "embed"
       },
       {
@@ -20806,7 +20806,7 @@ export const VOD_TITLES: VodTitle[] = [
       },
       {
         "name": "vidsrc",
-        "url": "https://vidsrc.to/v2/movie/1550569",
+        "url": "https://vidsrc.to/embed/movie/tt38457052",
         "kind": "embed"
       },
       {

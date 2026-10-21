@@ -1,12 +1,13 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import React, { useMemo, useState } from 'react';
-import { Alert, FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { ChannelLogo } from '../components/ChannelLogo';
+import { ChannelRow } from '../components/ChannelRow';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { VodPoster, VOD_POSTER } from '../components/VodPoster';
+import { VodRow } from '../components/VodRow';
 import { adultChannels, adultVodTitles, type Channel } from '../data/channels';
 import type { VodTitle } from '../data/vod';
 import type { RootStackParamList } from '../navigation/types';
@@ -16,18 +17,51 @@ type Props = NativeStackScreenProps<RootStackParamList, 'AdultContent'>;
 
 const AGE_GATE_KEY = 'mythtube:adult-confirmed-v1';
 
+// Curated discovery rows — titles are grouped by keyword matches in their real
+// scraped names (no made-up categories). Order matters: a title can appear in
+// more than one row, same as Home's genre rows.
+const VOD_GROUPS: { key: string; label: string; pattern: RegExp }[] = [
+  { key: 'desi', label: 'Desi & Indian', pattern: /indian|desi|bhabhi|aunty|hindi|tamil|mallu|bengali|south ?indian/i },
+  { key: 'bd', label: 'Bangladeshi', pattern: /bangladeshi|bangla\b/i },
+  { key: 'hardcore', label: 'Hardcore', pattern: /hardcore|hard ?fuck|rough/i },
+  { key: 'teen', label: 'Teen & College', pattern: /teen|college|young|schoolgirl/i },
+  { key: 'amateur', label: 'Amateur & Homemade', pattern: /amateur|homemade|mms|scandal/i },
+  { key: 'asian', label: 'Asian', pattern: /asian|japanese|korean|chinese|pakistani/i },
+];
+const MIN_ROW_SIZE = 6;
+
+// Live channels split into the per-category feeds (cdn.adultiptv.net) and the
+// named premium channels (Brazzers, Dorcel, Desire, Erox…) scraped from GitHub
+// IPTV lists. Both groups are re-probed before being bundled — see
+// tools/build_channels.py and the AdultIPTV augmentation pass.
+function splitChannels(channels: Channel[]) {
+  const category = channels.filter((c) => c.name.startsWith('AdultIPTV '));
+  const premium = channels.filter((c) => !c.name.startsWith('AdultIPTV '));
+  return { category, premium };
+}
+
 /**
- * AdultContentScreen — dedicated section for 18+ live channels (requirement 9).
- * Gated by a one-time age confirmation (persisted in AsyncStorage).
- * Streams come from the real backend (channels.json) — Adult category only.
+ * AdultContentScreen — dedicated 18+ section with Netflix-style curated rows
+ * (Live Category Feeds, Premium Live Channels, Trending, Desi & Indian,
+ * Bangladeshi, Hardcore, Teen & College, Amateur & Homemade) on top of the
+ * full browsable library. Gated by a one-time age confirmation (persisted
+ * in AsyncStorage). All streams come from the real backend (channels.json +
+ * adult_vod.ts) — nothing here is a mock.
  */
 export default function AdultContentScreen({ navigation }: Props) {
   const { width } = useWindowDimensions();
   const [confirmed, setConfirmed] = useState(false);
   const [checking, setChecking] = useState(true);
   const channels = useMemo(() => adultChannels(), []);
-  const vod = useMemo(() => adultVodTitles(150), []);
-  const cell = Math.floor((width - layout.gutter * 2 - 8 * 2) / 3);
+  const vod = useMemo(() => adultVodTitles(200), []);
+  const { category: categoryChannels, premium: premiumChannels } = useMemo(() => splitChannels(channels), [channels]);
+  const vodGroups = useMemo(
+    () =>
+      VOD_GROUPS.map((g) => ({ ...g, items: vod.filter((t) => g.pattern.test(t.name)) })).filter(
+        (g) => g.items.length >= MIN_ROW_SIZE,
+      ),
+    [vod],
+  );
   const vodCell = Math.floor((width - layout.gutter * 2 - 8 * 2) / 3);
 
   // one-time age gate
@@ -104,6 +138,7 @@ export default function AdultContentScreen({ navigation }: Props) {
   }
 
   const openVod = (t: VodTitle) => navigation.navigate('Title', { id: t.id });
+  const openChannel = (c: Channel) => navigation.navigate('Live', { channelId: c.id, filter: 'Adult' });
 
   return (
     <View style={styles.root}>
@@ -120,13 +155,25 @@ export default function AdultContentScreen({ navigation }: Props) {
         windowSize={5}
         removeClippedSubviews
         ListHeaderComponent={
-          <View style={styles.header}>
-            <Txt weight="bold" size={16}>
-              Adult VOD · 18+
-            </Txt>
-            <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
-              {vod.length} real full-length videos · scraped from public sources
-            </Txt>
+          <View style={{ paddingBottom: 8 }}>
+            {categoryChannels.length > 0 ? (
+              <ChannelRow title="🔴 Live Category Feeds" items={categoryChannels} onPressChannel={openChannel} />
+            ) : null}
+            {premiumChannels.length > 0 ? (
+              <ChannelRow title="🔴 Premium Live Channels" items={premiumChannels} onPressChannel={openChannel} />
+            ) : null}
+            <VodRow title="Trending Adult VOD" items={vod.slice(0, 20)} onPressTitle={openVod} />
+            {vodGroups.map((g) => (
+              <VodRow key={g.key} title={g.label} items={g.items.slice(0, 20)} onPressTitle={openVod} />
+            ))}
+            <View style={styles.header}>
+              <Txt weight="bold" size={16}>
+                All Adult Videos
+              </Txt>
+              <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
+                {vod.length} real full-length videos · {channels.length} live stream(s) · scraped from public sources
+              </Txt>
+            </View>
           </View>
         }
         renderItem={({ item }: { item: VodTitle }) => (
@@ -134,36 +181,6 @@ export default function AdultContentScreen({ navigation }: Props) {
             <VodPoster title={item} width={vodCell} height={vodCell * 1.45} onPress={openVod} />
           </View>
         )}
-        ListFooterComponent={
-          channels.length > 0 ? (
-            <View style={styles.liveFooter}>
-              <Txt weight="bold" size={16}>
-                Live Adult Channels
-              </Txt>
-              <Txt size={12} color={colors.textDim} style={{ marginTop: 4, marginBottom: 12 }}>
-                {channels.length} live IPTV stream(s)
-              </Txt>
-              <FlatList
-                data={channels}
-                keyExtractor={(c) => c.id}
-                numColumns={3}
-                columnWrapperStyle={styles.row}
-                scrollEnabled={false}
-                renderItem={({ item }: { item: Channel }) => (
-                  <Pressable
-                    onPress={() => navigation.navigate('Live', { channelId: item.id, filter: 'Adult' })}
-                    style={({ pressed }) => [{ width: cell, opacity: pressed ? 0.7 : 1 }]}
-                  >
-                    <ChannelLogo channel={item} size={cell} />
-                    <Txt weight="medium" size={12} numberOfLines={1} style={{ marginTop: 6 }}>
-                      {item.name}
-                    </Txt>
-                  </Pressable>
-                )}
-              />
-            </View>
-          ) : <></>
-        }
       />
     </View>
   );
@@ -176,10 +193,7 @@ const styles = StyleSheet.create({
   btn: { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 8, minWidth: 130, alignItems: 'center' },
   btnOutline: { borderWidth: 1, borderColor: colors.text },
   btnSolid: { backgroundColor: colors.text },
-  header: { paddingHorizontal: layout.gutter, paddingTop: 12, paddingBottom: 8 },
-  liveFooter: { paddingHorizontal: layout.gutter, paddingTop: 28, paddingBottom: 16 },
+  header: { paddingHorizontal: layout.gutter, paddingTop: 28, paddingBottom: 8 },
   grid: { paddingBottom: 30, gap: 16 },
   row: { gap: 8, paddingHorizontal: layout.gutter },
-  meta: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.red, marginRight: 5 },
 });
