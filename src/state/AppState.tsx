@@ -3,7 +3,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 
 import { MAIN_PROFILE_ID, PROFILE_COLOR, findEpisode, getTitle, type Profile } from '../data/mock';
 import { resolveTitle } from '../data/resolveTitle';
-import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo } from '../services/downloads';
+import { cancelDownload, deleteLocalFile, downloadKey, downloadVideo, isActive } from '../services/downloads';
+import { pickDirectMp4Url, resolveDownloadableMp4Url } from '../services/providers/nuvioProviders';
 import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
 export type Rating = 'down' | 'up' | 'love';
@@ -278,16 +279,34 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
 
   const startDownload = useCallback(
     (titleId: string, sizeMB: number, episodeId?: string) => {
+      const key = downloadKey(titleId, episodeId);
+      if (isActive(key)) {
+        showToast('Download already in progress');
+        return;
+      }
       const title = resolveTitle(titleId);
-      const url = episodeId ? findEpisode(title, episodeId)?.episode.video ?? title.video : title.video;
+      const ep = episodeId ? findEpisode(title, episodeId)?.episode : undefined;
+      const rawUrl = ep?.video ?? title.video;
+      const seed = episodeId ?? titleId;
+      const url = resolveDownloadableMp4Url(seed, title.streams, rawUrl);
+      const fallbackUrls = [
+        pickDirectMp4Url(seed, 1),
+        pickDirectMp4Url(seed, 2),
+      ];
       dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB });
+      showToast(`Downloading ${ep ? `${title.name} • ${ep.name}` : title.name}…`);
       let last = 0;
-      downloadVideo(downloadKey(titleId, episodeId), url, (ratio) => {
-        if (ratio - last >= 0.02 || ratio >= 1) {
-          last = ratio;
-          dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
-        }
-      })
+      downloadVideo(
+        key,
+        url,
+        (ratio) => {
+          if (ratio - last >= 0.02 || ratio >= 1) {
+            last = ratio;
+            dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
+          }
+        },
+        fallbackUrls,
+      )
         .then((r) => {
           const stillWanted = stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId));
           if (!stillWanted) {
@@ -295,12 +314,12 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
             return;
           }
           dispatch({ type: 'DOWNLOAD_DONE', titleId, episodeId, localUri: r.localUri, sizeMB: r.sizeMB, savedToDevice: r.savedToDevice });
-          showToast(r.savedToDevice ? `${title.name} saved to device storage (MythTube)` : `${title.name} downloaded`);
+          showToast(r.savedToDevice ? `${title.name} saved to device storage (MythTube)` : `${title.name} downloaded for offline playback`);
         })
         .catch(() => {
           if (stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId))) {
             dispatch({ type: 'DOWNLOAD_FAILED', titleId, episodeId });
-            showToast('Download failed. Check your connection and try again.');
+            showToast('Download failed. Tap retry to try again.');
           }
         });
     },

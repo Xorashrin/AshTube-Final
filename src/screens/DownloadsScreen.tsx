@@ -8,7 +8,7 @@ import { Button, ProgressBar } from '../components/Buttons';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { img } from '../data/images';
-import { findEpisode, getTitle } from '../data/mock';
+import { findEpisode } from '../data/mock';
 import { resolveTitle } from '../data/resolveTitle';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp, type DownloadEntry } from '../state/AppState';
@@ -17,28 +17,37 @@ import { formatSize } from '../utils/format';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Downloads'>;
 
-interface Group {
-  titleId: string;
-  entries: DownloadEntry[];
-  sizeMB: number;
-}
-
 export default function DownloadsScreen({ navigation }: Props) {
   const { profileData, activeProfile, deleteDownload, startDownload, state, toggleSetting, showToast } = useApp();
   const [editing, setEditing] = useState(false);
 
-  const groups = useMemo<Group[]>(() => {
-    const map = new Map<string, Group>();
-    for (const d of profileData.downloads) {
-      const g = map.get(d.titleId) ?? { titleId: d.titleId, entries: [], sizeMB: 0 };
-      g.entries.push(d);
-      g.sizeMB += d.sizeMB * d.progress;
-      map.set(d.titleId, g);
-    }
-    return [...map.values()];
-  }, [profileData.downloads]);
+  const entries = profileData.downloads;
 
-  const usedMB = groups.reduce((sum, g) => sum + g.sizeMB, 0);
+  const usedMB = useMemo(
+    () =>
+      entries.reduce(
+        (sum, d) => sum + (d.status === 'downloaded' ? d.sizeMB : d.sizeMB * Math.max(0.05, d.progress)),
+        0,
+      ),
+    [entries],
+  );
+
+  const handleEntryPress = (d: DownloadEntry) => {
+    if (editing) {
+      deleteDownload(d.titleId, d.episodeId);
+      showToast('Download deleted');
+      return;
+    }
+    if (d.status === 'failed') {
+      startDownload(d.titleId, d.sizeMB || 350, d.episodeId);
+      return;
+    }
+    if (d.status === 'downloading') {
+      showToast(`Downloading… ${Math.round(d.progress * 100)}%`);
+      return;
+    }
+    navigation.navigate('Player', { id: d.titleId, episodeId: d.episodeId });
+  };
 
   return (
     <View style={styles.root}>
@@ -49,7 +58,7 @@ export default function DownloadsScreen({ navigation }: Props) {
             <Txt weight="bold" size={18} style={{ flex: 1 }}>
               Downloads
             </Txt>
-            {groups.length > 0 ? (
+            {entries.length > 0 ? (
               <Pressable hitSlop={10} onPress={() => setEditing((e) => !e)}>
                 {editing ? (
                   <Txt weight="bold" size={15}>
@@ -74,7 +83,7 @@ export default function DownloadsScreen({ navigation }: Props) {
           </Txt>
         </Pressable>
 
-        {groups.length === 0 ? (
+        {entries.length === 0 ? (
           <View style={styles.empty}>
             <View style={styles.emptyCircle}>
               <Ionicons name="download-outline" size={72} color={colors.textDim} />
@@ -82,43 +91,47 @@ export default function DownloadsScreen({ navigation }: Props) {
             <Txt weight="bold" size={20} align="center" style={{ marginTop: 26 }}>
               Movies and TV shows that you download appear here.
             </Txt>
-            <Button label="See What You Can Download" variant="white" height={44} style={{ marginTop: 28 }} onPress={() => navigation.navigate('Main', { screen: 'Home' })} />
+            <Button
+              label="See What You Can Download"
+              variant="white"
+              height={44}
+              style={{ marginTop: 28 }}
+              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
+            />
           </View>
         ) : (
           <>
             {activeProfile ? (
               <Txt weight="semibold" size={14} color={colors.textMuted} style={styles.profileLabel}>
-                Downloads for {activeProfile.name}
+                Downloads for {activeProfile.name} ({entries.length})
               </Txt>
             ) : null}
-            {groups.map((g) => {
-              const title = resolveTitle(g.titleId);
-              const downloading = g.entries.find((e) => e.status === 'downloading');
-              const failed = g.entries.find((e) => e.status === 'failed');
-              const onDevice = g.entries.some((e) => e.savedToDevice);
-              const episodes = g.entries.filter((e) => e.episodeId);
-              const detail =
-                title.kind === 'series'
-                  ? `${episodes.length} ${episodes.length === 1 ? 'Episode' : 'Episodes'} | ${formatSize(g.sizeMB)}`
-                  : `${title.maturity} | ${formatSize(g.sizeMB)}`;
+            {entries.map((d) => {
+              const title = resolveTitle(d.titleId);
+              const foundEp = d.episodeId ? findEpisode(title, d.episodeId) : null;
+              const downloading = d.status === 'downloading';
+              const failed = d.status === 'failed';
+              const epLabel = foundEp
+                ? `S${foundEp.season.number}:E${foundEp.episode.number} • ${foundEp.episode.name}`
+                : undefined;
+              const sizeLabel = formatSize(
+                d.status === 'downloaded' ? d.sizeMB : Math.max(1, d.sizeMB * Math.max(0.05, d.progress)),
+              );
+              const detail = `${title.maturity} | ${sizeLabel}${d.savedToDevice ? ' • Saved to device' : ' • Offline ready'}`;
+
               return (
                 <Pressable
-                  key={g.titleId}
-                  onPress={() => {
-                    if (editing) return;
-                    if (failed) {
-                      startDownload(failed.titleId, failed.sizeMB || 300, failed.episodeId);
-                      return;
-                    }
-                    const first = episodes[0]?.episodeId;
-                    if (title.kind === 'series' && first) navigation.navigate('Player', { id: title.id, episodeId: first });
-                    else if (!downloading) navigation.navigate('Player', { id: title.id });
-                  }}
+                  key={`${d.titleId}-${d.episodeId ?? 'movie'}`}
+                  onPress={() => handleEntryPress(d)}
                   style={({ pressed }) => [styles.item, pressed ? { backgroundColor: colors.surface1 } : null]}
                 >
                   <View style={styles.thumb}>
                     <Image
-                      source={(title as any).background || (title as any).poster || img.backdrop(title.seed)}
+                      source={
+                        foundEp
+                          ? img.still(foundEp.episode.seed)
+                          : title.background || title.poster || img.backdrop(title.seed)
+                      }
                       style={StyleSheet.absoluteFill}
                       contentFit="cover"
                       cachePolicy="memory-disk"
@@ -133,41 +146,70 @@ export default function DownloadsScreen({ navigation }: Props) {
                     <Txt weight="semibold" size={15} numberOfLines={1}>
                       {title.name}
                     </Txt>
-                    {title.kind === 'series' && episodes[0]?.episodeId ? (
+                    {epLabel ? (
                       <Txt size={12} color={colors.textMuted} numberOfLines={1} style={{ marginTop: 2 }}>
-                        {findEpisode(title, episodes[0].episodeId)?.episode.name}
+                        {epLabel}
                       </Txt>
                     ) : null}
-                    <Txt size={12} color={colors.textDim} style={{ marginTop: 4 }}>
+                    <Txt size={12} color={failed ? colors.redLight : colors.textDim} style={{ marginTop: 4 }}>
                       {downloading
-                        ? `Downloading - ${Math.round(downloading.progress * 100)}%`
+                        ? `Downloading — ${Math.round(d.progress * 100)}% (${sizeLabel})`
                         : failed
                           ? 'Download failed • Tap to retry'
-                          : `${detail}${onDevice ? ' • Saved to device' : ''}`}
+                          : detail}
                     </Txt>
-                    {downloading ? <ProgressBar value={downloading.progress} height={2} style={{ marginTop: 6 }} /> : null}
+                    {downloading ? <ProgressBar value={d.progress} height={3} style={{ marginTop: 6 }} /> : null}
                   </View>
                   {editing ? (
                     <Pressable
                       hitSlop={10}
                       onPress={() => {
-                        deleteDownload(g.titleId);
+                        deleteDownload(d.titleId, d.episodeId);
                         showToast('Download deleted');
                       }}
                     >
                       <Ionicons name="trash-outline" size={22} color={colors.redLight} />
                     </Pressable>
                   ) : downloading ? (
-                    <ActivityIndicator size="small" color={colors.blue} />
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => {
+                        deleteDownload(d.titleId, d.episodeId);
+                        showToast('Download cancelled');
+                      }}
+                      style={styles.cancelWrap}
+                    >
+                      <ActivityIndicator size="small" color={colors.blue} />
+                      <Ionicons name="close-circle" size={18} color={colors.textMuted} style={{ marginLeft: 6 }} />
+                    </Pressable>
                   ) : failed ? (
-                    <Ionicons name="refresh-circle-outline" size={24} color={colors.redLight} />
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => startDownload(d.titleId, d.sizeMB || 350, d.episodeId)}
+                    >
+                      <Ionicons name="refresh-circle-outline" size={26} color={colors.redLight} />
+                    </Pressable>
                   ) : (
-                    <Ionicons name="checkmark-circle" size={22} color={colors.blue} />
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => {
+                        deleteDownload(d.titleId, d.episodeId);
+                        showToast('Download deleted');
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle" size={24} color={colors.blue} />
+                    </Pressable>
                   )}
                 </Pressable>
               );
             })}
-            <Button label="Find More to Download" variant="gray" height={44} style={styles.more} onPress={() => navigation.navigate('Main', { screen: 'Home' })} />
+            <Button
+              label="Find More to Download"
+              variant="gray"
+              height={44}
+              style={styles.more}
+              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
+            />
           </>
         )}
       </ScrollView>
@@ -197,6 +239,7 @@ const styles = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   thumb: { width: 128, height: 72, borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surface2, alignItems: 'center', justifyContent: 'center' },
   thumbPlay: { width: 30, height: 30, borderRadius: 15, borderWidth: 1.5, borderColor: colors.text, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center' },
+  cancelWrap: { flexDirection: 'row', alignItems: 'center' },
   more: { alignSelf: 'center', marginTop: 24 },
   storage: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: colors.surface1 },
   storageBar: { height: 4, flexDirection: 'row', borderRadius: 2, overflow: 'hidden' },

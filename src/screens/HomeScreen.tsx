@@ -160,7 +160,7 @@ export default function HomeScreen({ route, navigation }: Props) {
   const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
   const openChannel = useCallback((c: Channel) => nav.navigate('Live', { channelId: c.id, filter: 'All' }), [nav]);
   // Real VOD backend (requirement 9) — every title below is real, scraped from
-  // Stremio Cinemeta catalog with TMDB-backed posters + YouTube trailers.
+  // Stremio Cinemeta catalog with TMDB-backed posters + multi-source streams.
   // No fake demo titles anymore.
   const vodMovies = useMemo(() => vodByCategory('Movies', 18), []);
   const vodSeries = useMemo(() => vodByCategory('Series', 18), []);

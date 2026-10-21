@@ -21,7 +21,7 @@ import { colors, radius } from '../theme/tokens';
 import { formatRuntime, seasonsLabel } from '../utils/format';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Title'>;
-type Tab = 'episodes' | 'more' | 'trailers';
+type Tab = 'episodes' | 'more' | 'servers';
 
 const RATING_ICON: Record<Rating, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
   down: 'thumb-down',
@@ -121,7 +121,7 @@ export default function TitleScreen({ navigation, route }: Props) {
   const reminded = profileData.reminders.includes(title.id);
   const rank = top10Rank(title.id);
   const season = (title.seasons || []).find((s) => s.number === seasonNumber) ?? (title.seasons || [])[0];
-  const movieDownload = title.kind === 'movie' ? downloadFor(profileData, title.id) : undefined;
+  const activeDownload = downloadFor(profileData, title.id, title.kind === 'series' ? target?.episode.id : undefined);
   const similar = useMemo(
     () => RESOLVED_TITLES.filter((t) => t.id !== title.id && (t.genres || []).some((g) => (title.genres || []).includes(g))).slice(0, 12),
     [title],
@@ -129,7 +129,7 @@ export default function TitleScreen({ navigation, route }: Props) {
   const tabs: { key: Tab; label: string }[] = [
     ...(title.kind === 'series' ? [{ key: 'episodes' as const, label: 'Episodes' }] : []),
     { key: 'more', label: 'More Like This' },
-    { key: 'trailers', label: 'Trailers & More' },
+    { key: 'servers', label: 'Servers & Streams' },
   ];
   const gridWidth = (width - 24 - 16) / 3;
 
@@ -226,31 +226,33 @@ export default function TitleScreen({ navigation, route }: Props) {
           ) : (
             <>
               <Button label={playLabel} icon="play" variant="white" onPress={() => play(target?.episode.id)} style={styles.cta} />
-              {title.kind === 'movie' ? (
-                <Button
-                  label={
-                    movieDownload?.status === 'downloaded'
-                      ? 'Downloaded'
-                      : movieDownload?.status === 'failed'
-                        ? 'Retry Download'
-                        : movieDownload
-                        ? `Downloading ${Math.round(movieDownload.progress * 100)}%`
-                        : 'Download'
+              <Button
+                label={
+                  activeDownload?.status === 'downloaded'
+                    ? title.kind === 'series'
+                      ? `Downloaded ${epCode}`
+                      : 'Downloaded'
+                    : activeDownload?.status === 'failed'
+                      ? 'Retry Download'
+                      : activeDownload
+                        ? `Downloading ${Math.round(activeDownload.progress * 100)}%`
+                        : title.kind === 'series'
+                          ? `Download ${epCode}`
+                          : 'Download'
+                }
+                icon={activeDownload?.status === 'downloaded' ? 'checkmark-circle' : 'download-outline'}
+                variant="gray"
+                onPress={() => {
+                  if (activeDownload && activeDownload.status !== 'failed') {
+                    navigation.navigate('Downloads');
+                  } else if (title.kind === 'series' && target) {
+                    startDownload(title.id, target.episode.runtime * 6, target.episode.id);
+                  } else {
+                    startDownload(title.id, 845);
                   }
-                  icon={movieDownload?.status === 'downloaded' ? 'checkmark-circle' : 'download-outline'}
-                  variant="gray"
-                  onPress={() => (movieDownload && movieDownload.status !== 'failed' ? navigation.navigate('Downloads') : startDownload(title.id, 845))}
-                  style={styles.cta}
-                />
-              ) : (
-                <Button
-                  label={`Download ${epCode}`}
-                  icon="download-outline"
-                  variant="gray"
-                  onPress={() => target && startDownload(title.id, target.episode.runtime * 6, target.episode.id)}
-                  style={styles.cta}
-                />
-              )}
+                }}
+                style={styles.cta}
+              />
             </>
           )}
 
@@ -351,19 +353,29 @@ export default function TitleScreen({ navigation, route }: Props) {
           </View>
         ) : null}
 
-        {tab === 'trailers' ? (
+        {tab === 'servers' ? (
           <View style={styles.tabBody}>
-            {['Official Trailer', 'Teaser', 'Behind the Scenes'].map((label, i) => (
-              <Pressable key={label} onPress={() => play(target?.episode.id)} style={{ marginBottom: 18 }}>
-                <View style={[styles.trailer, { height: ((width - 24) * 9) / 16 }]}>
-                  <Image source={img.still(`${title.seed}-trailer-${i}`)} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
-                  <View style={styles.heroPlay}>
-                    <Ionicons name="play" size={26} color={colors.text} style={{ marginLeft: 3 }} />
-                  </View>
+            {(title.streams && title.streams.length > 0
+              ? title.streams
+              : [{ name: 'Server 1 • Direct HD (Native Player)', url: title.video, kind: 'mp4' }]
+            ).map((s, i) => (
+              <Pressable key={s.name + i} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
+                <View style={styles.serverIconWrap}>
+                  <MaterialCommunityIcons
+                    name={s.kind === 'embed' ? 'web' : 'play-network-outline'}
+                    size={24}
+                    color={colors.red}
+                  />
                 </View>
-                <Txt weight="semibold" size={14} style={{ marginTop: 8 }}>
-                  {label}: {title.name}
-                </Txt>
+                <View style={{ flex: 1, marginLeft: 12 }}>
+                  <Txt weight="semibold" size={14} numberOfLines={1}>
+                    {s.name}
+                  </Txt>
+                  <Txt size={12} color={colors.textMuted} style={{ marginTop: 2 }}>
+                    {s.kind === 'embed' ? 'Web Embed Player • Multi-Server' : 'Direct Native Stream • Instant Playback & Download'}
+                  </Txt>
+                </View>
+                <Ionicons name="play-circle" size={30} color={colors.text} />
               </Pressable>
             ))}
           </View>
@@ -448,4 +460,21 @@ const styles = StyleSheet.create({
   dlIcon: { paddingLeft: 12 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   trailer: { borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surface2 },
+  serverCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface2,
+    borderRadius: radius.sm,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 10,
+  },
+  serverIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: colors.surface4,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

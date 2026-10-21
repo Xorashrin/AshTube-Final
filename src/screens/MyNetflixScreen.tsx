@@ -9,8 +9,8 @@ import { RowHeader } from '../components/Rows';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { NOTIFICATIONS, TOP10_TV, getTitle, type Title } from '../data/mock';
-import { resolveTitle } from '../data/resolveTitle';
+import { NOTIFICATIONS, type Title } from '../data/mock';
+import { resolveTitle, RESOLVED_TITLES } from '../data/resolveTitle';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
@@ -127,7 +127,7 @@ export default function MyNetflixScreen() {
 
         {liked.length > 0 ? <SharedRow title="TV Shows & Movies You've Liked" items={liked} onPress={open} /> : null}
         {myList.length > 0 ? <SharedRow title="My List" items={myList} onPress={open} onSeeAll={() => nav.navigate('MyList')} /> : null}
-        <SharedRow title="Trailers You've Watched" items={TOP10_TV.slice(2, 8)} onPress={open} />
+        <SharedRow title="Recommended For You" items={RESOLVED_TITLES.slice(0, 8)} onPress={open} />
       </ScrollView>
 
       <Sheet visible={menu} onClose={() => setMenu(false)}>

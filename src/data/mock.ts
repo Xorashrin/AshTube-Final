@@ -67,19 +67,16 @@ export interface AppNotification {
   date: string;
 }
 
-const VIDEO_BASE = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/';
 export const SAMPLE_VIDEOS = [
-  'BigBuckBunny.mp4',
-  'ElephantsDream.mp4',
-  'Sintel.mp4',
-  'TearsOfSteel.mp4',
-  'ForBiggerBlazes.mp4',
-  'ForBiggerEscapes.mp4',
-  'ForBiggerFun.mp4',
-  'ForBiggerJoyrides.mp4',
-  'ForBiggerMeltdowns.mp4',
-  'SubaruOutbackOnStreetAndDirt.mp4',
-].map((file) => VIDEO_BASE + file);
+  'https://download.blender.org/durian/trailer/sintel_trailer-1080p.mp4',
+  'https://download.blender.org/durian/trailer/sintel_trailer-720p.mp4',
+  'https://download.blender.org/durian/trailer/sintel_trailer-480p.mp4',
+  'https://media.w3.org/2010/05/bunny/movie.mp4',
+  'https://media.w3.org/2010/05/sintel/trailer.mp4',
+  'https://media.w3.org/2010/05/bunny/trailer.mp4',
+  'https://media.w3.org/2010/05/video/movie_300.mp4',
+  'https://www.w3schools.com/html/mov_bbb.mp4',
+];
 
 function hash(s: string): number {
   let h = 2166136261;

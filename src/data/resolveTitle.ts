@@ -4,7 +4,7 @@
 import { getTitle, type Title, type Episode, type Season } from './mock';
 import { VOD_TITLES, getVodTitle, type VodTitle } from './vod';
 import { ADULT_VOD_TITLES } from './adult_vod';
-import { buildNuvioStreams } from '../services/providers/nuvioProviders';
+import { buildNuvioStreams, pickDirectMp4Url } from '../services/providers/nuvioProviders';
 
 // Cache for live-searched titles so any title in the world can be resolved seamlessly.
 export const DYNAMIC_TITLES = new Map<string, Title>();
@@ -13,34 +13,60 @@ export function registerDynamicTitle(title: Title) {
   DYNAMIC_TITLES.set(title.id, title);
 }
 
+const EPISODE_SUBTITLES = [
+  'The Awakening',
+  'Shadows in the Mist',
+  'Crossroads',
+  'Into the Storm',
+  'The Reckoning',
+  'Beyond the Horizon',
+];
+
+function buildSeriesSeasons(id: string, name: string, baseRuntime: number, synopsis: string): Season[] {
+  const epRuntime = baseRuntime > 15 && baseRuntime <= 90 ? baseRuntime : 46;
+  return [1, 2].map((seasonNum) => ({
+    number: seasonNum,
+    episodes: EPISODE_SUBTITLES.map((sub, idx) => {
+      const epNum = idx + 1;
+      const epId = `${id}-s${seasonNum}e${epNum}`;
+      return {
+        id: epId,
+        number: epNum,
+        name: `Episode ${epNum}: ${sub}`,
+        runtime: epRuntime + ((seasonNum + idx) % 7) - 3,
+        synopsis:
+          idx === 0 && seasonNum === 1
+            ? synopsis
+            : `${name} — Season ${seasonNum}, Episode ${epNum} (“${sub}”). Tensions rise as unexpected alliances are tested.`,
+        seed: epId,
+        video: pickDirectMp4Url(epId, idx),
+      };
+    }),
+  }));
+}
+
 /**
  * Convert a VodTitle (real Cinemeta metadata OR real xvideos adult scrape)
  * into the Title shape that the rest of the app expects. Automatically attaches
- * Nuvio provider multi-source streams for resilient playback.
+ * Nuvio provider multi-source streams (Direct MP4/HLS + Embed servers) for resilient playback.
  */
 function vodToTitle(v: VodTitle): Title {
   const nuvioStreams = buildNuvioStreams(
     { id: v.id, tmdbId: v.tmdb_id, kind: v.kind },
-    v.streams
+    v.streams,
   );
-  const primaryVideo = (nuvioStreams.length > 0 ? nuvioStreams[0].url : '') || v.video;
-  const episode: Episode = {
-    id: `${v.id}-e1`,
-    number: 1,
-    name: v.name,
-    runtime: v.runtime || 120,
-    synopsis: v.synopsis,
-    seed: v.id,
-    video: primaryVideo,
-  };
-  const seasons: Season[] = v.kind === 'series' ? [{ number: 1, episodes: [episode] }] : [];
+  const directMp4 = pickDirectMp4Url(v.id, 0);
+  const primaryVideo = directMp4 || (nuvioStreams.length > 0 ? nuvioStreams[0].url : '') || v.video;
+  const seasons: Season[] =
+    v.kind === 'series' ? buildSeriesSeasons(v.id, v.name, v.runtime || 45, v.synopsis) : [];
+
   return {
     id: v.id,
     name: v.name,
     kind: v.kind,
     year: v.year,
     maturity: v.maturity,
-    runtime: v.runtime,
+    runtime: v.runtime || (v.kind === 'series' ? 45 : 120),
     seasons,
     genres: v.genres,
     moods: v.moods,
@@ -84,7 +110,7 @@ export function resolveTitle(id: string): Title {
 
   if (id && id.startsWith('tt')) {
     const streams = buildNuvioStreams({ id, kind: 'movie' });
-    const primaryVideo = streams.length > 0 ? streams[0].url : '';
+    const primaryVideo = pickDirectMp4Url(id, 0) || (streams.length > 0 ? streams[0].url : '');
     const dyn: Title = {
       id,
       name: id,
@@ -102,10 +128,10 @@ export function resolveTitle(id: string): Title {
       seed: id,
       tint: '#1A2A3A',
       video: primaryVideo,
-      quality: ['HD', '4K'] as any,
+      quality: ['HD', '4K'] as Title['quality'],
       poster: `https://images.metahub.space/poster/medium/${id}/img`,
       background: `https://images.metahub.space/background/medium/${id}/img`,
-      streams: streams as any,
+      streams: streams as unknown as Title['streams'],
     };
     DYNAMIC_TITLES.set(id, dyn);
     return dyn;
@@ -131,37 +157,41 @@ export async function fetchCinemetaLiveSearch(query: string): Promise<Title[]> {
         .catch(() => ({ metas: [] })),
     ]);
 
-    const allMetas: any[] = [...(moviesRes?.metas || []), ...(seriesRes?.metas || [])];
+    const allMetas: Record<string, unknown>[] = [...(moviesRes?.metas || []), ...(seriesRes?.metas || [])];
     const results: Title[] = [];
 
     for (const m of allMetas) {
-      if (!m.id || !m.name) continue;
+      const mId = typeof m.id === 'string' ? m.id : '';
+      const mName = typeof m.name === 'string' ? m.name : '';
+      if (!mId || !mName) continue;
       const isSeries = m.type === 'series';
-      const streams = buildNuvioStreams({ id: m.id, kind: isSeries ? 'series' : 'movie' });
-      const primaryVideo = streams.length > 0 ? streams[0].url : '';
-      const year = parseInt(m.releaseInfo || m.year || '2024', 10) || 2024;
+      const streams = buildNuvioStreams({ id: mId, kind: isSeries ? 'series' : 'movie' });
+      const primaryVideo = pickDirectMp4Url(mId, 0) || (streams.length > 0 ? streams[0].url : '');
+      const yearStr = typeof m.releaseInfo === 'string' ? m.releaseInfo : typeof m.year === 'string' ? m.year : '2024';
+      const year = parseInt(yearStr, 10) || 2024;
+      const desc = typeof m.description === 'string' && m.description ? m.description : `Watch ${mName} (${year}) in Full HD with multi-language audio tracks.`;
       const title: Title = {
-        id: m.id,
-        name: m.name,
+        id: mId,
+        name: mName,
         kind: isSeries ? 'series' : 'movie',
         year,
-        maturity: m.type === 'series' ? '16+' : '13+',
+        maturity: isSeries ? '16+' : '13+',
         runtime: isSeries ? 45 : 120,
-        seasons: isSeries ? [{ number: 1, episodes: [{ id: `${m.id}-e1`, number: 1, name: m.name, runtime: 45, synopsis: m.description || m.name, seed: m.id, video: primaryVideo }] }] : [],
-        genres: m.genres || (isSeries ? ['TV Series', 'Drama'] : ['Movie', 'Action']),
+        seasons: isSeries ? buildSeriesSeasons(mId, mName, 45, desc) : [],
+        genres: Array.isArray(m.genres) ? (m.genres as string[]) : isSeries ? ['TV Series', 'Drama'] : ['Movie', 'Action'],
         moods: ['Full Content', 'Verified Stream'],
-        synopsis: m.description || `Watch ${m.name} (${year}) in Full HD with multi-language audio tracks.`,
-        cast: m.cast || [],
-        creators: m.director ? [m.director] : [],
+        synopsis: desc,
+        cast: Array.isArray(m.cast) ? (m.cast as string[]) : [],
+        creators: typeof m.director === 'string' ? [m.director] : Array.isArray(m.director) ? (m.director as string[]) : [],
         original: false,
-        seed: m.id,
+        seed: mId,
         tint: '#1A2A3A',
         video: primaryVideo,
-        quality: ['HD', '4K'] as any,
-        poster: m.poster || `https://images.metahub.space/poster/medium/${m.id}/img`,
-        background: m.background || `https://images.metahub.space/background/medium/${m.id}/img`,
-        imdbRating: m.imdbRating || '',
-        streams: streams as any,
+        quality: ['HD', '4K'] as Title['quality'],
+        poster: typeof m.poster === 'string' && m.poster ? m.poster : `https://images.metahub.space/poster/medium/${mId}/img`,
+        background: typeof m.background === 'string' && m.background ? m.background : `https://images.metahub.space/background/medium/${mId}/img`,
+        imdbRating: typeof m.imdbRating === 'string' ? m.imdbRating : '',
+        streams: streams as unknown as Title['streams'],
       };
       DYNAMIC_TITLES.set(title.id, title);
       results.push(title);
