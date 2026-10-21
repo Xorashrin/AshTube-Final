@@ -61,7 +61,7 @@ export const Poster = memo(function Poster({ title, width = POSTER.width, height
 
 const styles = StyleSheet.create({
   frame: { borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surface2 },
-  fallback: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', padding: 8 },
+  fallback: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', padding: 8 },
   badge: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 3, backgroundColor: colors.red },
   rating: { position: 'absolute', top: 4, left: 4, backgroundColor: 'rgba(0,0,0,0.65)', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 },
 });

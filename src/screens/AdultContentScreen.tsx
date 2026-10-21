@@ -112,7 +112,7 @@ export default function AdultContentScreen({ navigation }: Props) {
             </View>
           </View>
         }
-        ListFooterComponent={loading ? <ActivityIndicator color={colors.text} style={{ padding: 20 }} /> : null}
+        ListFooterComponent={loading ? <ActivityIndicator color={colors.text} style={{ padding: 20 }} /> : undefined}
         renderItem={({ item }) => (
           <View style={{ width: cell }}>
             <Poster title={item} width={cell} height={Math.round(cell * 1.45)} onPress={(t) => navigation.navigate('Title', { id: t.id })} />
