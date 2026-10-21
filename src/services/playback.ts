@@ -8,7 +8,6 @@
 // The player starts the top entry immediately and falls through the rest on failure, so a dead
 // mirror never reaches the user. The same engine feeds the Download sheet.
 import { useEffect, useMemo, useState } from 'react';
-import { InteractionManager } from 'react-native';
 
 import type { Episode, Title } from '../data/types';
 import { markAvailability } from './availabilityStore';
@@ -368,7 +367,7 @@ export class SourceSearch {
     readonly quick = false,
   ) {
     // Wait for screen transitions to finish so the search never competes with navigation animations.
-    InteractionManager.runAfterInteractions(() => this.start());
+    setTimeout(() => this.start(), 320);
   }
 
   subscribe(fn: () => void): () => void {
