@@ -8,8 +8,10 @@
 // The player starts the top entry immediately and falls through the rest on failure, so a dead
 // mirror never reaches the user. The same engine feeds the Download sheet.
 import { useEffect, useMemo, useState } from 'react';
+import { InteractionManager } from 'react-native';
 
 import type { Episode, Title } from '../data/types';
+import { markAvailability } from './availabilityStore';
 import { identify } from './identify';
 import { getText, probe, withTimeout } from './http';
 import type { NuvioRepo } from './nuvio/repos';
@@ -35,6 +37,11 @@ export const LANGUAGES: { label: string; lang: NuvioRepo['lang'] | null }[] = [
 ];
 
 let preferredLangs: NuvioRepo['lang'][] = ['bn'];
+let dataSaver = false;
+
+export function setDataSaver(on: boolean) {
+  dataSaver = on;
+}
 
 export function setPreferredLanguage(label: string) {
   const hit = LANGUAGES.find((l) => l.label === label)?.lang;
@@ -154,7 +161,8 @@ const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 30, bdix: 25, wp
 const ORIGIN_TIER: Record<Origin, number> = { local: 0, ftp: 1, bdix: 1, wp: 2, nuvio: 3, stremio: 3 };
 
 function score(server: Server, p: Playable, ms: number, downloadOnly: boolean): number {
-  const rank = p.height ? rankFromHeight(p.height) : server.rank;
+  // Data saver keeps streams at 720p or below.
+  const rank = Math.min(p.height ? rankFromHeight(p.height) : server.rank, dataSaver ? 3 : 9);
   const seek = p.seekable ? (downloadOnly ? 80 : 35) : 0;
   return rank * 100 + seek + ORIGIN_BONUS[server.origin] - Math.min(ms / 60, 40) - (p.hls ? 5 : 0);
 }
@@ -337,6 +345,7 @@ interface Gatherer {
 const PARALLEL_RESOLVES = 8;
 const GRACE_MS = 2500;
 const HARD_CAP_MS = 90000;
+const QUICK_CAP_MS = 30000;
 
 export class SourceSearch {
   readonly servers: Server[] = [];
@@ -355,8 +364,11 @@ export class SourceSearch {
   constructor(
     readonly title: Title,
     readonly episode: Episode | undefined,
+    /** Quick mode (availability checks): fewer plugins, shorter budget. */
+    readonly quick = false,
   ) {
-    this.start();
+    // Wait for screen transitions to finish so the search never competes with navigation animations.
+    InteractionManager.runAfterInteractions(() => this.start());
   }
 
   subscribe(fn: () => void): () => void {
@@ -391,6 +403,7 @@ export class SourceSearch {
           const ms = Date.now() - t0;
           this.results.push({ server, playable, ms, score: score(server, playable, ms, false) });
           this.results.sort((a, b) => b.score - a.score);
+          markAvailability(this.title.id, true);
         })
         .catch(() => {
           this.failures++;
@@ -411,7 +424,7 @@ export class SourceSearch {
   }
 
   private start() {
-    const gatherers = buildGatherers(this.title, this.episode);
+    const gatherers = buildGatherers(this.title, this.episode, this.quick);
     this.gatherersLeft = gatherers.length;
     this.earlyLeft = gatherers.filter((g) => g.early).length;
     for (const g of gatherers) {
@@ -429,7 +442,28 @@ export class SourceSearch {
         this.done = true;
         this.emit();
       }
-    }, HARD_CAP_MS);
+    }, this.quick ? QUICK_CAP_MS : HARD_CAP_MS);
+  }
+
+  /** true as soon as any verified stream exists, false when the search ended empty, undefined on timeout. */
+  firstResult(timeoutMs: number): Promise<boolean | undefined> {
+    return new Promise((resolve) => {
+      let finished = false;
+      const finish = (v: boolean | undefined) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        unsubscribe();
+        resolve(v);
+      };
+      const check = () => {
+        if (this.results.length > 0) finish(true);
+        else if (this.done) finish(false);
+      };
+      const timer = setTimeout(() => finish(undefined), timeoutMs);
+      const unsubscribe = this.subscribe(check);
+      check();
+    });
   }
 
   /** A verified, seekable 1080p+ stream exists: nothing else is worth fetching. */
@@ -498,7 +532,7 @@ export class SourceSearch {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] {
+function buildGatherers(title: Title, episode: Episode | undefined, quick: boolean): Gatherer[] {
   const list: Gatherer[] = [];
   const ctx: Ctx = { title, episode };
   const early = (run: Gatherer['run']) => list.push({ early: true, run });
@@ -563,7 +597,8 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
       if (engine.hasTop) return;
 
       const kind = title.kind === 'series' ? 'tv' : 'movie';
-      const season = episode?.season ?? (kind === 'tv' ? 1 : undefined);
+      // AniList sequels are separate entries: the mapped TMDB season wins over the entry's own "season 1".
+      const season = ids.season ?? episode?.season ?? (kind === 'tv' ? 1 : undefined);
       const number = episode?.number ?? (kind === 'tv' ? 1 : undefined);
 
       const tasks: Promise<void>[] = [];
@@ -577,7 +612,7 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
       }
       if (ids.tmdbId) {
         const tmdb = String(ids.tmdbId);
-        const providers = await rankProviders(await loadProviders(kind), preferredLangs);
+        const providers = await rankProviders(await loadProviders(kind), preferredLangs, { anime: title.source === 'anilist' });
         const runBatch = async (batch: typeof providers) => {
           let next = 0;
           const worker = async () => {
@@ -594,7 +629,8 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
         };
         tasks.push(
           (async () => {
-            await runBatch(providers.slice(0, 16));
+            await runBatch(providers.slice(0, quick ? 8 : 16));
+            if (quick) return;
             if (engine.results.length === 0) await runBatch(providers.slice(16, 50));
             if (engine.results.length === 0) await runBatch(providers.slice(50));
           })(),
@@ -612,11 +648,11 @@ const ENGINE_TTL = 5 * 60 * 1000;
 const engines = new Map<string, SourceSearch>();
 
 /** One engine per title/episode, shared by Title screen, Player and Download sheet. */
-export function getSearch(title: Title, episode?: Episode): SourceSearch {
-  const key = `${title.id}|${episode?.id ?? ''}`;
+export function getSearch(title: Title, episode?: Episode, quick = false): SourceSearch {
+  const key = `${title.id}|${episode?.id ?? ''}|${quick ? 'q' : 'f'}`;
   const hit = engines.get(key);
   if (hit && Date.now() - hit.startedAt < ENGINE_TTL && !(hit.done && hit.results.length === 0 && Date.now() - hit.startedAt > 20000)) return hit;
-  const engine = new SourceSearch(title, episode);
+  const engine = new SourceSearch(title, episode, quick);
   engines.set(key, engine);
   if (engines.size > 12) engines.delete(engines.keys().next().value as string);
   return engine;
@@ -624,6 +660,7 @@ export function getSearch(title: Title, episode?: Episode): SourceSearch {
 
 /** Start looking for sources before the user presses Play (Title screen, hero, search results). */
 export function warmUp(title: Title, episode?: Episode) {
+  if (dataSaver) return;
   try {
     getSearch(title, episode);
   } catch {

@@ -20,6 +20,13 @@ module.exports = function withSlimApk(config) {
         ? gradle.replace(/androidResources\s*\{/, 'androidResources {\n        localeFilters.addAll(["en"])')
         : gradle.replace(/android\s*\{/, 'android {\n    androidResources {\n        localeFilters.addAll(["en"])\n    }');
     }
+    // One APK per CPU architecture (plus a universal one): every phone gets a small file that matches its chip.
+    if (!/splits\s*\{/.test(gradle)) {
+      gradle = gradle.replace(
+        /android\s*\{/,
+        'android {\n    splits {\n        abi {\n            reset()\n            enable true\n            universalApk true\n            include "armeabi-v7a", "arm64-v8a", "x86", "x86_64"\n        }\n    }',
+      );
+    }
     cfg.modResults.contents = gradle;
     return cfg;
   });

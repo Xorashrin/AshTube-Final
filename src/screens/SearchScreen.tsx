@@ -6,12 +6,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChannelLogo } from '../components/ChannelLogo';
 import { Image } from '../components/Img';
-import { Poster } from '../components/Poster';
+import { categoryOf, Poster } from '../components/Poster';
 import { Txt } from '../components/Txt';
 import { searchChannels } from '../data/channels';
 import { findEpisode, type Title } from '../data/types';
 import type { RootStackParamList } from '../navigation/types';
-import { loadDetail, rowsByKey, searchAll, useRows } from '../services/catalog';
+import { ANIME_ROWS, loadDetail, rowsByKey, searchAll, useRows } from '../services/catalog';
 import { warmUp } from '../services/playback';
 import { addHistory, clearHistory, getHistory, parseQuery, removeHistory, suggest, type Suggestion } from '../services/searchTools';
 import { colors, font, radius } from '../theme/tokens';
@@ -19,6 +19,13 @@ import { colors, font, radius } from '../theme/tokens';
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
 const RECOMMENDED_ROWS = rowsByKey('bd-bangla', 'cm-series', 'cm-movies');
+const ANIME_RECOMMENDED = ANIME_ROWS.slice(1, 3);
+
+function matchKind(t: Title, kind?: 'movie' | 'series' | 'anime') {
+  if (!kind) return true;
+  if (kind === 'anime') return t.source === 'anilist';
+  return t.kind === kind && t.source !== 'anilist';
+}
 
 export default function SearchScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
@@ -32,15 +39,15 @@ export default function SearchScreen({ navigation, route }: Props) {
   const [history, setHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [focused, setFocused] = useState(true);
-  const { rows } = useRows(RECOMMENDED_ROWS);
+  const { rows } = useRows(scope?.kind === 'anime' ? ANIME_RECOMMENDED : RECOMMENDED_ROWS);
 
   const parsed = useMemo(() => parseQuery(deferred), [deferred]);
-  const scopeLabel = scope?.live ? 'live TV' : scope?.genre ?? (scope?.kind === 'series' ? 'TV shows' : scope?.kind === 'movie' ? 'movies' : undefined);
+  const scopeLabel = scope?.live ? 'live TV' : scope?.genre ?? (scope?.kind === 'series' ? 'TV shows' : scope?.kind === 'movie' ? 'movies' : scope?.kind === 'anime' ? 'anime' : undefined);
 
   const recommended = useMemo(() => {
     const all = rows.flatMap((r) => r.items);
     return all
-      .filter((t) => (!scope?.kind || t.kind === scope.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())))
+      .filter((t) => matchKind(t, scope?.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())))
       .slice(0, 30);
   }, [rows, scope?.kind, scope?.genre]);
 
@@ -80,7 +87,7 @@ export default function SearchScreen({ navigation, route }: Props) {
         .then((found) => {
           if (cancelled) return;
           const scoped = found.filter(
-            (t) => (!scope?.kind || t.kind === scope.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())),
+            (t) => matchKind(t, scope?.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())),
           );
           setResults(scoped);
           if (scoped[0] && !scoped[0].nsfw) warmUp(scoped[0]);
@@ -146,7 +153,7 @@ export default function SearchScreen({ navigation, route }: Props) {
   );
 
   const renderResult = useCallback<ListRenderItem<Title>>(
-    ({ item }) => <Poster title={item} width={cell} height={Math.round(cell * 1.45)} onPress={(t) => open(t, parsed.season)} />,
+    ({ item }) => <Poster title={item} width={cell} height={Math.round(cell * 1.45)} label={categoryOf(item)} onPress={(t) => open(t, parsed.season)} />,
     [cell, open, parsed.season],
   );
 

@@ -6,7 +6,9 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 
 | Feature | How it works |
 |---|---|
-| **Home / New & Hot** | Live rows from the sources below, cached for an instant open and refreshed on foreground / pull-to-refresh. Titles from the last 72 h get a **New** badge. |
+| **Home** | Live rows, Bangladeshi content first, cached for an instant open and refreshed on foreground / pull-to-refresh. Titles from the last 72 h get a **New** badge. Titles that no source can play are hidden (checked quietly in the background and remembered). |
+| **Anime tab** | AniList discovery: airing this week, trending, this season, popular, top rated, movies, next season and 16 genres with endless scrolling. Playback uses the anime plugins (KickAssAnime, AniZone, AnimePahe, AnimeKai, HiAnime, AllWish, Tokyo Insider and more) with AniList → TMDB season mapping through arm.haglund.dev and api.ani.zip. |
+| **Updates** | On every start the app applies and refreshes `config/sources.json` from this repository (new plugin repos, new BDIX servers, kill-switches), reloads plugin manifests and pre-downloads the best-ranked plugin scripts, so new sources reach installs without a new APK. |
 | **Search** | Fans out to every source in parallel. Opened from a genre, Movies or TV Shows it searches only there; opened from Home it never shows live TV. Keeps your history, completes full titles while you type, and understands `bachelor point season 1 ep 10` (play that episode or open the season). Bangladeshi titles win ties. |
 | **Automatic best server** | Opening a title (or the Home hero, or the top search result) starts looking for servers in the background. Playback starts on the highest-quality, seekable, fastest verified server; no picking needed. A manual override stays in the Servers panel. |
 | **Playback** | ExoPlayer with seek, double-tap seek, smooth swipe brightness / volume / scrub, speed, fit modes, lock, real audio and subtitle tracks, next episode, resume. |
@@ -20,8 +22,8 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 |---|---|
 | southfreak.club / southfreak.in | Movies, metadata, links → TechZed → HubCloud / GDFlix / MultiCloud / Direct-DL / GDXShare |
 | amaderftp.net | Direct MP4/MKV with HTTP Range, looked up by TMDB id |
-| BDIX / FTP servers (CircleFTP API + 20 index servers) | Direct files, searched by name. Most answer only from Bangladeshi ISPs; unreachable ones fail fast and are paused by a circuit breaker |
-| **Nuvio plugins** (11 repos, 229 scrapers) | Streams for movies, series and anime. Provider scripts are downloaded on demand and run in the app (Hermes) with cheerio and crypto-js |
+| BDIX / FTP servers (CircleFTP API + ~100 index servers, plus the live bdix.app and ftpserverbd.com directories) | Direct files, searched by name. Most answer only from Bangladeshi ISPs; servers that never answer on your network are skipped for 12 h and answering ones are tried first |
+| **Nuvio plugins** (46 repositories, ~700 scrapers; the list is remotely updatable) | Streams for movies, series and anime. Provider scripts are downloaded on demand and run in the app (Hermes) with cheerio and crypto-js |
 | Stremio addons (Stremify, OnlyPorn) | Direct HTTP streams and the 18+ catalogs |
 | Cinemeta | Trending, search, cast, real season/episode lists |
 | AniList | Anime trending, airing schedule, search |
@@ -44,6 +46,14 @@ Plugin sources only start when no seekable 1080p stream was found within five se
 ## Download engine
 
 `modules/myth-giga` is a native Kotlin module. Its design follows NewPipe's GiGaGet engine: the file is probed, split into 1 MiB blocks, N worker threads claim blocks and write them at their offsets, finished blocks are persisted so an interrupted download resumes where it stopped, and servers without Range support use a single-stream fallback. It is an independent implementation, not a copy of NewPipe's GPL code.
+
+## Mobile data
+
+Feeds load three at a time, list posters use smaller image variants, and the source engine starts only after the screen transition. **Settings → Data Saver** also stops background source checks and pre-warming and caps streams at 720p. Stream links and plugin scripts are cached, so repeat plays cost almost nothing.
+
+## Stability
+
+A global error handler keeps async failures from closing the app, an error boundary shows a recovery screen for render errors, and tabs/screens freeze when hidden. The APK is built for every CPU: `MythTube-arm64-v8a.apk` (most phones), `MythTube-armeabi-v7a.apk` (older 32-bit phones), `x86`/`x86_64` (emulators, Chromebooks) and `MythTube-universal.apk`. Minimum Android version is 7.0 (API 24), the lowest React Native 0.88 supports.
 
 ## Build
 

@@ -30,6 +30,8 @@ export function RootNavigator() {
         headerShown: false,
         orientation: 'portrait_up',
         animation: 'slide_from_right',
+        animationDuration: 220,
+        freezeOnBlur: true,
         contentStyle: { backgroundColor: colors.bg },
       }}
     >

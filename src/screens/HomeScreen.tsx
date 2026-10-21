@@ -38,12 +38,21 @@ export default function HomeScreen({ route, navigation }: Props) {
   const name = activeProfile?.name ?? 'You';
   const { rows, refresh, refreshing } = useRows(HOME_ROWS);
 
+  // Item arrays keep their identity while nothing changed, so untouched rows never re-render.
+  const filtered = useRef(new Map<string, { src: Title[]; key: string; out: Title[] }>()).current;
   const visibleRows = useMemo(
     () =>
       rows
-        .map((r) => ({ ...r, items: r.items.filter((t) => match(t, filter, genre)) }))
+        .map((r) => {
+          const key = `${filter}|${genre ?? ''}`;
+          const hit = filtered.get(r.def.key);
+          if (hit && hit.src === r.items && hit.key === key) return { ...r, items: hit.out };
+          const out = r.items.filter((t) => match(t, filter, genre));
+          filtered.set(r.def.key, { src: r.items, key, out });
+          return { ...r, items: out };
+        })
         .filter((r) => r.loading || r.items.length > 0),
-    [rows, filter, genre],
+    [rows, filter, genre, filtered],
   );
 
   const hero = useMemo<Title | null>(() => {

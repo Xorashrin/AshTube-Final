@@ -46,29 +46,33 @@ jobs:
       - name: Generate Android project
         run: npx expo prebuild --platform android --clean --no-install
 
-      - name: Build release APK (arm64, minified)
+      - name: Build release APKs (every CPU architecture, minified)
         working-directory: android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=armeabi-v7a,arm64-v8a,x86,x86_64 --no-daemon
 
-      - name: Collect APK
+      - name: Collect and verify APKs
         run: |
-          APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
           mkdir -p dist
-          cp "$APK" dist/MythTube.apk
-          ls -l dist/MythTube.apk
-          "$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)" verify --verbose dist/MythTube.apk
+          for f in $(find android/app/build/outputs/apk/release -name "*.apk"); do
+            name=$(basename "$f" .apk)
+            abi=${name#app-}; abi=${abi%-release}
+            [ "$abi" = "release" ] && abi=universal
+            cp "$f" "dist/MythTube-$abi.apk"
+          done
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
+          for f in dist/*.apk; do "$APKSIGNER" verify "$f" && ls -l "$f"; done
 
       - uses: actions/upload-artifact@v5
         with:
           name: MythTube-apk
-          path: dist/MythTube.apk
+          path: dist/*.apk
 
       - name: Publish release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="v2.0.${{ github.run_number }}"
-          gh release create "$TAG" dist/MythTube.apk \
+          gh release create "$TAG" dist/*.apk \
             --repo "${{ github.repository }}" \
             --title "MythTube $TAG" \
-            --notes "Android release (arm64-v8a). Built from ${{ github.sha }}."
+            --notes "Most phones: MythTube-arm64-v8a.apk. Older 32-bit phones: MythTube-armeabi-v7a.apk. Emulators / Chromebooks: x86 or x86_64. Unsure: MythTube-universal.apk. Built from ${{ github.sha }}."

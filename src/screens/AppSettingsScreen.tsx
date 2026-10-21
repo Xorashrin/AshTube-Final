@@ -125,6 +125,14 @@ export default function AppSettingsScreen({ navigation }: Props) {
         />
         <SettingRow icon="play-forward-outline" label="Autoplay Next Episode" toggle={s.autoplayNext} onToggle={() => toggleSetting('autoplayNext')} />
 
+        <SettingRow
+          icon="cellular-outline"
+          label="Data Saver"
+          description="Stops background source checks and pre-loading, and keeps streams at 720p or below."
+          toggle={s.dataSaver}
+          onToggle={() => toggleSetting('dataSaver')}
+        />
+
         <SectionLabel>Downloads</SectionLabel>
         <SettingRow
           icon="download-outline"

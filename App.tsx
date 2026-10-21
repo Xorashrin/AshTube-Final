@@ -10,12 +10,22 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { Toast } from './src/components/Toast';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { AppStateProvider } from './src/state/AppState';
+import { initRemoteConfig } from './src/services/remoteConfig';
 import { colors } from './src/theme/tokens';
 
 SplashScreen.preventAutoHideAsync().catch(() => undefined);
+
+// Async failures (timers, promises, native callbacks) must never close the app; render errors go to the ErrorBoundary.
+const errorUtils = (globalThis as { ErrorUtils?: { getGlobalHandler?: () => (e: unknown, fatal?: boolean) => void; setGlobalHandler?: (h: (e: unknown, fatal?: boolean) => void) => void } }).ErrorUtils;
+const previousHandler = errorUtils?.getGlobalHandler?.();
+errorUtils?.setGlobalHandler?.((error, isFatal) => {
+  console.warn('Unhandled error', isFatal ? '(fatal)' : '', error);
+  if (!isFatal) previousHandler?.(error, false);
+});
 
 const theme: Theme = {
   ...DarkTheme,
@@ -40,6 +50,10 @@ export default function App() {
   const ready = loaded || !!error;
 
   useEffect(() => {
+    initRemoteConfig().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     if (ready) SplashScreen.hideAsync().catch(() => undefined);
   }, [ready]);
 
@@ -47,13 +61,15 @@ export default function App() {
 
   return (
     <SafeAreaProvider style={{ backgroundColor: colors.bg }}>
-      <AppStateProvider>
-        <NavigationContainer theme={theme}>
-          <StatusBar style="light" />
-          <RootNavigator />
-        </NavigationContainer>
-        <Toast />
-      </AppStateProvider>
+      <ErrorBoundary>
+        <AppStateProvider>
+          <NavigationContainer theme={theme}>
+            <StatusBar style="light" />
+            <RootNavigator />
+          </NavigationContainer>
+          <Toast />
+        </AppStateProvider>
+      </ErrorBoundary>
     </SafeAreaProvider>
   );
 }

@@ -2,8 +2,11 @@
 // Feeds are cached (stale-while-revalidate) so the app opens instantly and still shows
 // the last good content when a source is down.
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState } from 'react-native';
+
+import { isListed, useAvailabilityVersion } from './availabilityStore';
+import { verifyLater } from './availability';
 
 import { tintFor, type Title } from '../data/types';
 import { cached } from './cache';
@@ -154,13 +157,37 @@ export const HOME_ROWS: RowDef[] = [
   { key: 'sf-animation', title: 'Animation', load: wp('animation', CATEGORY.animation) },
 ];
 
-export const NEWHOT_ROWS: RowDef[] = [
-  { key: 'sf-upcoming', title: 'Coming Soon', load: wp('upcoming', CATEGORY.upcoming, 20) },
-  { key: 'al-airing', title: 'Airing This Week', load: feed('al:upcoming', () => anilist.upcoming(7), 30 * 60 * 1000) },
-  { key: 'sf-new', title: 'New This Week', load: wp('latest-new', undefined, 30) },
-  { key: 'cm-movies', title: 'Popular Movies', load: feed('cm:movie', () => cinemeta.catalog('movie')) },
-  { key: 'cm-series', title: 'Popular Series', load: feed('cm:series', () => cinemeta.catalog('series')) },
+const anime = (key: string, title: string, o: anilist.BrowseOptions, ttl = FEED_TTL): RowDef => ({
+  key,
+  title,
+  load: feed(`al:${key}`, () => anilist.browse(o), ttl),
+});
+
+const THIS_SEASON = anilist.currentSeason();
+const NEXT_SEASON = anilist.nextSeason();
+
+export const ANIME_GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Fantasy', 'Horror', 'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'];
+
+/** Rows of the Anime tab: AniList discovery (new episodes, seasons, rankings, genres). */
+export const ANIME_ROWS: RowDef[] = [
+  { key: 'an-schedule', title: 'Airing This Week', load: feed('al:schedule', () => anilist.upcoming(7), 30 * 60 * 1000) },
+  anime('an-trending', 'Trending Now', { sort: 'TRENDING_DESC' }),
+  anime('an-season', 'This Season', { sort: 'POPULARITY_DESC', season: THIS_SEASON.season, seasonYear: THIS_SEASON.year }),
+  anime('an-airing', 'Currently Airing', { sort: 'POPULARITY_DESC', status: 'RELEASING' }),
+  anime('an-popular', 'All-Time Popular', { sort: 'POPULARITY_DESC' }, 6 * 3600 * 1000),
+  anime('an-top', 'Top Rated', { sort: 'SCORE_DESC' }, 6 * 3600 * 1000),
+  anime('an-movies', 'Anime Movies', { sort: 'POPULARITY_DESC', format: ['MOVIE'] }, 6 * 3600 * 1000),
+  anime('an-next', 'Coming Next Season', { sort: 'POPULARITY_DESC', season: NEXT_SEASON.season, seasonYear: NEXT_SEASON.year }, 6 * 3600 * 1000),
+  anime('an-action', 'Action', { sort: 'POPULARITY_DESC', genre: 'Action' }, 6 * 3600 * 1000),
+  anime('an-romance', 'Romance', { sort: 'POPULARITY_DESC', genre: 'Romance' }, 6 * 3600 * 1000),
+  anime('an-fantasy', 'Fantasy', { sort: 'POPULARITY_DESC', genre: 'Fantasy' }, 6 * 3600 * 1000),
+  anime('an-comedy', 'Comedy', { sort: 'POPULARITY_DESC', genre: 'Comedy' }, 6 * 3600 * 1000),
+  anime('an-scifi', 'Sci-Fi', { sort: 'POPULARITY_DESC', genre: 'Sci-Fi' }, 6 * 3600 * 1000),
 ];
+
+export async function loadAnimeGenre(genre: string, page: number): Promise<Title[]> {
+  return register(await anilist.browse({ sort: 'POPULARITY_DESC', genre, page, perPage: 30 }));
+}
 
 export const ADULT_ROWS: RowDef[] = stremio.ONLYPORN_CATALOGS.map((c) => ({
   key: `sx-${c.id}`,
@@ -238,7 +265,8 @@ export async function searchAll(query: string, includeAdult = false): Promise<Ti
   }
   const unique = new Map<string, Title>();
   for (const t of register(results)) unique.set(t.id, t);
-  const sorted = [...unique.values()].sort((a, b) => score(b, q) - score(a, q));
+  const sorted = [...unique.values()].filter(isListed).sort((a, b) => score(b, q) - score(a, q));
+  verifyLater(sorted.slice(0, 8));
   await cached<Title[]>(key, { ttl: 0, force: true }, async () => sorted.slice(0, 40));
   return sorted;
 }
@@ -260,20 +288,26 @@ export function useRows(defs: RowDef[], enabled = true) {
   const [rows, setRows] = useState<RowState[]>(() => defs.map((def) => ({ def, items: [], loading: true, error: false })));
   const [refreshing, setRefreshing] = useState(false);
   const lastLoad = useRef(0);
+  const availability = useAvailabilityVersion();
+  const stable = useRef(new Map<string, { src: Title[]; out: Title[]; v: number }>()).current;
 
+  // Staggered loading: three feeds at a time keeps the first screen fast and the data use low.
   const load = useCallback(
     async (force: boolean) => {
       lastLoad.current = Date.now();
-      await Promise.all(
-        defs.map(async (def) => {
+      let next = 0;
+      const worker = async () => {
+        while (next < defs.length) {
+          const def = defs[next++];
           try {
             const items = await def.load(force);
             setRows((prev) => prev.map((r) => (r.def.key === def.key ? { ...r, items: items.length ? items : r.items, loading: false, error: false } : r)));
           } catch {
             setRows((prev) => prev.map((r) => (r.def.key === def.key ? { ...r, loading: false, error: r.items.length === 0 } : r)));
           }
-        }),
-      );
+        }
+      };
+      await Promise.all(Array.from({ length: 3 }, worker));
     },
     [defs],
   );
@@ -287,13 +321,33 @@ export function useRows(defs: RowDef[], enabled = true) {
     return () => sub.remove();
   }, [enabled, load]);
 
+  // Titles with no playable source are hidden; unchecked ones are verified quietly in the background.
+  useEffect(() => {
+    if (!enabled) return;
+    const pending = rows.flatMap((r) => r.items.slice(0, 8)).filter((t) => t.source === 'cinemeta' || t.source === 'anilist');
+    if (pending.length > 0) verifyLater(pending);
+  }, [rows, enabled]);
+
+  const visible = useMemo(
+    () =>
+      rows.map((r) => {
+        const hit = stable.get(r.def.key);
+        if (hit && hit.src === r.items && hit.v === availability) return r.items === hit.out ? r : { ...r, items: hit.out };
+        const out = r.items.filter(isListed);
+        const reuse = hit && hit.out.length === out.length && hit.out.every((t, i) => t === out[i]) ? hit.out : out;
+        stable.set(r.def.key, { src: r.items, out: reuse, v: availability });
+        return { ...r, items: reuse };
+      }),
+    [rows, availability, stable],
+  );
+
   const refresh = useCallback(async () => {
     setRefreshing(true);
     await load(true);
     setRefreshing(false);
   }, [load]);
 
-  return { rows, refresh, refreshing };
+  return { rows: visible, refresh, refreshing };
 }
 
 export function titleById(rows: RowState[], key: string): Title[] {

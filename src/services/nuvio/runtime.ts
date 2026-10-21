@@ -10,6 +10,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 
 import { cached } from '../cache';
 import { getJson, getText, withTimeout } from '../http';
+import { providerDisabled } from './disabled';
 import { NUVIO_REPOS, type NuvioRepo } from './repos';
 
 export interface Scraper {
@@ -60,7 +61,8 @@ export async function loadProviders(kind: 'movie' | 'tv'): Promise<Provider[]> {
         );
         return (man.scrapers ?? [])
           .filter((s) => s.enabled !== false && s.filename && (!s.supportedTypes || s.supportedTypes.includes(kind) || (kind === 'tv' && s.supportedTypes.includes('anime'))))
-          .map<Provider>((scraper) => ({ key: `${repo.id}:${scraper.id}`, repo, scraper }));
+          .map<Provider>((scraper) => ({ key: `${repo.id}:${scraper.id}`, repo, scraper }))
+          .filter((p) => !providerDisabled(p.key));
       } catch {
         return [];
       }
@@ -103,7 +105,13 @@ async function recordRun(key: string, ok: boolean, ms: number) {
 }
 
 /** Providers sorted by repo priority, then by observed success rate and speed. */
-export async function rankProviders(providers: Provider[], preferLang: NuvioRepo['lang'][] = []): Promise<Provider[]> {
+const ANIME_RE = /anime|kickass|anizone|pahe|animekai|hianime|allwish|anikoto|animex|tokyo|donghua|toonhub|toonstream|zoro|aniwatch|anidb|animetsu|animelok|animesalt|animedekho|animeworld|animecloud|animekhor|animedub|anichi|reanime|anineko|animecube|animeflv|jkanime|latanime|tioanime|anime4up|animewitcher|witanime|anim3rb|asyaanime/i;
+
+export function isAnimeProvider(p: Provider): boolean {
+  return ANIME_RE.test(p.scraper.id + p.scraper.name) || (p.scraper.supportedTypes ?? []).includes('anime');
+}
+
+export async function rankProviders(providers: Provider[], preferLang: NuvioRepo['lang'][] = [], opts: { anime?: boolean } = {}): Promise<Provider[]> {
   const h = await readHealth();
   const score = (p: Provider) => {
     const st = h[p.key];
@@ -113,7 +121,9 @@ export async function rankProviders(providers: Provider[], preferLang: NuvioRepo
     const langBonus = p.repo.lang === 'multi' || preferLang.includes(p.repo.lang) ? 0 : 8;
     // Ad-wrapper families that frequently return promo clips run last (their output is still validated).
     const adRisk = /moviebox|adimoviebox/i.test(p.scraper.id) ? 25 : 0;
-    return p.repo.priority * 0.8 + langBonus + adRisk + (1 - rate) * 12 + speed * 0.4;
+    // Anime titles try the anime-specific plugins first (KickAssAnime, AniZone, AnimePahe, HiAnime, AnimeKai, Tokyo Insider…).
+    const animeBoost = opts.anime ? (isAnimeProvider(p) ? -30 : 10) : 0;
+    return p.repo.priority * 0.8 + langBonus + adRisk + animeBoost + (1 - rate) * 12 + speed * 0.4;
   };
   return [...providers].sort((a, b) => score(a) - score(b));
 }
@@ -149,6 +159,11 @@ async function readScript(p: Provider): Promise<string> {
     .then(() => FileSystem.writeAsStringAsync(file, code))
     .catch(() => undefined);
   return code;
+}
+
+/** Downloads scripts into the on-device cache without running them. */
+export async function prefetchScripts(providers: Provider[]): Promise<void> {
+  for (const p of providers) await readScript(p).catch(() => undefined);
 }
 
 function compile(p: Provider): Promise<GetStreams> {

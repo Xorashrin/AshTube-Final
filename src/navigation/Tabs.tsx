@@ -1,5 +1,4 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import React from 'react';
 import { View } from 'react-native';
@@ -8,7 +7,7 @@ import { Avatar } from '../components/Avatar';
 import { CreditPopup } from '../components/CreditPopup';
 import HomeScreen from '../screens/HomeScreen';
 import MyNetflixScreen from '../screens/MyNetflixScreen';
-import NewHotScreen from '../screens/NewHotScreen';
+import AnimeScreen from '../screens/AnimeScreen';
 import TvScreen from '../screens/TvScreen';
 import { useApp } from '../state/AppState';
 import { colors, font } from '../theme/tokens';
@@ -32,6 +31,8 @@ export function Tabs() {
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
+        lazy: true,
+        freezeOnBlur: true,
         tabBarActiveTintColor: colors.text,
         tabBarInactiveTintColor: colors.textDim,
         tabBarStyle: { backgroundColor: 'rgba(0,0,0,0.97)', borderTopWidth: 0, elevation: 0 },
@@ -50,14 +51,9 @@ export function Tabs() {
         options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'tv' : 'tv-outline'} size={25} color={color} /> }}
       />
       <Tab.Screen
-        name="NewHot"
-        component={NewHotScreen}
-        options={{
-          title: 'New & Hot',
-          tabBarIcon: ({ focused, color }) => (
-            <MaterialCommunityIcons name={focused ? 'play-box-multiple' : 'play-box-multiple-outline'} size={24} color={color} />
-          ),
-        }}
+        name="Anime"
+        component={AnimeScreen}
+        options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} /> }}
       />
       <Tab.Screen
         name="MyNetflix"

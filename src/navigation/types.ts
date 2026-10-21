@@ -4,7 +4,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 export type TabParamList = {
   Home: { genre?: string } | undefined;
   TV: undefined;
-  NewHot: undefined;
+  Anime: undefined;
   MyNetflix: undefined;
 };
 
@@ -18,7 +18,7 @@ export type RootStackParamList = {
   Player: { id: string; episodeId?: string };
   Live: { channelId: string; filter?: string };
   /** Scope comes from where search was opened: a genre/category, movies or series only, or live TV. */
-  Search: { genre?: string; kind?: 'movie' | 'series'; live?: boolean } | undefined;
+  Search: { genre?: string; kind?: 'movie' | 'series' | 'anime'; live?: boolean } | undefined;
   Categories: { current?: string } | undefined;
   MyList: undefined;
   Downloads: undefined;

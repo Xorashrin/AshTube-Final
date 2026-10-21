@@ -1,10 +1,13 @@
 // Maps a title from any source to TMDB/IMDb ids (needed by Nuvio plugins and Stremio addons).
 import type { Title } from '../data/types';
+import * as anilist from './sources/anilist';
 import * as cinemeta from './sources/cinemeta';
 
 export interface Ids {
   tmdbId?: number;
   imdbId?: string;
+  /** TMDB season (anime sequels). */
+  season?: number;
 }
 
 const known = new Map<string, Promise<Ids>>();
@@ -16,6 +19,10 @@ export function identify(title: Title): Promise<Ids> {
   const hit = known.get(title.id);
   if (hit) return hit;
   const job = (async (): Promise<Ids> => {
+    if (title.source === 'anilist') {
+      const mapped = await anilist.mapIds(title);
+      return { tmdbId: mapped.tmdbId, imdbId: mapped.imdbId, season: mapped.season };
+    }
     if (title.source === 'cinemeta') {
       const detailed = await cinemeta.detail(title).catch(() => title);
       return { tmdbId: detailed.tmdbId ?? title.tmdbId, imdbId: title.imdbId ?? title.ref };

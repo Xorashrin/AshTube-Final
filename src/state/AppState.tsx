@@ -5,7 +5,8 @@ import { findEpisode, MAIN_PROFILE_ID, PROFILE_COLOR, type Profile } from '../da
 import { loadSavedTitles, resolveTitle, saveTitles } from '../services/catalog';
 import { cancelKey, deleteLocalFile, downloadKey, downloadTitle, isActive, type DownloadDir } from '../services/downloads';
 import { GigaError } from '../services/giga';
-import { setPreferredLanguage } from '../services/playback';
+import { setAvailabilityChecks } from '../services/availabilityStore';
+import { setDataSaver, setPreferredLanguage } from '../services/playback';
 import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
 export type Rating = 'down' | 'up' | 'love';
@@ -58,6 +59,8 @@ export interface Settings {
   downloadThreads: number;
   /** Folder chosen with the system picker; null = app storage. */
   downloadDir: DownloadDir | null;
+  /** Mobile-data friendly: no background source checks or pre-warming, 720p cap while streaming. */
+  dataSaver: boolean;
 }
 
 interface State {
@@ -119,6 +122,7 @@ const defaultSettings: Settings = {
   preferredLanguage: 'English',
   downloadThreads: 6,
   downloadDir: null,
+  dataSaver: false,
 };
 
 const initialState: State = {
@@ -293,6 +297,11 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     setPreferredLanguage(state.settings.preferredLanguage);
   }, [state.settings.preferredLanguage]);
+
+  useEffect(() => {
+    setDataSaver(state.settings.dataSaver);
+    setAvailabilityChecks(!state.settings.dataSaver);
+  }, [state.settings.dataSaver]);
 
   useEffect(() => watchAuth((user) => dispatch({ type: 'AUTH', user })), []);
 

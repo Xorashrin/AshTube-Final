@@ -34,7 +34,15 @@ export function hostAvailable(url: string): boolean {
   return !b || b.failures < BREAKER_LIMIT || Date.now() > b.openUntil;
 }
 
+let lastSuccessAt = 0;
+
+/** True when some request succeeded in the last minute (guards against treating an outage as "not available"). */
+export function recentlyOnline(): boolean {
+  return Date.now() - lastSuccessAt < 60000;
+}
+
 export function recordHost(url: string, ok: boolean) {
+  if (ok) lastSuccessAt = Date.now();
   const host = hostOf(url);
   const b = breakers.get(host) ?? { failures: 0, openUntil: 0 };
   if (ok) {

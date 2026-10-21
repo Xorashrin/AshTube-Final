@@ -19,7 +19,7 @@ interface ScreenHeaderProps {
   searchScope?: SearchScope;
 }
 
-export type SearchScope = { genre?: string; kind?: 'movie' | 'series'; live?: boolean };
+export type SearchScope = { genre?: string; kind?: 'movie' | 'series' | 'anime'; live?: boolean };
 
 export function HeaderActions({ actions, onMenu, searchScope }: { actions: HeaderAction[]; onMenu?: () => void; searchScope?: SearchScope }) {
   const nav = useRootNav();

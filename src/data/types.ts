@@ -48,6 +48,8 @@ export interface Title {
   imdbRating?: string;
   imdbId?: string;
   tmdbId?: number;
+  /** TMDB season this entry maps to (anime sequels are separate AniList entries). */
+  tmdbSeason?: number;
   /** When the source published the title (ms since epoch). Drives "New" badges. */
   addedAt?: number;
   badge?: Badge;
