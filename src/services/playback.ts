@@ -13,7 +13,7 @@ import type { Episode, Title } from '../data/types';
 import { identify } from './identify';
 import { getText, probe, withTimeout } from './http';
 import type { NuvioRepo } from './nuvio/repos';
-import { loadProviders, rankProviders, runProvider, type NuvioStream } from './nuvio/runtime';
+import { loadProviders, penalizeProvider, rankProviders, runProvider, type NuvioStream } from './nuvio/runtime';
 import { expandLink, hostLabel, resolveMirror, type Playable } from './resolvers';
 import * as amaderftp from './sources/amaderftp';
 import * as bdix from './sources/bdix';
@@ -40,7 +40,7 @@ export function setPreferredLanguage(label: string) {
   const hit = LANGUAGES.find((l) => l.label === label)?.lang;
   preferredLangs = hit ? [hit, 'bn'] : ['bn'];
 }
-export type Origin = 'local' | 'ftp' | 'bdix' | 'wp' | 'nuvio' | 'stremio' | 'embed';
+export type Origin = 'local' | 'ftp' | 'bdix' | 'wp' | 'nuvio' | 'stremio';
 
 export interface Server {
   id: string;
@@ -50,11 +50,11 @@ export interface Server {
   /** 0–5: 360p=1 … 1080p=4, 4K=5. Unknown HD labels count as 3. */
   rank: number;
   origin: Origin;
-  kind: 'native' | 'embed';
   resolve?: () => Promise<Playable>;
-  embedUrl?: string;
   downloadable: boolean;
   size?: string;
+  /** Nuvio provider key, so a bad result can be remembered against the plugin. */
+  providerKey?: string;
 }
 
 export interface Resolved {
@@ -82,8 +82,76 @@ function rankFromHeight(h: number): number {
   return h >= 2000 ? 5 : h >= 1300 ? 4.5 : h >= 1000 ? 4 : h >= 700 ? 3 : h >= 450 ? 2 : 1;
 }
 
-const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 30, bdix: 25, wp: 10, nuvio: 0, stremio: 0, embed: -40 };
-const ORIGIN_TIER: Record<Origin, number> = { local: 0, ftp: 1, bdix: 1, wp: 2, nuvio: 3, stremio: 3, embed: 9 };
+// ---------------------------------------------------------------- content validation
+// Promo clips (e.g. MovieBox ads), the wrong title and truncated files are rejected before and during
+// playback, so the user never sees them.
+
+interface Ctx {
+  title: Title;
+  episode?: Episode;
+}
+
+/** Expected running time in minutes (0 when unknown). */
+export function expectedMinutes({ title, episode }: Ctx): number {
+  return episode?.runtime || title.runtime || 0;
+}
+
+const MB = 1024 * 1024;
+
+function minBytes(ctx: Ctx): number {
+  const exp = expectedMinutes(ctx);
+  const movie = ctx.title.kind === 'movie';
+  return Math.max(movie ? 60 * MB : 25 * MB, exp * (movie ? 1.0 : 0.6) * MB);
+}
+
+function checkSize(bytes: number, ctx: Ctx) {
+  if (bytes > 0 && bytes < minBytes(ctx)) throw new Error('Too small to be the full video (promo or preview clip)');
+}
+
+/** Is a measured duration (seconds) believable for what was requested? */
+export function durationPlausible(seconds: number, ctx: Ctx): boolean {
+  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  const exp = expectedMinutes(ctx);
+  const movie = ctx.title.kind === 'movie';
+  const floor = Math.max(movie ? 20 : 8, exp ? exp * (movie ? 0.72 : 0.5) : 0) * 60;
+  const ceiling = exp ? (exp * 1.9 + 25) * 60 : Infinity;
+  return seconds >= floor && seconds <= ceiling;
+}
+
+/** Name/URL sanity: wrong season/episode, wrong release year, or a file clearly named after something else. */
+function labelOk(label: string, ctx: Ctx): boolean {
+  const text = safeDecodeText(label);
+  const se = /s(\d{1,2})[\s._-]*e(\d{1,3})/i.exec(text) ?? /\b(\d{1,2})x(\d{2,3})\b/.exec(text);
+  if (ctx.episode && se && (Number(se[1]) !== ctx.episode.season || Number(se[2]) !== ctx.episode.number)) return false;
+  if (ctx.title.kind === 'movie' && ctx.title.year) {
+    const years = [...text.matchAll(/(?:^|[^0-9])((?:19|20)\d{2})(?![0-9])/g)].map((m) => Number(m[1]));
+    if (years.length > 0 && !years.some((y) => Math.abs(y - ctx.title.year) <= 1)) return false;
+  }
+  const base = text.split(/[?#]/)[0].split('/').pop() ?? '';
+  const words = base.toLowerCase().replace(/\.[a-z0-9]{2,4}$/, '').split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(\d+p?|x26[45]|hevc|web|dl|rip|bluray|hdrip|h264|h265|aac|ac3|dts|dual|audio|esub|esubs|hindi|english|bengali|hdr|uhd|mkv|mp4|amzn|nf|netflix|www|com)$/.test(w));
+  const wanted = ctx.title.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && w !== 'the');
+  if (words.length >= 3 && wanted.length > 0 && !wanted.some((w) => words.includes(w))) return false;
+  return true;
+}
+
+function safeDecodeText(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
+/** Alternative search names: "Arcane: League of Legends" also finds "Arcane". */
+export function altNames(title: Title): string[] {
+  const full = title.name.trim();
+  const short = full.split(/\s*[:–—]\s+|\s+-\s+/)[0].trim();
+  const noArticle = full.replace(/^(the|a|an)\s+/i, '');
+  return [...new Set([full, short, noArticle].filter((n) => n.length >= 3))];
+}
+
+const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 30, bdix: 25, wp: 10, nuvio: 0, stremio: 0 };
+const ORIGIN_TIER: Record<Origin, number> = { local: 0, ftp: 1, bdix: 1, wp: 2, nuvio: 3, stremio: 3 };
 
 function score(server: Server, p: Playable, ms: number, downloadOnly: boolean): number {
   const rank = p.height ? rankFromHeight(p.height) : server.rank;
@@ -113,6 +181,38 @@ async function probeHls(url: string, headers?: Record<string, string>): Promise<
 
 // ---------------------------------------------------------------- server builders
 
+/** Reads an HLS playlist: confirms it is real, finds the best picture height and the total running time. */
+async function probeHls(url: string, headers?: Record<string, string>): Promise<{ height: number; duration: number }> {
+  const text = await getText(url, { headers, timeout: 9000, retries: 0 });
+  if (!text.includes('#EXTM3U')) throw new Error('Not an HLS playlist');
+  let height = 0;
+  let best: { bw: number; uri: string } | null = null;
+  const lines = text.split(/\r?\n/);
+  for (let i = 0; i < lines.length; i++) {
+    const info = /#EXT-X-STREAM-INF:(.*)/.exec(lines[i]);
+    if (!info) continue;
+    const res = /RESOLUTION=\d+x(\d+)/.exec(info[1]);
+    const bw = Number(/BANDWIDTH=(\d+)/.exec(info[1])?.[1] ?? 0);
+    if (res) height = Math.max(height, Number(res[1]));
+    const uri = lines[i + 1]?.trim();
+    if (uri && !uri.startsWith('#') && (!best || bw > best.bw)) best = { bw, uri };
+  }
+  let media = text;
+  if (best) {
+    // Master playlist: read one variant to learn the real running time.
+    try {
+      media = await getText(new URL(best.uri, url).href, { headers, timeout: 9000, retries: 0 });
+    } catch {
+      media = '';
+    }
+  }
+  let duration = 0;
+  for (const m of media.matchAll(/#EXTINF:([\d.]+)/g)) duration += Number(m[1]);
+  // Without an end marker the playlist is live or incomplete, so its length says nothing.
+  if (!/#EXT-X-ENDLIST/.test(media)) duration = 0;
+  return { height, duration };
+}
+
 async function resolveVariant(v: Variant): Promise<Playable> {
   return resolveOnce(v.url, async () => {
     const mirrors = await withTimeout(expandLink(v.url), 15000, 'Link page');
@@ -129,22 +229,26 @@ async function resolveVariant(v: Variant): Promise<Playable> {
   });
 }
 
-function wpServers(title: Title, variants: Variant[], prefix = ''): Server[] {
+function wpServers(ctx: Ctx, post: Title, variants: Variant[], prefix = ''): Server[] {
   return variants.map((v, i) => ({
-    id: `${prefix}wp:${title.id}:${i}`,
+    id: `${prefix}wp:${post.id}:${i}`,
     name: `Southfreak • ${v.quality}`,
     detail: v.size ? `${v.size} • multi-mirror` : 'multi-mirror',
     quality: v.quality,
     rank: qualityRank(v.quality),
     origin: 'wp' as const,
-    kind: 'native' as const,
-    resolve: () => resolveVariant(v),
+    resolve: async () => {
+      const playable = await resolveVariant(v);
+      checkSize(playable.size, ctx);
+      if (playable.fileName && !labelOk(playable.fileName, ctx)) throw new Error('File name does not match this title');
+      return playable;
+    },
     downloadable: true,
     size: v.size,
   }));
 }
 
-function fileServer(id: string, name: string, url: string, urls: string[], label: string, origin: 'ftp' | 'bdix'): Server {
+function fileServer(ctx: Ctx, id: string, name: string, url: string, urls: string[], label: string, origin: 'ftp' | 'bdix'): Server {
   const quality = /(2160p|1080p|720p|480p|4k)/i.exec(label)?.[1].toUpperCase() ?? (label || 'HD');
   return {
     id,
@@ -153,73 +257,74 @@ function fileServer(id: string, name: string, url: string, urls: string[], label
     quality,
     rank: qualityRank(quality),
     origin,
-    kind: 'native',
     downloadable: true,
     resolve: () =>
       resolveOnce(url, async () => {
+        if (!labelOk(label, ctx) || !labelOk(url, ctx)) throw new Error('File does not match this title');
         for (const candidate of urls) {
           const p = await probe(candidate);
-          if (p.ok) return { url: p.url, seekable: p.seekable, size: p.size, host: name, fileName: p.fileName, hls: false };
+          if (!p.ok) continue;
+          checkSize(p.size, ctx);
+          return { url: p.url, seekable: p.seekable, size: p.size, host: name, fileName: p.fileName, hls: p.hls };
         }
         throw new Error(`${name} file unreachable`);
       }),
   };
 }
 
-function ftpServers(files: amaderftp.FtpFile[], prefix = ''): Server[] {
-  return files.map((f) => fileServer(`${prefix}ft:${f.url}`, 'BDIX Fast', f.url, f.mirrors, f.quality, 'ftp'));
+function ftpServers(ctx: Ctx, files: amaderftp.FtpFile[], prefix = ''): Server[] {
+  return files.map((f) => fileServer(ctx, `${prefix}ft:${f.url}`, 'BDIX Fast', f.url, f.mirrors, f.quality, 'ftp'));
 }
 
-function nuvioServers(streams: NuvioStream[]): Server[] {
-  return streams.map((s) => {
-    const label = `${s.quality ?? ''} ${s.title ?? ''} ${s.name ?? ''}`;
-    const hls = /\.m3u8(\?|$)/i.test(s.url) || /m3u8|hls/i.test(s.quality ?? '');
-    const quality = /(2160p|4k|1080p|720p|480p|360p)/i.exec(label)?.[1].toUpperCase() ?? (hls ? 'Auto' : 'HD');
-    return {
-      id: `nv:${s.url}`,
+interface StreamLike {
+  url: string;
+  quality?: string;
+  title?: string;
+  name?: string;
+  size?: string;
+  headers?: Record<string, string>;
+  provider: string;
+  providerKey?: string;
+}
+
+/** One builder for plugin and addon streams: validates name, size and (for HLS) running time before they can be picked. */
+function streamServers(ctx: Ctx, streams: StreamLike[], origin: 'nuvio' | 'stremio'): Server[] {
+  const out: Server[] = [];
+  for (const s of streams) {
+    const text = `${s.quality ?? ''} ${s.title ?? ''} ${s.name ?? ''}`;
+    if (!labelOk(`${s.title ?? ''} ${s.name ?? ''}`, ctx) || !labelOk(s.url, ctx)) continue;
+    const hlsHint = /\.m3u8(\?|$)/i.test(s.url) || /m3u8|hls/i.test(s.quality ?? '');
+    const quality = /(2160p|4k|1080p|720p|480p|360p)/i.exec(text)?.[1].toUpperCase() ?? (hlsHint ? 'Auto' : 'HD');
+    out.push({
+      id: `${origin}:${s.url}`,
       name: `${s.provider} • ${quality}`,
-      detail: hls ? 'adaptive stream' : 'direct file',
+      detail: hlsHint ? 'adaptive stream' : 'direct file',
       quality,
       rank: qualityRank(quality),
-      origin: 'nuvio' as const,
-      kind: 'native' as const,
-      downloadable: !hls,
+      origin,
+      downloadable: !hlsHint,
       size: s.size,
+      providerKey: s.providerKey,
       resolve: () =>
         resolveOnce(s.url + JSON.stringify(s.headers ?? {}), async () => {
-          if (hls) {
-            const { height } = await probeHls(s.url, s.headers);
+          if (hlsHint) {
+            const { height, duration } = await probeHls(s.url, s.headers);
+            if (duration > 0 && !durationPlausible(duration, ctx)) throw new Error('Playlist length does not match this title');
             return { url: s.url, headers: s.headers, seekable: true, size: 0, host: s.provider, hls: true, height: height || undefined };
           }
           const p = await probe(s.url, s.headers);
           if (!p.ok) throw new Error('Stream unreachable');
+          if (p.hls) {
+            const { height, duration } = await probeHls(p.url, s.headers);
+            if (duration > 0 && !durationPlausible(duration, ctx)) throw new Error('Playlist length does not match this title');
+            return { url: p.url, headers: s.headers, seekable: true, size: 0, host: s.provider, hls: true, height: height || undefined };
+          }
+          checkSize(p.size, ctx);
           return { url: p.url, headers: s.headers, seekable: p.seekable, size: p.size, host: s.provider, fileName: p.fileName, hls: false };
         }),
-    };
-  });
-}
-
-function embedServers(title: Title, ids: { tmdbId?: number; imdbId?: string }, episode?: Episode): Server[] {
-  const { imdbId, tmdbId } = ids;
-  if (!imdbId && !tmdbId) return [];
-  const series = title.kind === 'series';
-  const s = episode?.season ?? 1;
-  const e = episode?.number ?? 1;
-  const list: { name: string; url: string }[] = [];
-  if (imdbId) list.push({ name: 'VidSrc', url: series ? `https://vidsrc.to/embed/tv/${imdbId}/${s}/${e}` : `https://vidsrc.to/embed/movie/${imdbId}` });
-  if (tmdbId) list.push({ name: '2Embed', url: series ? `https://www.2embed.cc/embedtv/${tmdbId}&s=${s}&e=${e}` : `https://www.2embed.cc/embed/${tmdbId}` });
-  if (tmdbId) list.push({ name: 'MultiEmbed', url: `https://multiembed.mov/?video_id=${tmdbId}&tmdb=1${series ? `&s=${s}&e=${e}` : ''}` });
-  return list.map((l, i) => ({
-    id: `embed:${i}`,
-    name: `${l.name} (web player)`,
-    detail: 'embedded web player',
-    quality: 'HD',
-    rank: 3,
-    origin: 'embed' as const,
-    kind: 'embed' as const,
-    embedUrl: l.url,
-    downloadable: false,
-  }));
+    });
+  }
+  return out;
 }
 
 function norm(s: string) {
@@ -238,9 +343,9 @@ interface Gatherer {
   run: (add: (servers: Server[]) => void, engine: SourceSearch) => Promise<void>;
 }
 
-const PARALLEL_RESOLVES = 5;
+const PARALLEL_RESOLVES = 8;
 const GRACE_MS = 2500;
-const HARD_CAP_MS = 60000;
+const HARD_CAP_MS = 90000;
 
 export class SourceSearch {
   readonly servers: Server[] = [];
@@ -248,6 +353,7 @@ export class SourceSearch {
   readonly startedAt = Date.now();
   done = false;
   private seen = new Set<string>();
+  private rejected = new Set<string>();
   private queue: Server[] = [];
   private active = 0;
   private gatherersLeft = 0;
@@ -277,7 +383,7 @@ export class SourceSearch {
     if (fresh.length === 0) return;
     fresh.forEach((s) => this.seen.add(key(s)));
     this.servers.push(...fresh);
-    for (const s of fresh) if (s.kind === 'native' && s.resolve) this.queue.push(s);
+    for (const s of fresh) if (s.resolve && !this.rejected.has(s.id)) this.queue.push(s);
     this.queue.sort((a, b) => ORIGIN_TIER[a.origin] - ORIGIN_TIER[b.origin] || b.rank - a.rank);
     this.pump();
     this.emit();
@@ -290,6 +396,7 @@ export class SourceSearch {
       const t0 = Date.now();
       withTimeout(server.resolve!(), 40000, server.name)
         .then((playable) => {
+          if (this.rejected.has(server.id)) return;
           const ms = Date.now() - t0;
           this.results.push({ server, playable, ms, score: score(server, playable, ms, false) });
           this.results.sort((a, b) => b.score - a.score);
@@ -339,20 +446,26 @@ export class SourceSearch {
     return this.results.some((r) => r.server.rank >= 4 && r.playable.seekable);
   }
 
+  /** The player or downloader found this server delivers the wrong thing: drop it for good. */
+  reject(serverId: string) {
+    this.rejected.add(serverId);
+    const hit = this.results.find((r) => r.server.id === serverId);
+    const key = hit?.server.providerKey ?? this.servers.find((s) => s.id === serverId)?.providerKey;
+    if (key) penalizeProvider(key);
+    const i = this.results.findIndex((r) => r.server.id === serverId);
+    if (i >= 0) this.results.splice(i, 1);
+    this.emit();
+  }
+
   /** Verified results ranked for the given purpose. */
   ranked(downloadOnly = false): Resolved[] {
-    const pool = downloadOnly ? this.results.filter((r) => r.server.downloadable && !r.playable.hls && !r.playable.embed) : this.results;
+    const pool = downloadOnly ? this.results.filter((r) => r.server.downloadable && !r.playable.hls) : this.results;
     return downloadOnly ? [...pool].map((r) => ({ ...r, score: score(r.server, r.playable, r.ms, true) })).sort((a, b) => b.score - a.score) : pool;
   }
 
   /** Any server (verified or not) that can be downloaded — used to enable/disable the Download button. */
   get downloadable(): Server[] {
     return this.servers.filter((s) => s.downloadable);
-  }
-
-  /** Embed fallbacks, available when no native stream could be verified. */
-  embeds(): Server[] {
-    return this.servers.filter((s) => s.kind === 'embed');
   }
 
   /**
@@ -381,10 +494,6 @@ export class SourceSearch {
           if (instant || this.done || Date.now() - firstSeen >= GRACE_MS) return finish(top);
           if (!timer) timer = setTimeout(() => { timer = null; check(); }, GRACE_MS - (Date.now() - firstSeen) + 20);
         } else if (this.done) {
-          if (!downloadOnly) {
-            const embed = this.embeds()[0];
-            if (embed) return finish({ server: embed, playable: { url: embed.embedUrl!, seekable: false, size: 0, host: embed.name, hls: false, embed: true }, ms: 0, score: -1 });
-          }
           finish(null);
         }
       };
@@ -396,60 +505,70 @@ export class SourceSearch {
 
 // ---------------------------------------------------------------- gatherers
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] {
   const list: Gatherer[] = [];
+  const ctx: Ctx = { title, episode };
   const early = (run: Gatherer['run']) => list.push({ early: true, run });
   const late = (run: Gatherer['run']) => list.push({ early: false, run });
 
   // 1. The title's own source.
   early(async (add) => {
     if (title.source === 'southfreak' || title.source === 'sfadult') {
-      add(wpServers(title, await getVariants(siteFor(title.source), title.ref)));
+      add(wpServers(ctx, title, await getVariants(siteFor(title.source), title.ref)));
     } else if (title.source === 'amaderftp') {
-      add(ftpServers(await amaderftp.getFiles(title)));
+      add(ftpServers(ctx, await amaderftp.getFiles(title)));
     } else if (title.source === 'bdix' && title.files) {
-      add(title.files.map((f, i) => fileServer(`bx:${title.id}:${i}`, 'BDIX', f.url, [f.url], f.label, 'bdix')));
+      add(title.files.map((f, i) => fileServer(ctx, `bx:${title.id}:${i}`, 'BDIX', f.url, [f.url], f.label, 'bdix')));
     } else if (title.source === 'stremio') {
       const addon = findAddon(title.addon);
       if (!addon) return;
       const streams = await addonStreams(addon, 'movie', title.ref);
-      add(addonServers(streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: addon.name })), 'stremio'));
+      add(streamServers(ctx, streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: addon.name })), 'stremio'));
     }
   });
 
   const mainstream = !title.nsfw && title.source !== 'stremio';
 
-  // 2. The same movie on other direct sources.
+  // 2. The same movie on other direct sources (every alternative spelling of the name is tried).
   if (mainstream && title.kind === 'movie') {
+    const names = altNames(title);
     if (title.source !== 'amaderftp') {
       early(async (add) => {
-        if (title.tmdbId) return add(ftpServers(await amaderftp.filesByTmdb(title.tmdbId), 'x:'));
-        const hits = (await amaderftp.search(title.name)).filter((t) => sameTitle(title, t));
-        if (hits.length) add(ftpServers(await amaderftp.getFiles(hits[0]), 'x:'));
+        if (title.tmdbId) return add(ftpServers(ctx, await amaderftp.filesByTmdb(title.tmdbId), 'x:'));
+        for (const name of names) {
+          const hits = (await amaderftp.search(name)).filter((t) => sameTitle(title, t));
+          if (hits.length) return add(ftpServers(ctx, await amaderftp.getFiles(hits[0]), 'x:'));
+        }
       });
     }
     if (title.source !== 'southfreak') {
       early(async (add) => {
-        const hits = (await listPosts(SOUTHFREAK, { search: title.name, perPage: 8 })).filter((t) => sameTitle(title, t));
-        for (const h of hits.slice(0, 2)) add(wpServers(h, await getVariants(SOUTHFREAK, h.ref), 'x:'));
+        for (const name of names) {
+          const hits = (await listPosts(SOUTHFREAK, { search: name, perPage: 8 })).filter((t) => sameTitle(title, t));
+          for (const h of hits.slice(0, 2)) add(wpServers(ctx, h, await getVariants(SOUTHFREAK, h.ref), 'x:'));
+          if (hits.length) return;
+        }
       });
     }
     if (title.source !== 'bdix') {
       early(async (add) => {
-        const found = await bdix.search(`${title.name} ${title.year}`.trim(), 8000);
-        found.forEach((f) => add(f.files.slice(0, 6).map((file, i) => fileServer(`bx:${f.server.id}:${file.url}:${i}`, f.server.name, file.url, [file.url], file.label, 'bdix'))));
+        const found = await bdix.search(`${names[names.length > 1 ? 1 : 0]} ${title.year}`.trim(), 9000);
+        found.forEach((f) => add(f.files.slice(0, 6).map((file, i) => fileServer(ctx, `bx:${f.server.id}:${file.url}:${i}`, f.server.name, file.url, [file.url], file.label, 'bdix'))));
       });
     }
   }
 
-  // 3. Nuvio plugins and Stremio streams (need TMDB/IMDb ids). They are heavier, so they only run when
-  //    the direct sources did not already produce a seekable 1080p+ stream.
+  // 3. Nuvio plugins and Stremio streams (need TMDB/IMDb ids). They are heavier, so they only start when the
+  //    direct sources did not already produce a seekable 1080p+ stream; if nothing at all is found they keep
+  //    widening the search through every remaining plugin.
   if (mainstream) {
     late(async (add, engine) => {
       const ids = await identify(title);
       if (!ids.tmdbId && !ids.imdbId) return;
       const waitedFrom = Date.now();
-      while (engine.earlyLeft > 0 && !engine.hasTop && Date.now() - waitedFrom < 5000) await sleep(250);
+      while (engine.earlyLeft > 0 && !engine.hasTop && Date.now() - waitedFrom < 4000) await sleep(200);
       if (engine.hasTop) return;
 
       const kind = title.kind === 'series' ? 'tv' : 'movie';
@@ -461,7 +580,7 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
         const sid = kind === 'tv' ? `${ids.imdbId}:${season}:${number}` : ids.imdbId;
         tasks.push(
           addonStreams(STREMIFY, kind === 'tv' ? 'series' : 'movie', sid)
-            .then((streams) => add(addonServers(streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: STREMIFY.name, headers: s.behaviorHints?.proxyHeaders?.request })), 'stremio')))
+            .then((streams) => add(streamServers(ctx, streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: STREMIFY.name, headers: s.behaviorHints?.proxyHeaders?.request })), 'stremio')))
             .catch(() => undefined),
         );
       }
@@ -474,62 +593,26 @@ function buildGatherers(title: Title, episode: Episode | undefined): Gatherer[] 
             while (next < batch.length && !engine.done && !engine.hasTop) {
               const p = batch[next++];
               try {
-                add(nuvioServers(await runProvider(p, tmdb, kind, season, number)));
+                add(streamServers(ctx, await runProvider(p, tmdb, kind, season, number), 'nuvio'));
               } catch {
                 // provider failed or timed out: the next one takes over
               }
             }
           };
-          await Promise.all(Array.from({ length: 5 }, worker));
+          await Promise.all(Array.from({ length: 8 }, worker));
         };
         tasks.push(
           (async () => {
-            await runBatch(providers.slice(0, 15));
-            if (engine.results.length === 0) await runBatch(providers.slice(15, 60));
+            await runBatch(providers.slice(0, 16));
+            if (engine.results.length === 0) await runBatch(providers.slice(16, 50));
+            if (engine.results.length === 0) await runBatch(providers.slice(50));
           })(),
         );
       }
       await Promise.all(tasks);
     });
   }
-
-  // 4. Web players: kept for the very end, never probed.
-  if (mainstream) {
-    late(async (add) => {
-      const ids = await identify(title);
-      add(embedServers(title, { tmdbId: title.tmdbId ?? ids.tmdbId, imdbId: title.imdbId ?? ids.imdbId }, episode));
-    });
-  }
   return list;
-}
-
-const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
-
-function addonServers(items: { url: string; quality?: string; provider: string; headers?: Record<string, string> }[], origin: 'stremio'): Server[] {
-  return items.map((s) => {
-    const hls = /\.m3u8(\?|$)/i.test(s.url);
-    const quality = /(2160p|4k|1080p|720p|480p|360p)/i.exec(s.quality ?? '')?.[1].toUpperCase() ?? (hls ? 'Auto' : 'HD');
-    return {
-      id: `sx:${s.url}`,
-      name: `${s.provider} • ${quality}`,
-      detail: hls ? 'adaptive stream' : 'direct file',
-      quality,
-      rank: qualityRank(quality),
-      origin,
-      kind: 'native' as const,
-      downloadable: !hls,
-      resolve: () =>
-        resolveOnce(s.url, async () => {
-          if (hls) {
-            const { height } = await probeHls(s.url, s.headers);
-            return { url: s.url, headers: s.headers, seekable: true, size: 0, host: s.provider, hls: true, height: height || undefined };
-          }
-          const p = await probe(s.url, s.headers);
-          if (!p.ok) throw new Error('Stream unreachable');
-          return { url: p.url, headers: s.headers, seekable: p.seekable, size: p.size, host: s.provider, fileName: p.fileName, hls: false };
-        }),
-    };
-  });
 }
 
 // ---------------------------------------------------------------- shared instances + hooks

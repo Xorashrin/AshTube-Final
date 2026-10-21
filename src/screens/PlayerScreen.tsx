@@ -7,7 +7,6 @@ import { useVideoPlayer, VideoView, type AudioTrack, type SubtitleTrack, type Vi
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, PanResponder, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 
 import { Image } from '../components/Img';
 import { DownloadSheet } from '../components/DownloadSheet';
@@ -15,7 +14,7 @@ import { PlayerGestures } from '../components/PlayerGestures';
 import { Txt } from '../components/Txt';
 import { findEpisode, nextEpisode, type Title } from '../data/types';
 import { loadDetail, resolveTitle } from '../services/catalog';
-import { getSearch, type Resolved, type Server, type SourceSearch } from '../services/playback';
+import { durationPlausible, getSearch, type Resolved, type Server, type SourceSearch } from '../services/playback';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -33,31 +32,6 @@ const FIT_MODES: { mode: VideoContentFit; label: string; icon: MciName }[] = [
 ];
 const HIDE_AFTER = 4000;
 const STREAM_TIMEOUT_MS = 25000;
-
-const INJECTED_AD_SHIELD = `
-  (function() {
-    try {
-      window.open = function() { return null; };
-      window.alert = function() { return null; };
-      window.confirm = function() { return false; };
-      window.prompt = function() { return null; };
-      window.onbeforeunload = null;
-      var injectStyle = function() {
-        var head = document.head || document.documentElement;
-        if (!head) return;
-        var style = document.createElement('style');
-        style.innerHTML = 'iframe[src*="ads"], iframe[src*="adsterra"], iframe[src*="pop"], div[id*="ad-"], div[class*="ad-box"], a[target="_blank"] { display: none !important; pointer-events: none !important; } body, html { background: #000 !important; margin: 0; padding: 0; overflow: hidden; }';
-        head.appendChild(style);
-      };
-      if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectStyle);
-      } else {
-        injectStyle();
-      }
-    } catch(e) {}
-  })();
-  true;
-`;
 
 function SeekBar({
   position,
@@ -159,11 +133,7 @@ async function nextUntried(engine: SourceSearch, failed: Set<string>, isCancelle
   while (Date.now() < deadline && !isCancelled()) {
     const next = engine.ranked().find((r) => !failed.has(r.server.id));
     if (next) return next;
-    if (engine.done) {
-      const embed = engine.embeds().find((s) => !failed.has(s.id));
-      if (!embed) return null;
-      return { server: embed, playable: { url: embed.embedUrl!, seekable: false, size: 0, host: embed.name, hls: false, embed: true }, ms: 0, score: -1 };
-    }
+    if (engine.done) return null;
     await sleep(350);
   }
   return null;
@@ -248,7 +218,6 @@ export default function PlayerScreen({ navigation, route }: Props) {
       retryToken.current++;
       const hit = engine.results.find((r) => r.server.id === server.id);
       if (hit) return setCurrent(hit);
-      if (server.kind === 'embed') return setCurrent({ server, playable: { url: server.embedUrl!, seekable: false, size: 0, host: server.name, hls: false, embed: true }, ms: 0, score: 0 });
       try {
         setCurrent(null);
         const playable = await server.resolve!();
@@ -261,8 +230,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
     [engine, showToast],
   );
 
-  const isEmbed = !!current && (current.server.kind === 'embed' || !!current.playable.embed);
-  const source = current && !isEmbed ? current.playable : null;
+  const source = current ? current.playable : null;
 
   const player = useVideoPlayer(null, (p) => {
     p.timeUpdateEventInterval = 0.5;
@@ -292,6 +260,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const resumedRef = useRef(false);
   const latest = useRef({ position: 0, duration: 0 });
   const armed = useRef(false);
+  const wasReady = useRef(false);
   const speedRef = useRef(1);
   speedRef.current = speed;
 
@@ -303,6 +272,9 @@ export default function PlayerScreen({ navigation, route }: Props) {
     }
     let cancelled = false;
     armed.current = false;
+    wasReady.current = false;
+    setDuration(0);
+    latest.current.duration = 0;
     player
       .replaceAsync({ uri: source.url, headers: source.headers, contentType: source.hls ? 'hls' : 'auto' })
       .then(() => {
@@ -326,7 +298,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
 
   // Resume from saved watch progress once the first stream is ready.
   useEffect(() => {
-    if (resumedRef.current || status !== 'readyToPlay' || isEmbed) return;
+    if (resumedRef.current || status !== 'readyToPlay') return;
     resumedRef.current = true;
     const saved = progressFor(profileData, title.id);
     if (saved && (!episode || saved.episodeId === episode.id) && saved.position > 5 && (saved.duration <= 0 || saved.position < saved.duration - 15)) {
@@ -334,7 +306,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
       setPosition(saved.position);
       latest.current.position = saved.position;
     }
-  }, [status, isEmbed, profileData, title.id, episode, player]);
+  }, [status, profileData, title.id, episode, player]);
 
   useEventListener(player, 'statusChange', ({ status: s }) => {
     if (source && armed.current && s === 'error') advance();
@@ -355,6 +327,42 @@ export default function PlayerScreen({ navigation, route }: Props) {
     }, STREAM_TIMEOUT_MS);
     return () => clearTimeout(timer);
   }, [source?.url, status, player, advance]);
+
+  /** The stream is not what was asked for (promo clip, wrong title, truncated): never show it, never pick it again. */
+  const reject = useCallback(
+    (reason: string) => {
+      if (!engine || !current || current.server.origin === 'local') return;
+      engine.reject(current.server.id);
+      showToast(reason);
+      advance();
+    },
+    [engine, current, advance, showToast],
+  );
+
+  // Validate the real running time once the player knows it.
+  useEffect(() => {
+    if (!current || current.server.origin === 'local' || duration <= 0) return;
+    if (!durationPlausible(duration, { title, episode })) reject('Skipping a stream that does not match this title');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [duration, current?.server.id]);
+
+  // A stream that plays but never reports a finite running time is a loop or an ad wrapper.
+  useEffect(() => {
+    if (status === 'readyToPlay') wasReady.current = true;
+    if (!current || current.server.origin === 'local' || status !== 'readyToPlay') return;
+    const timer = setTimeout(() => {
+      if (!(player.duration > 0) || !Number.isFinite(player.duration)) reject('Skipping a stream with no valid length');
+    }, 12000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, current?.server.id]);
+
+  // Mid-playback stall: move to the next server and keep the position.
+  useEffect(() => {
+    if (status !== 'loading' || !wasReady.current || !current) return;
+    const timer = setTimeout(() => advance(), 25000);
+    return () => clearTimeout(timer);
+  }, [status, current, advance]);
 
   const seekBy = useCallback(
     (delta: number) => {
@@ -437,10 +445,10 @@ export default function PlayerScreen({ navigation, route }: Props) {
 
   // Auto-hide controls while playing.
   useEffect(() => {
-    if (isEmbed || !visible || !isPlaying || panel !== 'none' || scrubbing !== null) return;
+    if (!visible || !isPlaying || panel !== 'none' || scrubbing !== null) return;
     const timer = setTimeout(() => setVisible(false), HIDE_AFTER);
     return () => clearTimeout(timer);
-  }, [isEmbed, visible, isPlaying, panel, scrubbing, position]);
+  }, [visible, isPlaying, panel, scrubbing, position]);
 
   useEffect(() => {
     if (!seekHint) return;
@@ -450,13 +458,13 @@ export default function PlayerScreen({ navigation, route }: Props) {
 
   const fade = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    Animated.timing(fade, { toValue: (visible || isEmbed) && !locked ? 1 : 0, duration: motion.base, useNativeDriver: true }).start();
-  }, [visible, isEmbed, locked, fade]);
+    Animated.timing(fade, { toValue: visible && !locked ? 1 : 0, duration: motion.base, useNativeDriver: true }).start();
+  }, [visible, locked, fade]);
 
   const heading = episode && found ? `${title.name} • S${found.season.number}:E${episode.number} “${episode.name}”` : title.name;
-  const showSkipIntro = !isEmbed && title.kind === 'series' && position > 5 && position < 35;
-  const showNext = !isEmbed && !!next && duration > 0 && duration - position < 25;
-  const pointer = (visible || isEmbed) && !locked ? 'box-none' : 'none';
+  const showSkipIntro = title.kind === 'series' && position > 5 && position < 35;
+  const showNext = !!next && duration > 0 && duration - position < 25;
+  const pointer = visible && !locked ? 'box-none' : 'none';
   const currentFit = FIT_MODES[fitIndex];
   const serverList = engine ? [...engine.servers].sort((a, b) => (engine.results.findIndex((r) => r.server.id === a.id) + 1 || 999) - (engine.results.findIndex((r) => r.server.id === b.id) + 1 || 999) || b.rank - a.rank) : [];
   const finding = !allFailed && !current;
@@ -481,58 +489,16 @@ export default function PlayerScreen({ navigation, route }: Props) {
   return (
     <View style={styles.root}>
       <StatusBar hidden />
-      {isEmbed && current ? (
-        <View style={StyleSheet.absoluteFill}>
-          <WebView
-            key={current.playable.url}
-            source={{ uri: current.playable.url }}
-            style={StyleSheet.absoluteFill}
-            allowsFullscreenVideo
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            javaScriptEnabled
-            domStorageEnabled
-            thirdPartyCookiesEnabled
-            setSupportMultipleWindows={false}
-            userAgent="Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-            originWhitelist={['*']}
-            mixedContentMode="always"
-            injectedJavaScriptBeforeContentLoaded={INJECTED_AD_SHIELD}
-            injectedJavaScript={INJECTED_AD_SHIELD}
-            onShouldStartLoadWithRequest={(req) => {
-              const u = req.url.toLowerCase();
-              return !(
-                u.startsWith('intent:') || u.startsWith('market:') || u.startsWith('vnd.youtube:') || u.startsWith('whatsapp:') || u.startsWith('tg:') ||
-                u.includes('doubleclick.net') || u.includes('adsterra') || u.includes('popads') || u.includes('onclickads')
-              );
-            }}
-            onError={advance}
-            onHttpError={(e) => {
-              if (e.nativeEvent.statusCode >= 400) advance();
-            }}
-            startInLoadingState
-            renderLoading={() => (
-              <View style={[StyleSheet.absoluteFill, styles.webLoading]}>
-                <ActivityIndicator size="large" color={colors.red} />
-                <Txt size={13} color={colors.textMuted} style={{ marginTop: 10 }}>
-                  Connecting to {current.server.name}…
-                </Txt>
-              </View>
-            )}
-          />
-        </View>
-      ) : (
-        <VideoView player={player} style={StyleSheet.absoluteFill} contentFit={currentFit.mode} surfaceType="textureView" nativeControls={false} />
-      )}
+      <VideoView player={player} style={StyleSheet.absoluteFill} contentFit={currentFit.mode} surfaceType="textureView" nativeControls={false} />
 
       {allFailed ? (
-        <View style={[StyleSheet.absoluteFill, styles.embedErrorOverlay]}>
+        <View style={[StyleSheet.absoluteFill, styles.errorOverlay]}>
           <MaterialCommunityIcons name="server-network-off" size={44} color={colors.red} />
           <Txt weight="bold" align="center" size={16} color={colors.text} style={{ marginTop: 12 }}>
-            None of the servers could play this right now.
+            Couldn't find a working server yet.
           </Txt>
           <Txt size={13} align="center" color={colors.textMuted} style={{ marginTop: 6 }}>
-            {engine && engine.servers.length === 0 ? 'No source has this title yet.' : 'Check your connection and try again.'}
+            {engine && engine.servers.length === 0 ? 'New uploads appear every few hours. Try again shortly, or pick another title.' : 'Every server we tried was skipped (wrong length, ad clip or offline). Retry to search again.'}
           </Txt>
           <View style={{ flexDirection: 'row', gap: 12, marginTop: 18 }}>
             <Pressable onPress={() => setToken((t) => t + 1)} style={styles.primaryErrorBtn}>
@@ -545,21 +511,19 @@ export default function PlayerScreen({ navigation, route }: Props) {
         </View>
       ) : null}
 
-      {!isEmbed ? (
-        <PlayerGestures
-          swipe={state.settings.swipeGestures && !locked}
-          doubleTap={state.settings.doubleTapSeek && !locked}
-          getTime={gestureTime}
-          getVolume={gestureVolume}
-          setVolume={setVolume}
-          onTap={onTap}
-          onSeekBy={seekBy}
-          onSeekTo={seekTo}
-          onScrub={setScrubbing}
-        />
-      ) : null}
+      <PlayerGestures
+        swipe={state.settings.swipeGestures && !locked}
+        doubleTap={state.settings.doubleTapSeek && !locked}
+        getTime={gestureTime}
+        getVolume={gestureVolume}
+        setVolume={setVolume}
+        onTap={onTap}
+        onSeekBy={seekBy}
+        onSeekTo={seekTo}
+        onScrub={setScrubbing}
+      />
 
-      {!isEmbed && !allFailed && (finding || waitingForEpisodes || status === 'loading') ? (
+      {!allFailed && (finding || waitingForEpisodes || status === 'loading') ? (
         <View pointerEvents="none" style={styles.center}>
           <ActivityIndicator size="large" color={colors.red} />
           <Txt size={12} color={colors.textMuted} style={{ marginTop: 8 }}>
@@ -582,8 +546,8 @@ export default function PlayerScreen({ navigation, route }: Props) {
       ) : null}
 
       <Animated.View pointerEvents={pointer} style={[StyleSheet.absoluteFill, { opacity: fade }]}>
-        {!isEmbed ? <View pointerEvents="none" style={styles.dim} /> : null}
-        <View style={[styles.top, isEmbed ? styles.topEmbedBar : null, { paddingLeft: insets.left + 20, paddingRight: insets.right + 20 }]}>
+        <View pointerEvents="none" style={styles.dim} />
+        <View style={[styles.top, { paddingLeft: insets.left + 20, paddingRight: insets.right + 20 }]}>
           <Pressable hitSlop={12} onPress={() => navigation.goBack()} style={styles.iconCircle}>
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </Pressable>
@@ -593,11 +557,9 @@ export default function PlayerScreen({ navigation, route }: Props) {
               {current ? `${current.server.name}${current.playable.height ? ` • ${current.playable.height}p` : ''} • auto` : 'Finding the best server…'}
             </Txt>
           </View>
-          {!isEmbed ? (
-            <Pressable hitSlop={10} onPress={toggleMute} style={[styles.topPill, { marginRight: 8 }]}>
-              <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color={colors.text} />
-            </Pressable>
-          ) : null}
+          <Pressable hitSlop={10} onPress={toggleMute} style={[styles.topPill, { marginRight: 8 }]}>
+            <Ionicons name={muted ? 'volume-mute' : 'volume-high'} size={18} color={colors.text} />
+          </Pressable>
           {title.kind === 'series' && found ? (
             <Pressable hitSlop={12} onPress={() => setPanel('episodes')} style={[styles.topPill, { marginRight: 8 }]}>
               <MaterialCommunityIcons name="cards-outline" size={16} color={colors.text} />
@@ -610,44 +572,40 @@ export default function PlayerScreen({ navigation, route }: Props) {
           </Pressable>
         </View>
 
-        {!isEmbed ? (
-          <View style={styles.centerControls} pointerEvents="box-none">
-            <Pressable hitSlop={16} onPress={() => seekBy(-10)} style={styles.transportBtn}>
-              <MaterialCommunityIcons name="rewind-10" size={44} color={colors.text} />
-            </Pressable>
-            <Pressable hitSlop={16} onPress={togglePlay} style={[styles.transportBtn, styles.playCenterBtn]}>
-              <Ionicons
-                name={duration > 0 && position >= duration - 1 ? 'refresh' : isPlaying ? 'pause' : 'play'}
-                size={54}
-                color={colors.text}
-                style={!isPlaying && !(duration > 0 && position >= duration - 1) ? { marginLeft: 4 } : undefined}
-              />
-            </Pressable>
-            <Pressable hitSlop={16} onPress={() => seekBy(10)} style={styles.transportBtn}>
-              <MaterialCommunityIcons name="fast-forward-10" size={44} color={colors.text} />
-            </Pressable>
-          </View>
-        ) : null}
+        <View style={styles.centerControls} pointerEvents="box-none">
+          <Pressable hitSlop={16} onPress={() => seekBy(-10)} style={styles.transportBtn}>
+            <MaterialCommunityIcons name="rewind-10" size={44} color={colors.text} />
+          </Pressable>
+          <Pressable hitSlop={16} onPress={togglePlay} style={[styles.transportBtn, styles.playCenterBtn]}>
+            <Ionicons
+              name={duration > 0 && position >= duration - 1 ? 'refresh' : isPlaying ? 'pause' : 'play'}
+              size={54}
+              color={colors.text}
+              style={!isPlaying && !(duration > 0 && position >= duration - 1) ? { marginLeft: 4 } : undefined}
+            />
+          </Pressable>
+          <Pressable hitSlop={16} onPress={() => seekBy(10)} style={styles.transportBtn}>
+            <MaterialCommunityIcons name="fast-forward-10" size={44} color={colors.text} />
+          </Pressable>
+        </View>
 
-        {!isEmbed ? (
-          <View style={[styles.bottom, { paddingLeft: insets.left + 20, paddingRight: insets.right + 20, paddingBottom: Math.max(12, insets.bottom + 10) }]}>
-            <SeekBar position={scrubbing ?? position} buffered={buffered} duration={duration} onSeek={seekTo} onScrubChange={setScrubbing} />
-            <View style={styles.bottomActions}>
-              <BottomAction icon="speedometer" label={`Speed (${speed}x)`} onPress={() => setPanel('speed')} />
-              <BottomAction icon={currentFit.icon} label={currentFit.label} onPress={() => setFitIndex((fitIndex + 1) % FIT_MODES.length)} />
-              <BottomAction icon="lock-open-variant-outline" label="Lock" onPress={() => { setLocked(true); setUnlockArmed(false); }} />
-              <BottomAction
-                icon={downloadIcon}
-                label={downloadLabel}
-                active={offline?.status === 'downloaded' || offline?.status === 'downloading'}
-                dimmed={!canDownload && !offline}
-                onPress={handleDownloadAction}
-              />
-              <BottomAction icon="subtitles-outline" label={subtitleId ? 'Audio & CC • On' : 'Audio & CC'} active={!!subtitleId} onPress={() => setPanel('audio')} />
-              {next ? <BottomAction icon="skip-next" label="Next Ep." onPress={() => navigation.replace('Player', { id: title.id, episodeId: next.id })} /> : null}
-            </View>
+        <View style={[styles.bottom, { paddingLeft: insets.left + 20, paddingRight: insets.right + 20, paddingBottom: Math.max(12, insets.bottom + 10) }]}>
+          <SeekBar position={scrubbing ?? position} buffered={buffered} duration={duration} onSeek={seekTo} onScrubChange={setScrubbing} />
+          <View style={styles.bottomActions}>
+            <BottomAction icon="speedometer" label={`Speed (${speed}x)`} onPress={() => setPanel('speed')} />
+            <BottomAction icon={currentFit.icon} label={currentFit.label} onPress={() => setFitIndex((fitIndex + 1) % FIT_MODES.length)} />
+            <BottomAction icon="lock-open-variant-outline" label="Lock" onPress={() => { setLocked(true); setUnlockArmed(false); }} />
+            <BottomAction
+              icon={downloadIcon}
+              label={downloadLabel}
+              active={offline?.status === 'downloaded' || offline?.status === 'downloading'}
+              dimmed={!canDownload && !offline}
+              onPress={handleDownloadAction}
+            />
+            <BottomAction icon="subtitles-outline" label={subtitleId ? 'Audio & CC • On' : 'Audio & CC'} active={!!subtitleId} onPress={() => setPanel('audio')} />
+            {next ? <BottomAction icon="skip-next" label="Next Ep." onPress={() => navigation.replace('Player', { id: title.id, episodeId: next.id })} /> : null}
           </View>
-        ) : null}
+        </View>
       </Animated.View>
 
       {showSkipIntro && !locked ? (
@@ -845,13 +803,11 @@ export default function PlayerScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: '#000000' },
   center: { position: 'absolute', alignSelf: 'center', top: '44%', alignItems: 'center' },
-  webLoading: { justifyContent: 'center', alignItems: 'center', backgroundColor: '#000000' },
-  embedErrorOverlay: { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.92)', padding: 24 },
+  errorOverlay: { justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.92)', padding: 24 },
   primaryErrorBtn: { backgroundColor: colors.text, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 },
   secondaryErrorBtn: { backgroundColor: colors.red, paddingHorizontal: 18, paddingVertical: 10, borderRadius: 8 },
   dim: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(0,0,0,0.45)' },
   top: { flexDirection: 'row', alignItems: 'center', paddingTop: 18, paddingBottom: 10 },
-  topEmbedBar: { backgroundColor: 'rgba(0,0,0,0.68)' },
   iconCircle: {
     width: 38,
     height: 38,

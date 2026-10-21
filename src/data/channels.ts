@@ -48,6 +48,10 @@ export function adultChannels(): Channel[] {
   return CHANNELS.filter((c) => c.category === 'Adult');
 }
 
+export function bangladeshChannels(limit = 40): Channel[] {
+  return CHANNELS.filter((c) => c.country === 'Bangladesh').slice(0, limit);
+}
+
 export function newsChannels(limit = 60): Channel[] {
   return channelsByCategory('News', limit);
 }

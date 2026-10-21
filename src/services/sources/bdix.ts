@@ -1,7 +1,8 @@
 // BDIX / FTP movie servers (Bangladesh). Most answer only from Bangladeshi ISPs, so every request
 // uses a short timeout and the per-host circuit breaker keeps unreachable servers from slowing anything.
 import { tintFor, type Title } from '../../data/types';
-import { decodeEntities, getJson, getText, hostAvailable, withTimeout } from '../http';
+import { cached } from '../cache';
+import { decodeEntities, getJson, getText, hostAvailable, hostOf, mapLimit, withTimeout } from '../http';
 
 export interface FtpServer {
   id: string;
@@ -33,6 +34,21 @@ export const BDIX_SERVERS: FtpServer[] = [
   { id: 'moviemela', name: 'Moviemela', type: 'index', base: 'http://www.moviemela.live' },
   { id: 'pollyflix', name: 'Pollyflix', type: 'index', base: 'http://pollyflix.com' },
   { id: 'amrbd', name: 'AmrBD', type: 'index', base: 'http://fs.amrbd.com' },
+  { id: 'khulnaflix2', name: 'Khulnaflix Files', type: 'index', base: 'https://file.khulnaflix.net' },
+  { id: 'bdflix', name: 'BDFlix Live', type: 'index', base: 'https://bdflixlive.com' },
+  { id: 'mojar', name: 'MojarFTP', type: 'index', base: 'https://www.mojarftp.com' },
+  { id: 'bolmovies', name: 'BolMovies', type: 'index', base: 'https://www.bolmovies.com' },
+  { id: 'timepass2', name: 'TimepassBD (com)', type: 'index', base: 'https://timepassbd.com' },
+  { id: 'moviebazar', name: 'MyMovieBazar', type: 'index', base: 'https://mymoviebazar.com' },
+  { id: 'pandaclub', name: 'PandaClub', type: 'index', base: 'https://pandaclubbd.com' },
+  { id: 'dhakaftp', name: 'DhakaFTP', type: 'index', base: 'https://dhakaftp.com' },
+  { id: 'cinemacity', name: 'CinemaCity', type: 'index', base: 'https://cinemacity.live' },
+  { id: 'ftpcombd', name: 'FTP.com.bd', type: 'index', base: 'https://ftp.com.bd' },
+  { id: 'abcmovies', name: 'ABC Movies', type: 'index', base: 'https://abcmoviesbd.com' },
+  { id: 'ctgoz', name: 'CTGOZ', type: 'index', base: 'https://ctgoz.com' },
+  { id: 'roar', name: 'RoarMediaZone', type: 'index', base: 'https://roarmediazone.com' },
+  { id: 'movieboxbd', name: 'MovieBoxBD', type: 'index', base: 'https://movieboxbd.com' },
+  { id: 'sunplex', name: 'SunPlex', type: 'index', base: 'http://sunplex.net' },
   { id: 'dhaka14', name: 'DhakaFlix 14', type: 'index', base: 'http://172.16.50.14', paths: ['/DHAKA-FLIX-14/English%20Movies%20(1080p)/', '/DHAKA-FLIX-14/Hindi%20Movies/', '/DHAKA-FLIX-14/SOUTH%20INDIAN%20MOVIES/Hindi%20Dubbed/', '/DHAKA-FLIX-14/Animation%20Movies%20(1080p)/'] },
   { id: 'dhaka12', name: 'DhakaFlix 12', type: 'index', base: 'http://172.16.50.12', paths: ['/DHAKA-FLIX-12/TV-WEB-Series/'] },
 ];
@@ -110,18 +126,54 @@ async function crawl(server: FtpServer, tokens: string[], deadline: number): Pro
   return found;
 }
 
-/** Search every server in parallel; each is capped at `budgetMs`. */
+const DIRECTORY_URL = 'https://bdix.app/servers';
+
+/** Movie servers listed on bdix.app (names, IPs and domains), refreshed daily. */
+async function directoryServers(): Promise<FtpServer[]> {
+  try {
+    return await cached('bdix:directory', { ttl: 24 * 3600 * 1000 }, async () => {
+      const html = await getText(DIRECTORY_URL, { timeout: 12000, retries: 1 });
+      const out: FtpServer[] = [];
+      for (const row of html.match(/<tr>[\s\S]*?<\/tr>/g) ?? []) {
+        const cell = (label: string) => {
+          const m = new RegExp(`data-label="${label}"[^>]*>([\\s\\S]*?)</td>`).exec(row);
+          return m ? decodeEntities(m[1].replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim() : '';
+        };
+        const name = (/<a[^>]*>([^<]+)<\/a>/.exec(row)?.[1] ?? '').trim();
+        const addr = cell('IP / Domain').split(' ')[0];
+        const content = cell('Content');
+        if (!name || !addr || !/movie|mixed|media|tv/i.test(content)) continue;
+        out.push({ id: `dir:${addr}`, name, type: 'index', base: /^https?:/.test(addr) ? addr : `http://${addr}` });
+      }
+      return out;
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function allServers(): Promise<FtpServer[]> {
+  const known = new Set(BDIX_SERVERS.map((s) => hostOf(s.base)));
+  const extra = (await directoryServers()).filter((s) => !known.has(hostOf(s.base)));
+  return [...BDIX_SERVERS, ...extra];
+}
+
+/** Search every server (12 at a time); each is capped by the shared time budget. */
 export async function search(query: string, budgetMs = 9000): Promise<{ server: FtpServer; files: { url: string; label: string }[] }[]> {
   const tokens = norm(query).split(' ').filter((t) => t.length > 1);
   if (tokens.length === 0) return [];
   const deadline = Date.now() + budgetMs;
-  const settled = await Promise.allSettled(
-    BDIX_SERVERS.filter((s) => hostAvailable(s.base)).map(async (server) => {
-      if (server.type === 'circle') return { server, files: await searchCircle(server, query) };
-      return { server, files: await crawl(server, tokens, deadline) };
-    }),
-  );
-  return settled.flatMap((r) => (r.status === 'fulfilled' && r.value.files.length > 0 ? [r.value] : []));
+  const servers = (await allServers()).filter((s) => hostAvailable(s.base));
+  const hits = await mapLimit(servers, 12, async (server) => {
+    try {
+      if (Date.now() > deadline) return null;
+      const files = server.type === 'circle' ? await searchCircle(server, query) : await crawl(server, tokens, deadline);
+      return files.length > 0 ? { server, files } : null;
+    } catch {
+      return null;
+    }
+  });
+  return hits.filter((h): h is { server: FtpServer; files: { url: string; label: string }[] } => h !== null);
 }
 
 /** CircleFTP JSON API: posts → details → episode links ("ttp://" is sometimes written for "http://"). */

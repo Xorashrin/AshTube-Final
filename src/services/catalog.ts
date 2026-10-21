@@ -46,6 +46,11 @@ export function resolveTitle(id: string): Title {
   return registry.get(id) ?? stub(id);
 }
 
+/** Titles seen this session or restored from storage: feeds the search suggestions. */
+export function registeredNames(): string[] {
+  return [...new Set([...registry.values()].map((t) => t.name))];
+}
+
 export function hasTitle(id: string): boolean {
   return registry.has(id);
 }
@@ -114,7 +119,26 @@ function wp(key: string, category: number | undefined, perPage = 20): RowDef['lo
   return feed(`sf:${key}`, () => listPosts(SOUTHFREAK, { category, perPage }));
 }
 
+const byDateDesc = (a: Title, b: Title) => (b.addedAt ?? 0) - (a.addedAt ?? 0);
+
 export const HOME_ROWS: RowDef[] = [
+  // Bangladeshi content always comes first.
+  {
+    key: 'bd-bangla',
+    title: 'Bangladeshi & Bangla',
+    load: feed('bd:bangla', async () => {
+      const lists = await Promise.all([
+        listPosts(SOUTHFREAK, { category: CATEGORY.bengali, perPage: 14 }).catch(() => []),
+        listPosts(SOUTHFREAK, { category: CATEGORY.banglaSub, perPage: 10 }).catch(() => []),
+        listPosts(SOUTHFREAK, { category: CATEGORY.banglaDubbed, perPage: 8 }).catch(() => []),
+        listPosts(SOUTHFREAK, { category: CATEGORY.natok, perPage: 8 }).catch(() => []),
+        amaderftp.byLanguage('bangla').catch(() => []),
+      ]);
+      const unique = new Map<string, Title>();
+      for (const t of lists.flat()) unique.set(t.id, t);
+      return [...unique.values()].sort(byDateDesc);
+    }),
+  },
   { key: 'sf-latest', title: 'Just Added', load: wp('latest', undefined, 24) },
   { key: 'cm-movies', title: 'Trending Movies', load: feed('cm:movie', () => cinemeta.catalog('movie')) },
   { key: 'cm-series', title: 'Trending Series', load: feed('cm:series', () => cinemeta.catalog('series')) },
@@ -123,7 +147,6 @@ export const HOME_ROWS: RowDef[] = [
   { key: 'sf-hollywood', title: 'Hollywood', load: wp('hollywood', CATEGORY.hollywood) },
   { key: 'sf-bollywood', title: 'Bollywood', load: wp('bollywood', CATEGORY.bollywood) },
   { key: 'sf-south', title: 'South Indian', load: feed('sf:south', async () => (await Promise.all([CATEGORY.telugu, CATEGORY.tamil, CATEGORY.malayalam].map((c) => listPosts(SOUTHFREAK, { category: c, perPage: 10 }).catch(() => [])))).flat().sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))) },
-  { key: 'sf-bengali', title: 'Bangla & Bangla Subtitle', load: feed('sf:bn', async () => (await Promise.all([CATEGORY.bengali, CATEGORY.banglaSub].map((c) => listPosts(SOUTHFREAK, { category: c, perPage: 12 }).catch(() => [])))).flat().sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))) },
   { key: 'sf-korean', title: 'Korean', load: wp('korean', CATEGORY.korean) },
   { key: 'al-trending', title: 'Trending Anime', load: feed('al:trending', () => anilist.trending()) },
   { key: 'sf-scifi', title: 'Sci-Fi', load: wp('scifi', CATEGORY.scifi) },
@@ -158,10 +181,12 @@ function norm(s: string) {
 
 function score(t: Title, q: string): number {
   const n = norm(t.name);
-  if (n === q) return 100;
-  if (n.startsWith(q)) return 80;
-  if (n.includes(q)) return 60;
-  return q.split(' ').every((w) => n.includes(w)) ? 40 : 10;
+  // Bangladeshi content wins ties.
+  const bonus = /beng|bangla|bangladesh/i.test(`${t.language ?? ''} ${t.genres.join(' ')}`) ? 12 : 0;
+  if (n === q) return 100 + bonus;
+  if (n.startsWith(q)) return 80 + bonus;
+  if (n.includes(q)) return 60 + bonus;
+  return (q.split(' ').every((w) => n.includes(w)) ? 40 : 10) + bonus;
 }
 
 /** BDIX folders → one title per distinct movie name, with every matching file attached. */
@@ -182,6 +207,11 @@ async function bdixTitles(query: string): Promise<Title[]> {
     }
   }
   return [...byName.values()].map((e) => bdix.filesToTitle(e.name, e.year, e.files, e.server));
+}
+
+/** Rows by key, in the order requested (keeps screens independent of the Home row order). */
+export function rowsByKey(...keys: string[]): RowDef[] {
+  return keys.map((k) => HOME_ROWS.find((r) => r.key === k)).filter((r): r is RowDef => !!r);
 }
 
 /** Fans out to every source in parallel; a slow or dead source never blocks the others. */

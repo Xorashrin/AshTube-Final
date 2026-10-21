@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/Buttons';
 import { Wordmark } from '../components/Logo';
 import { Txt } from '../components/Txt';
-import { HOME_ROWS, useRows } from '../services/catalog';
+import { rowsByKey, useRows } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
@@ -31,7 +31,7 @@ const SLIDES: Slide[] = [
   { key: 'everywhere', title: 'Watch everywhere', body: 'Stream on your phone, tablet, laptop, TV and more.', icon: 'tv-outline' },
 ];
 
-const COLLAGE_ROWS = [HOME_ROWS[1]];
+const COLLAGE_ROWS = rowsByKey('cm-movies');
 
 function Collage() {
   const { width } = useWindowDimensions();

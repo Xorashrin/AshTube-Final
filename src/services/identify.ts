@@ -1,4 +1,4 @@
-// Maps a title from any source to TMDB/IMDb ids (needed by Nuvio plugins and embed players).
+// Maps a title from any source to TMDB/IMDb ids (needed by Nuvio plugins and Stremio addons).
 import type { Title } from '../data/types';
 import * as cinemeta from './sources/cinemeta';
 

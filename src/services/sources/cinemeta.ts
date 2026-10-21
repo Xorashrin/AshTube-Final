@@ -1,5 +1,5 @@
 // Stremio Cinemeta: metadata for any movie/series (trending, search, real episode lists).
-// It carries no streams — playback comes from cross-source matching or embed fallbacks.
+// It carries no streams — playback comes from cross-source matching and the plugin sources.
 import { tintFor, type Episode, type Season, type Title } from '../../data/types';
 import { getJson } from '../http';
 
@@ -91,7 +91,7 @@ function buildSeasons(imdb: string, videos: Video[]): Season[] {
   const bySeason = new Map<number, Episode[]>();
   for (const v of videos) {
     const number = v.episode ?? v.number ?? 0;
-    if (v.season < 1 || number < 1) continue; // season 0 = specials
+    if (v.season < 0 || number < 1) continue; // season 0 = specials
     const list = bySeason.get(v.season) ?? [];
     list.push({
       id: v.id || `${imdb}:${v.season}:${number}`,
@@ -106,7 +106,7 @@ function buildSeasons(imdb: string, videos: Video[]): Season[] {
     bySeason.set(v.season, list);
   }
   return [...bySeason.entries()]
-    .sort((a, b) => a[0] - b[0])
+    .sort((a, b) => (a[0] || 1e6) - (b[0] || 1e6)) // specials (season 0) last
     .map(([number, episodes]) => ({ number, episodes: episodes.sort((a, b) => a.number - b.number) }));
 }
 

@@ -162,6 +162,8 @@ export interface ProbeResult {
   /** Total size in bytes when the server reports it. */
   size: number;
   fileName?: string;
+  /** The URL serves an HLS playlist (detected by content type, not only by extension). */
+  hls: boolean;
 }
 
 /**
@@ -183,7 +185,7 @@ export function probe(url: string, headers: Record<string, string> = {}, timeout
       }
       resolve(r);
     };
-    const fail = (status = 0) => finish({ ok: false, status, url, seekable: false, contentType: '', size: 0 });
+    const fail = (status = 0) => finish({ ok: false, status, url, seekable: false, contentType: '', size: 0, hls: false });
     const timer = setTimeout(() => fail(), timeout);
     xhr.onreadystatechange = () => {
       if (xhr.readyState < 2) return;
@@ -194,7 +196,8 @@ export function probe(url: string, headers: Record<string, string> = {}, timeout
       const total = Number(range.split('/')[1] ?? 0) || (status === 200 ? length : 0);
       const disposition = xhr.getResponseHeader('Content-Disposition') ?? '';
       const name = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition)?.[1];
-      const isMedia = !type.startsWith('text/html') && !type.includes('json');
+      const hls = /mpegurl|m3u8/.test(type);
+      const isMedia = !type.startsWith('text/html') && !type.includes('json') && (!type.startsWith('text/plain') || hls || /\.(mkv|mp4|webm)(\?|$)/i.test(xhr.responseURL || url));
       finish({
         ok: (status === 200 || status === 206) && isMedia,
         status,
@@ -202,7 +205,8 @@ export function probe(url: string, headers: Record<string, string> = {}, timeout
         seekable: status === 206,
         contentType: type,
         size: total,
-        fileName: name ? decodeURIComponent(name) : undefined,
+        fileName: name ? safeDecode(name) : undefined,
+        hls,
       });
     };
     xhr.onerror = () => fail();
@@ -250,6 +254,14 @@ export function withTimeout<T>(promise: Promise<T>, ms: number, label = 'Request
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', hellip: '…', ndash: '–', mdash: '—' };
+
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
 
 export function decodeEntities(s: string): string {
   return s

@@ -8,8 +8,6 @@ import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, View, useW
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, CircleIconButton, IconAction, ProgressBar } from '../components/Buttons';
-import { PickerList } from '../components/ListItems';
-import { PickerOverlay } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { findEpisode, type Episode, type Title } from '../data/types';
 import { loadDetail, resolveTitle } from '../services/catalog';
@@ -89,8 +87,7 @@ export default function TitleScreen({ navigation, route }: Props) {
   }, [route.params.id]);
 
   const [tab, setTab] = useState<Tab>(title.kind === 'series' ? 'episodes' : 'servers');
-  const [seasonNumber, setSeasonNumber] = useState(1);
-  const [seasonPicker, setSeasonPicker] = useState(false);
+  const [seasonNumber, setSeasonNumber] = useState(route.params.season ?? -1);
   const [ratingOpen, setRatingOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
@@ -105,7 +102,8 @@ export default function TitleScreen({ navigation, route }: Props) {
   const downloadable = engine.downloadable.length > 0 ? true : engine.done ? false : null;
   const inList = profileData.myList.includes(title.id);
   const rating = profileData.ratings[title.id];
-  const season = (title.seasons || []).find((s) => s.number === seasonNumber) ?? (title.seasons || [])[0];
+  const wantedSeason = seasonNumber >= 0 ? seasonNumber : (target?.season.number ?? title.seasons[0]?.number ?? 1);
+  const season = title.seasons.find((s) => s.number === wantedSeason) ?? title.seasons[0];
   const activeDownload = downloadFor(profileData, title.id, title.kind === 'series' ? target?.episode.id : undefined);
   const tabs: { key: Tab; label: string }[] = [
     ...(title.kind === 'series' ? [{ key: 'episodes' as const, label: 'Episodes' }] : []),
@@ -113,10 +111,6 @@ export default function TitleScreen({ navigation, route }: Props) {
   ];
 
   const play = (episodeId?: string) => {
-    if (engine.done && engine.results.length === 0 && engine.embeds().length === 0) {
-      showToast('No playable source found for this title yet');
-      return;
-    }
     navigation.navigate('Player', { id: title.id, episodeId });
   };
 
@@ -287,12 +281,23 @@ export default function TitleScreen({ navigation, route }: Props) {
 
         {tab === 'episodes' && season ? (
           <View style={styles.tabBody}>
-            <Pressable onPress={() => title.seasons.length > 1 && setSeasonPicker(true)} style={styles.seasonButton}>
-              <Txt weight="semibold" size={14}>
-                Season {season.number}
-              </Txt>
-              {title.seasons.length > 1 ? <Ionicons name="chevron-down" size={16} color={colors.text} style={{ marginLeft: 6 }} /> : null}
-            </Pressable>
+            {title.seasons.length > 1 ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.seasonChips}>
+                {title.seasons.map((sn) => {
+                  const active = sn.number === season.number;
+                  return (
+                    <Pressable key={sn.number} onPress={() => setSeasonNumber(sn.number)} style={[styles.seasonChip, active ? styles.seasonChipActive : null]}>
+                      <Txt weight="bold" size={13} color={active ? '#000000' : colors.text}>
+                        {sn.number === 0 ? 'Specials' : `Season ${sn.number}`}
+                      </Txt>
+                      <Txt size={10} color={active ? '#333333' : colors.textDim}>{sn.episodes.length} ep</Txt>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <Txt weight="semibold" size={14} style={{ marginBottom: 12 }}>{season.number === 0 ? 'Specials' : `Season ${season.number}`}</Txt>
+            )}
             {season.episodes.map((e) => (
               <EpisodeRow key={e.id} title={title} episode={e} onPlay={() => play(e.id)} />
             ))}
@@ -323,7 +328,7 @@ export default function TitleScreen({ navigation, route }: Props) {
                     return (
                       <Pressable key={sv.id} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
                         <View style={styles.serverIconWrap}>
-                          <MaterialCommunityIcons name={sv.kind === 'embed' ? 'web' : 'play-network-outline'} size={24} color={idx === 0 ? colors.success : colors.red} />
+                          <MaterialCommunityIcons name="play-network-outline" size={24} color={idx === 0 ? colors.success : colors.red} />
                         </View>
                         <View style={{ flex: 1, marginLeft: 12 }}>
                           <Txt weight="semibold" size={14} numberOfLines={1}>{sv.name}{idx === 0 ? '  • BEST' : ''}</Txt>
@@ -348,17 +353,6 @@ export default function TitleScreen({ navigation, route }: Props) {
         onStart={(serverId) => startDownload(title.id, undefined, serverId)}
       />
 
-      <PickerOverlay visible={seasonPicker} onClose={() => setSeasonPicker(false)}>
-        <PickerList
-          options={title.seasons.map((s) => `Season ${s.number}`)}
-          selected={`Season ${seasonNumber}`}
-          onClose={() => setSeasonPicker(false)}
-          onSelect={(v) => {
-            setSeasonNumber(Number(v.replace('Season ', '')));
-            setSeasonPicker(false);
-          }}
-        />
-      </PickerOverlay>
     </View>
   );
 }
@@ -408,6 +402,9 @@ const styles = StyleSheet.create({
   tab: { paddingBottom: 12 },
   tabIndicator: { height: 4, marginBottom: 12, backgroundColor: 'transparent' },
   tabBody: { paddingHorizontal: 12, paddingTop: 6 },
+  seasonChips: { gap: 8, paddingBottom: 14 },
+  seasonChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 18, backgroundColor: colors.surface4, alignItems: 'center' },
+  seasonChipActive: { backgroundColor: colors.text },
   seasonButton: {
     alignSelf: 'flex-start',
     flexDirection: 'row',

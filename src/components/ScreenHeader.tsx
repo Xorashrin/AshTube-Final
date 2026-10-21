@@ -16,9 +16,12 @@ interface ScreenHeaderProps {
   onMenu?: () => void;
   left?: React.ReactNode;
   transparent?: boolean;
+  searchScope?: SearchScope;
 }
 
-export function HeaderActions({ actions, onMenu }: { actions: HeaderAction[]; onMenu?: () => void }) {
+export type SearchScope = { genre?: string; kind?: 'movie' | 'series'; live?: boolean };
+
+export function HeaderActions({ actions, onMenu, searchScope }: { actions: HeaderAction[]; onMenu?: () => void; searchScope?: SearchScope }) {
   const nav = useRootNav();
   return (
     <View style={styles.actions}>
@@ -32,7 +35,7 @@ export function HeaderActions({ actions, onMenu }: { actions: HeaderAction[]; on
             );
           case 'search':
             return (
-              <Pressable key={a} hitSlop={8} onPress={() => nav.navigate('Search')}>
+              <Pressable key={a} hitSlop={8} onPress={() => nav.navigate('Search', searchScope)}>
                 <Ionicons name="search" size={24} color={colors.text} />
               </Pressable>
             );
@@ -50,7 +53,7 @@ export function HeaderActions({ actions, onMenu }: { actions: HeaderAction[]; on
   );
 }
 
-export function ScreenHeader({ title, back, actions = [], onMenu, left, transparent }: ScreenHeaderProps) {
+export function ScreenHeader({ title, back, actions = [], onMenu, left, transparent, searchScope }: ScreenHeaderProps) {
   const insets = useSafeAreaInsets();
   const nav = useRootNav();
   return (
@@ -66,7 +69,7 @@ export function ScreenHeader({ title, back, actions = [], onMenu, left, transpar
             {title}
           </Txt>
         )}
-        <HeaderActions actions={actions} onMenu={onMenu} />
+        <HeaderActions actions={actions} onMenu={onMenu} searchScope={searchScope} />
       </View>
     </View>
   );

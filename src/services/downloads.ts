@@ -123,7 +123,7 @@ export async function downloadTitle(req: DownloadRequest): Promise<DownloadResul
     for (let attempt = 0; attempt < 8; attempt++) {
       const candidate = await nextCandidate(req, tried);
       if (!candidate) break;
-      if (candidate.playable.hls || candidate.playable.embed) continue;
+      if (candidate.playable.hls) continue;
       try {
         req.onServer(candidate.server.name);
         if (!dest) {

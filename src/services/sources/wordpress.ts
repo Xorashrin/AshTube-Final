@@ -28,6 +28,8 @@ export const CATEGORY = {
   horror: 29372,
   scifi: 1887,
   upcoming: 12223,
+  banglaDubbed: 37531,
+  natok: 37146,
 } as const;
 
 interface WpPost {

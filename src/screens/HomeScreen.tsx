@@ -1,7 +1,8 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, RefreshControl, StyleSheet, View } from 'react-native';
+import { Animated, BackHandler, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Billboard } from '../components/Billboard';
@@ -12,7 +13,7 @@ import { ContinueRow, PosterRow, SkeletonRow, type ContinueItem } from '../compo
 import { HeaderActions } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { moviesChannels, newsChannels, seriesChannels, sportsChannels, type Channel } from '../data/channels';
+import { bangladeshChannels, moviesChannels, newsChannels, seriesChannels, sportsChannels, type Channel } from '../data/channels';
 import { findEpisode, type Title } from '../data/types';
 import { HOME_ROWS, resolveTitle, useRows } from '../services/catalog';
 import { warmUp } from '../services/playback';
@@ -46,6 +47,8 @@ export default function HomeScreen({ route, navigation }: Props) {
   );
 
   const hero = useMemo<Title | null>(() => {
+    const bangla = visibleRows.find((r) => r.def.key === 'bd-bangla')?.items.filter((t) => t.poster || t.background) ?? [];
+    if (bangla[0] && filter !== 'tv') return bangla.find((t) => t.imdbRating) ?? bangla[0];
     const pool = visibleRows.flatMap((r) => r.items).filter((t) => (t.background || t.poster) && t.source !== 'anilist');
     const heroPool = pool.filter((t) => t.badge === 'new' || t.imdbRating);
     return heroPool[0] ?? pool[0] ?? null;
@@ -92,10 +95,24 @@ export default function HomeScreen({ route, navigation }: Props) {
   const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
   const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
   const openChannel = useCallback((c: Channel) => nav.navigate('Live', { channelId: c.id, filter: 'All' }), [nav]);
+  const liveBd = useMemo(() => bangladeshChannels(40), []);
   const liveMovies = useMemo(() => moviesChannels(20), []);
   const liveSeries = useMemo(() => seriesChannels(15), []);
   const liveNews = useMemo(() => newsChannels(15), []);
   const liveSports = useMemo(() => sportsChannels(15), []);
+  // Hardware back first clears an active filter or category instead of leaving the app.
+  useFocusEffect(
+    useCallback(() => {
+      if (filter === 'all' && !genre) return undefined;
+      const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+        setFilter('all');
+        navigation.setParams({ genre: undefined });
+        return true;
+      });
+      return () => sub.remove();
+    }, [filter, genre, navigation]),
+  );
+
   const clearFilters = () => {
     setFilter('all');
     navigation.setParams({ genre: undefined });
@@ -138,6 +155,7 @@ export default function HomeScreen({ route, navigation }: Props) {
           <ContinueRow title={`Continue Watching for ${name}`} items={continueItems} onPlay={playContinue} onInfo={openTitle} onMore={setMenuItem} />
         ) : null}
         {myListItems.length > 0 ? <PosterRow title="My List" items={myListItems} onPressTitle={openTitle} onSeeAll={() => nav.navigate('MyList')} /> : null}
+        {filter === 'all' && !genre ? <ChannelRow title="🇧🇩 Live Bangladeshi TV" items={liveBd} onPressChannel={openChannel} onSeeAll={() => nav.navigate('Main', { screen: 'TV' } as never)} /> : null}
         {visibleRows.map((r) =>
           r.items.length === 0 ? <SkeletonRow key={r.def.key} title={r.def.title} /> : <PosterRow key={r.def.key} title={r.def.title} items={r.items} onPressTitle={openTitle} />,
         )}
@@ -157,7 +175,7 @@ export default function HomeScreen({ route, navigation }: Props) {
           <Txt weight="bold" size={22} numberOfLines={1} style={{ flex: 1 }}>
             {heading}
           </Txt>
-          <HeaderActions actions={['downloads', 'search']} />
+          <HeaderActions actions={['downloads', 'search']} searchScope={{ genre, kind: filter === 'tv' ? 'series' : filter === 'movies' ? 'movie' : undefined }} />
         </View>
         <Animated.View style={[styles.chips, chipsStyle]}>
           {filter === 'all' && !genre ? (

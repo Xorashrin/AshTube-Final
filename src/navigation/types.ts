@@ -14,10 +14,11 @@ export type RootStackParamList = {
   SignIn: undefined;
   SignUp: undefined;
   Main: NavigatorScreenParams<TabParamList> | undefined;
-  Title: { id: string };
+  Title: { id: string; season?: number };
   Player: { id: string; episodeId?: string };
   Live: { channelId: string; filter?: string };
-  Search: undefined;
+  /** Scope comes from where search was opened: a genre/category, movies or series only, or live TV. */
+  Search: { genre?: string; kind?: 'movie' | 'series'; live?: boolean } | undefined;
   Categories: { current?: string } | undefined;
   MyList: undefined;
   Downloads: undefined;

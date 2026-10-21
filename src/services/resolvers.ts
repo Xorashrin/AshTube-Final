@@ -14,8 +14,6 @@ export interface Playable {
   hls: boolean;
   /** Real picture height when known (HLS master playlist). */
   height?: number;
-  /** `url` is an embeddable web player page, not a media file. */
-  embed?: boolean;
 }
 
 interface HostRule {
@@ -87,7 +85,7 @@ function links(html: string): string[] {
 }
 
 function toPlayable(p: ProbeResult, host: string, headers?: Record<string, string>): Playable {
-  return { url: p.url, headers, seekable: p.seekable, size: p.size, host, fileName: p.fileName, hls: /\.m3u8(\?|$)/i.test(p.url) };
+  return { url: p.url, headers, seekable: p.seekable, size: p.size, host, fileName: p.fileName, hls: p.hls || /\.m3u8(\?|$)/i.test(p.url) };
 }
 
 /** Probes candidate media URLs in order and returns the first that really serves media. */

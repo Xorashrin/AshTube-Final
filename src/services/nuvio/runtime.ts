@@ -36,6 +36,8 @@ export interface NuvioStream {
   size?: string;
   headers?: Record<string, string>;
   provider: string;
+  /** `repo:scraper` key, used to learn which providers deliver real content. */
+  providerKey: string;
 }
 
 type GetStreams = (tmdbId: string, mediaType: string, season?: number, episode?: number) => Promise<unknown>;
@@ -44,6 +46,8 @@ const DIR = `${FileSystem.cacheDirectory ?? ''}nuvio/`;
 const MANIFEST_TTL = 24 * 3600 * 1000;
 const RUN_TIMEOUT = 18000;
 const HEALTH_KEY = 'mythtube:nuvio:health:v1';
+// Public TMDB key shipped inside the vetted community plugins; used only for the plugins that ask the host for one.
+const TMDB_KEY = '439c478a771f35c05022f9feabcca01c';
 
 // ---------------------------------------------------------------- manifests
 
@@ -107,7 +111,9 @@ export async function rankProviders(providers: Provider[], preferLang: NuvioRepo
     const rate = runs >= 2 ? st!.ok / runs : 0.5;
     const speed = st?.ms ? Math.min(st.ms / 1000, 15) : 6;
     const langBonus = p.repo.lang === 'multi' || preferLang.includes(p.repo.lang) ? 0 : 8;
-    return p.repo.priority * 0.8 + langBonus + (1 - rate) * 12 + speed * 0.4;
+    // Ad-wrapper families that frequently return promo clips run last (their output is still validated).
+    const adRisk = /moviebox|adimoviebox/i.test(p.scraper.id) ? 25 : 0;
+    return p.repo.priority * 0.8 + langBonus + adRisk + (1 - rate) * 12 + speed * 0.4;
   };
   return [...providers].sort((a, b) => score(a) - score(b));
 }
@@ -154,6 +160,8 @@ function compile(p: Provider): Promise<GetStreams> {
     const g = globalThis as { Buffer?: unknown; SCRAPER_SETTINGS?: unknown };
     if (!g.Buffer) g.Buffer = Buffer;
     if (!g.SCRAPER_SETTINGS) g.SCRAPER_SETTINGS = {};
+    // Several repos (the BDIX ones) expect the host to inject a TMDB key as a global, like Nuvio does.
+    if (!(g as { TMDB_API_KEY?: string }).TMDB_API_KEY) (g as { TMDB_API_KEY?: string }).TMDB_API_KEY = TMDB_KEY;
     // eslint-disable-next-line no-new-func
     const run = new Function('module', 'exports', 'require', `${code}\n//# sourceURL=nuvio/${p.key}.js`);
     run(module, module.exports, requireShim);
@@ -168,7 +176,7 @@ function compile(p: Provider): Promise<GetStreams> {
 
 // ---------------------------------------------------------------- running
 
-function normalize(raw: unknown, provider: string): NuvioStream[] {
+function normalize(raw: unknown, provider: string, providerKey: string): NuvioStream[] {
   if (!Array.isArray(raw)) return [];
   const out: NuvioStream[] = [];
   for (const item of raw) {
@@ -179,6 +187,7 @@ function normalize(raw: unknown, provider: string): NuvioStream[] {
     out.push({
       url,
       provider,
+      providerKey,
       name: typeof s.name === 'string' ? s.name : undefined,
       title: typeof s.title === 'string' ? s.title : undefined,
       quality: typeof s.quality === 'string' || typeof s.quality === 'number' ? String(s.quality) : undefined,
@@ -189,12 +198,18 @@ function normalize(raw: unknown, provider: string): NuvioStream[] {
   return out;
 }
 
+/** Marks a provider's last result as bad (promo clip, wrong title, truncated). Repeated penalties push it down the order. */
+export function penalizeProvider(key: string) {
+  recordRun(key, false, 0);
+  recordRun(key, false, 0);
+}
+
 export async function runProvider(p: Provider, tmdbId: string, mediaType: 'movie' | 'tv', season?: number, episode?: number): Promise<NuvioStream[]> {
   const started = Date.now();
   try {
     const getStreams = await compile(p);
     const raw = await withTimeout(Promise.resolve(getStreams(tmdbId, mediaType, season, episode)), RUN_TIMEOUT, p.scraper.name);
-    const streams = normalize(raw, p.scraper.name);
+    const streams = normalize(raw, p.scraper.name, p.key);
     recordRun(p.key, streams.length > 0, Date.now() - started);
     return streams;
   } catch (e) {

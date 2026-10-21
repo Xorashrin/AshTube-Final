@@ -10,14 +10,14 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import type { Title } from '../data/types';
-import { HOME_ROWS, resolveTitle, useRows } from '../services/catalog';
+import { resolveTitle, rowsByKey, useRows } from '../services/catalog';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const RECOMMENDED = [HOME_ROWS[1]];
+const RECOMMENDED = rowsByKey('cm-movies');
 
 function MenuRow({ icon, color, label, detail, onPress }: { icon: IoniconName; color: string; label: string; detail?: string; onPress: () => void }) {
   return (
