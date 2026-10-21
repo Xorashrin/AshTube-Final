@@ -2,7 +2,6 @@
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { Inter_400Regular } from '@expo-google-fonts/inter/400Regular';
 import { Inter_500Medium } from '@expo-google-fonts/inter/500Medium';
-import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
 import { Inter_700Bold } from '@expo-google-fonts/inter/700Bold';
 import { DarkTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
@@ -35,7 +34,6 @@ export default function App() {
   const [loaded, error] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
-    Inter_600SemiBold,
     Inter_700Bold,
     BebasNeue_400Regular,
   });

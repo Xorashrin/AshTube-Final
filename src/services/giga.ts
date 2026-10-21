@@ -61,7 +61,8 @@ function mapCode(e: unknown): GigaError {
 
 /** Runs one download to completion. Resumes automatically when partial data from an earlier run exists. */
 export async function runDownload(job: GigaJob): Promise<number> {
-  const headers = { 'User-Agent': UA, ...job.headers };
+  const headers: Record<string, string> = { 'User-Agent': UA };
+  for (const [k, v] of Object.entries(job.headers ?? {})) if (typeof v === 'string') headers[k] = v;
   if (!native) return fallbackDownload(job, headers);
   const timer = setInterval(() => {
     const s = native.progress(job.id);

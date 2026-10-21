@@ -58,9 +58,9 @@ export const radius = {
 export const font = {
   regular: 'Inter_400Regular',
   medium: 'Inter_500Medium',
-  semibold: 'Inter_600SemiBold',
+  semibold: 'Inter_700Bold',
   bold: 'Inter_700Bold',
-  // 800/900 map to Bold: two fewer font files in the APK.
+  // Only Regular, Medium and Bold ship in the APK; heavier and lighter-bold weights map to Bold.
   extrabold: 'Inter_700Bold',
   black: 'Inter_700Bold',
   display: 'BebasNeue_400Regular',

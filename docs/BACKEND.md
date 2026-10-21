@@ -30,3 +30,21 @@ No JSON API. `movies.php?id={TMDB_ID}&type=movie` lists files (`playVideo('…')
 ## Known-dead (do not use)
 
 `api.consumet.org` (451), Torrentio from servers (403), `api.hubcloud.foo` (NXDOMAIN), `player.videasy.to` (502 at last check).
+
+## Nuvio plugins
+
+`manifest.json` has a `scrapers` array (not `providers`). Each scraper is a bundled CommonJS script that exports `getStreams(tmdbId, mediaType, season, episode)` and returns `[{ name, title, url, quality, headers }]`. The runtime (`src/services/nuvio/runtime.ts`) evaluates the script with `new Function`, a `require` that serves `cheerio-without-node-native`, `crypto-js` and `buffer`, and the global `fetch`. Scripts carry their own TMDB key. 229 of 240 listed scrapers download; the rest 404.
+
+Providers are ranked by repo priority plus learned success rate and speed (stored on the device), at most 15 run first, five at a time, each capped at 18 s.
+
+## Stremio addons
+
+`GET {base}/catalog/movie/{id}.json`, `/stream/{type}/{id}.json`. Used: OnlyPorn (`baby-beamup.club`, six 18+ catalogs, HLS streams) and Stremify (stream lookup by IMDb id). Debrid-only addons are not usable without an account.
+
+## BDIX / FTP
+
+`src/services/sources/bdix.ts` holds the server list from doc 06. Index servers are crawled (Apache/nginx autoindex) with a time budget; CircleFTP uses its JSON API. Servers that are unreachable outside Bangladesh time out in 6 s and are paused after four failures.
+
+## Download engine
+
+Probe with `Range: bytes=0-0` → `206` + `Content-Range: bytes 0-0/TOTAL` means segmented download with N workers over 1 MiB blocks; `200` means single stream. A 403/404/410 after two attempts raises `E_EXPIRED` and the next verified server continues into the same file.

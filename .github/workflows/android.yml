@@ -34,6 +34,12 @@ jobs:
       - name: Align native module versions with the Expo SDK
         run: npx expo install --fix
 
+      - name: Shrink icon fonts to the glyphs in use
+        continue-on-error: true
+        run: |
+          pip install --quiet fonttools
+          python3 tools/subset_icon_fonts.py
+
       - name: Type check
         run: npx tsc --noEmit
 
