@@ -126,7 +126,7 @@ export async function search(query: string, budgetMs = 9000): Promise<{ server: 
 
 /** CircleFTP JSON API: posts → details → episode links ("ttp://" is sometimes written for "http://"). */
 async function searchCircle(server: FtpServer, query: string): Promise<{ url: string; label: string }[]> {
-  const list = await getJson<{ posts?: { id: number; title?: string; name?: string }[] } | { id: number; title?: string }[]>(
+  const list = await getJson<{ posts?: { id: number; title?: string; name?: string }[] } | { id: number; title?: string; name?: string }[]>(
     `${server.base}/api/posts?searchTerm=${encodeURIComponent(query)}&order=desc`,
     { timeout: STEP_TIMEOUT, retries: 0 },
   );
