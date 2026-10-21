@@ -43,7 +43,8 @@
             "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
             "useLegacyPackaging": true,
-            "enablePngCrunchInReleaseBuilds": true
+            "enablePngCrunchInReleaseBuilds": true,
+            "enableBundleCompression": true
           }
         }
       ]

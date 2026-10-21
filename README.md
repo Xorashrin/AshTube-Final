@@ -70,4 +70,4 @@ tools/                       build_channels.py (live-TV list), make_icons.py
 - Which files exist on each host changes constantly; the app never ships a fixed catalog.
 - Stream links from file hosts expire, so they are resolved on demand and cached for four minutes only.
 - Premium or captcha lockers (1fichier, Rapidgator, …) are skipped.
-- Sign-in uses Firebase Authentication (`src/services/firebase.ts`).
+- Sign-in uses Firebase Authentication through its REST API (`src/services/firebase.ts`), which keeps the Firebase SDK out of the bundle.
