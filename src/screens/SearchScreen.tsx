@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Image } from 'expo-image';
+import { Image } from '../components/Img';
 import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Keyboard, Pressable, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -11,6 +11,7 @@ import { Txt } from '../components/Txt';
 import { searchChannels } from '../data/channels';
 import type { Title } from '../data/types';
 import { HOME_ROWS, searchAll, useRows } from '../services/catalog';
+import { warmUp } from '../services/playback';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, font, radius } from '../theme/tokens';
 
@@ -41,7 +42,9 @@ export default function SearchScreen({ navigation }: Props) {
     const timer = setTimeout(() => {
       searchAll(q)
         .then((found) => {
-          if (!cancelled) setResults(found);
+          if (cancelled) return;
+          setResults(found);
+          if (found[0] && !found[0].nsfw) warmUp(found[0]);
         })
         .catch(() => undefined)
         .finally(() => {

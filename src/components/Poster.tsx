@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image } from './Img';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';

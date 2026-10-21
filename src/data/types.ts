@@ -5,7 +5,7 @@ export type Maturity = 'ALL' | '7+' | '13+' | '16+' | '18+';
 export type Badge = 'new' | 'new-episode' | 'airing';
 
 /** Where a title came from. Decides how it is played, downloaded and refreshed. */
-export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'cinemeta' | 'anilist';
+export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'bdix' | 'stremio' | 'cinemeta' | 'anilist';
 
 export interface Episode {
   id: string;
@@ -55,6 +55,10 @@ export interface Title {
   airing?: { episode: number; at: number };
   /** Direct file URL known up front (BDIX/FTP sources). */
   directUrl?: string;
+  /** All direct files known up front (BDIX index servers). */
+  files?: { url: string; label: string }[];
+  /** Stremio addon that owns this title (adult catalogs). */
+  addon?: string;
   nsfw?: boolean;
   /** True once the detail fetch (episodes, cast, full synopsis) has completed. */
   detailed?: boolean;

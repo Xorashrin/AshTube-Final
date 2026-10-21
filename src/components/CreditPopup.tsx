@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
@@ -11,13 +10,13 @@ import { Txt } from './Txt';
 export function CreditPopup() {
   const { state, markCreditSeen } = useApp();
   const visible = state.hydrated && state.signedIn && !state.creditSeen;
-  const scale = useSharedValue(0.9);
+  const scale = useRef(new Animated.Value(0.9)).current;
 
   useEffect(() => {
-    if (visible) scale.value = withTiming(1, { duration: motion.slow, easing: motion.decelerate });
+    if (visible) Animated.timing(scale, { toValue: 1, duration: motion.slow, easing: motion.decelerate, useNativeDriver: true }).start();
   }, [visible, scale]);
 
-  const cardStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }], opacity: (scale.value - 0.9) * 10 }));
+  const cardStyle = { transform: [{ scale }], opacity: scale.interpolate({ inputRange: [0.9, 1], outputRange: [0, 1] }) };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={markCreditSeen}>

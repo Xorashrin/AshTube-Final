@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useApp } from '../state/AppState';
@@ -10,23 +9,23 @@ import { Txt } from './Txt';
 export function Toast() {
   const { state, clearToast } = useApp();
   const insets = useSafeAreaInsets();
-  const visible = useSharedValue(0);
+  const visible = useRef(new Animated.Value(0)).current;
   const toast = state.toast;
 
   useEffect(() => {
     if (!toast) {
-      visible.value = withTiming(0, { duration: motion.fast });
+      Animated.timing(visible, { toValue: 0, duration: motion.fast, useNativeDriver: true }).start();
       return;
     }
-    visible.value = withTiming(1, { duration: motion.base, easing: motion.decelerate });
+    Animated.timing(visible, { toValue: 1, duration: motion.base, easing: motion.decelerate, useNativeDriver: true }).start();
     const timer = setTimeout(() => clearToast(toast.id), 2400);
     return () => clearTimeout(timer);
   }, [toast, clearToast, visible]);
 
-  const style = useAnimatedStyle(() => ({
-    opacity: visible.value,
-    transform: [{ translateY: (1 - visible.value) * 16 }],
-  }));
+  const style = {
+    opacity: visible,
+    transform: [{ translateY: visible.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }],
+  };
 
   return (
     <Animated.View pointerEvents="none" style={[styles.wrap, { bottom: insets.bottom + 76 }, style]}>

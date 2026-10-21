@@ -1,5 +1,5 @@
 // Design tokens. Values come from the REA resource evidence (docs/NETFLIX_A_TO_Z.md, M01).
-import { Easing } from 'react-native-reanimated';
+import { Easing } from 'react-native';
 
 export const colors = {
   red: '#E50914',

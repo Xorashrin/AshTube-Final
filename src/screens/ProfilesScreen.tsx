@@ -1,8 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '../components/Avatar';
@@ -18,10 +17,10 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Profiles'>;
 const AVATAR = 104;
 
 function ProfileTile({ profile, editing, selected, dimmed, onPress }: { profile: Profile; editing: boolean; selected: boolean; dimmed: boolean; onPress: () => void }) {
-  const scale = useSharedValue(1);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+  const scale = useRef(new Animated.Value(1)).current;
+  const style = { transform: [{ scale }] };
   useEffect(() => {
-    if (selected) scale.value = withTiming(1.12, { duration: motion.slow, easing: motion.decelerate });
+    if (selected) Animated.timing(scale, { toValue: 1.12, duration: motion.slow, easing: motion.decelerate, useNativeDriver: true }).start();
   }, [selected, scale]);
   return (
     <Pressable onPress={onPress} style={[styles.tile, dimmed ? { opacity: 0.35 } : null]}>

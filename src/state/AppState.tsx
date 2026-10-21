@@ -1,10 +1,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef } from 'react';
 
-import { MAIN_PROFILE_ID, PROFILE_COLOR, type Profile } from '../data/types';
+import { findEpisode, MAIN_PROFILE_ID, PROFILE_COLOR, type Profile } from '../data/types';
 import { loadSavedTitles, resolveTitle, saveTitles } from '../services/catalog';
-import { cancelDownload, deleteLocalFile, downloadFrom, downloadKey, isActive } from '../services/downloads';
-import { directServers } from '../services/playback';
+import { cancelKey, deleteLocalFile, downloadKey, downloadTitle, isActive, type DownloadDir } from '../services/downloads';
+import { GigaError } from '../services/giga';
+import { setPreferredLanguage } from '../services/playback';
 import { signOutAccount, watchAuth, type AccountUser } from '../services/firebase';
 
 export type Rating = 'down' | 'up' | 'love';
@@ -24,6 +25,11 @@ export interface DownloadEntry {
   progress: number;
   sizeMB: number;
   localUri?: string;
+  /** Destination file of a running or interrupted download; reused so retries resume. */
+  destUri?: string;
+  bytes?: number;
+  speed?: number;
+  server?: string;
   }
 
 export interface ProfileData {
@@ -48,6 +54,10 @@ export interface Settings {
   defaultStreamingQuality: VideoQuality;
   defaultDownloadQuality: DownloadQuality;
   preferredLanguage: string;
+  /** Parallel connections per download (1–16). */
+  downloadThreads: number;
+  /** Folder chosen with the system picker; null = app storage. */
+  downloadDir: DownloadDir | null;
 }
 
 interface State {
@@ -76,7 +86,8 @@ type Action =
   | { type: 'SET_PROGRESS'; entry: ProgressEntry }
   | { type: 'REMOVE_PROGRESS'; titleId: string }
   | { type: 'DOWNLOAD_START'; titleId: string; episodeId?: string; sizeMB: number }
-  | { type: 'DOWNLOAD_PROGRESS'; titleId: string; episodeId?: string; progress: number }
+  | { type: 'DOWNLOAD_PROGRESS'; titleId: string; episodeId?: string; progress: number; bytes?: number; speed?: number; server?: string }
+  | { type: 'DOWNLOAD_DEST'; titleId: string; episodeId?: string; destUri: string }
   | { type: 'DOWNLOAD_DONE'; titleId: string; episodeId?: string; localUri: string; sizeMB: number }
   | { type: 'DOWNLOAD_FAILED'; titleId: string; episodeId?: string }
   | { type: 'DOWNLOAD_REMOVE'; titleId: string; episodeId?: string }
@@ -106,6 +117,8 @@ const defaultSettings: Settings = {
   defaultStreamingQuality: 'auto',
   defaultDownloadQuality: '1080p',
   preferredLanguage: 'English',
+  downloadThreads: 6,
+  downloadDir: null,
 };
 
 const initialState: State = {
@@ -198,13 +211,16 @@ function reducer(state: State, action: Action): State {
         ],
       }));
     case 'DOWNLOAD_PROGRESS':
-      return patchDownload(state, action.titleId, action.episodeId, { progress: action.progress });
+      return patchDownload(state, action.titleId, action.episodeId, { progress: action.progress, bytes: action.bytes, speed: action.speed, ...(action.server ? { server: action.server } : {}) });
+    case 'DOWNLOAD_DEST':
+      return patchDownload(state, action.titleId, action.episodeId, { destUri: action.destUri });
     case 'DOWNLOAD_DONE':
       return patchDownload(state, action.titleId, action.episodeId, {
         status: 'downloaded',
         progress: 1,
         localUri: action.localUri,
         sizeMB: action.sizeMB,
+        speed: 0,
       });
     case 'DOWNLOAD_FAILED':
       return patchDownload(state, action.titleId, action.episodeId, { status: 'failed' });
@@ -239,7 +255,7 @@ interface AppContextValue {
   toggleReminder: (id: string) => void;
   setProgress: (entry: ProgressEntry) => void;
   removeProgress: (titleId: string) => void;
-  startDownload: (titleId: string, episodeId?: string) => void;
+  startDownload: (titleId: string, episodeId?: string, serverId?: string) => void;
   deleteDownload: (titleId: string, episodeId?: string) => void;
   toggleSetting: (key: keyof Settings) => void;
   setSetting: <K extends keyof Settings>(key: K, value: Settings[K]) => void;
@@ -274,31 +290,47 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
     ]);
   }, [state]);
 
+  useEffect(() => {
+    setPreferredLanguage(state.settings.preferredLanguage);
+  }, [state.settings.preferredLanguage]);
+
   useEffect(() => watchAuth((user) => dispatch({ type: 'AUTH', user })), []);
 
   const showToast = useCallback((message: string) => dispatch({ type: 'TOAST', message }), []);
 
   const startDownload = useCallback(
-    (titleId: string, episodeId?: string) => {
+    (titleId: string, episodeId?: string, serverId?: string) => {
       const key = downloadKey(titleId, episodeId);
       if (isActive(key)) {
         showToast('Download already in progress');
         return;
       }
       const title = resolveTitle(titleId);
+      const episode = episodeId ? findEpisode(title, episodeId)?.episode : undefined;
+      const previous = stateRef.current.data.downloads.find((x) => same(x, titleId, episodeId));
+      const { downloadThreads, downloadDir } = stateRef.current.settings;
       dispatch({ type: 'DOWNLOAD_START', titleId, episodeId, sizeMB: 0 });
-      showToast(`Preparing download: ${title.name}…`);
-      let last = 0;
-      directServers(title, stateRef.current.settings.defaultDownloadQuality)
-        .then((servers) => {
-          if (servers.length === 0) throw new Error('No downloadable source');
-          return downloadFrom(key, servers, (ratio) => {
-            if (ratio - last >= 0.01 || ratio >= 1) {
-              last = ratio;
-              dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: ratio });
-            }
-          });
-        })
+      showToast(`Finding the fastest server for ${title.name}…`);
+      let lastRatio = 0;
+      let lastEmit = 0;
+      downloadTitle({
+        key,
+        title,
+        episode,
+        serverId,
+        threads: downloadThreads,
+        dir: downloadDir,
+        resumeDest: previous?.destUri,
+        onServer: (server) => dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: lastRatio, server }),
+        onDest: (destUri) => dispatch({ type: 'DOWNLOAD_DEST', titleId, episodeId, destUri }),
+        onProgress: (p) => {
+          const now = Date.now();
+          if (now - lastEmit < 700 && p.ratio < 1) return;
+          lastEmit = now;
+          lastRatio = p.ratio;
+          dispatch({ type: 'DOWNLOAD_PROGRESS', titleId, episodeId, progress: p.ratio, bytes: p.bytes, speed: p.speed });
+        },
+      })
         .then((r) => {
           const stillWanted = stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId));
           if (!stillWanted) {
@@ -309,9 +341,10 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
           showToast(`${title.name} is ready to watch offline`);
         })
         .catch((e) => {
+          if (e instanceof GigaError && e.code === 'E_CANCELLED') return;
           if (stateRef.current.data.downloads.some((x) => same(x, titleId, episodeId))) {
             dispatch({ type: 'DOWNLOAD_FAILED', titleId, episodeId });
-            showToast(e instanceof Error && e.message === 'No downloadable source' ? 'No downloadable source found for this title' : 'Download failed. Tap retry to try again.');
+            showToast(e instanceof Error && e.message === 'No downloadable source' ? 'No downloadable source found for this title' : 'Download failed. Tap retry to resume.');
           }
         });
     },
@@ -321,8 +354,9 @@ export function AppStateProvider({ children }: { children: React.ReactNode }) {
   const deleteDownload = useCallback((titleId: string, episodeId?: string) => {
     const targets = stateRef.current.data.downloads.filter((x) => (episodeId === undefined ? x.titleId === titleId : same(x, titleId, episodeId)));
     targets.forEach((x) => {
-      cancelDownload(downloadKey(x.titleId, x.episodeId));
+      cancelKey(downloadKey(x.titleId, x.episodeId));
       deleteLocalFile(x.localUri);
+      if (x.destUri && x.destUri !== x.localUri) deleteLocalFile(x.destUri);
     });
     dispatch({ type: 'DOWNLOAD_REMOVE', titleId, episodeId });
   }, []);

@@ -47,7 +47,8 @@
             "enableBundleCompression": true
           }
         }
-      ]
+      ],
+      "./plugins/withSlimApk"
     ]
   }
 }

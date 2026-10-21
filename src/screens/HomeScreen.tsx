@@ -1,8 +1,7 @@
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { LinearGradient } from 'expo-linear-gradient';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { RefreshControl, StyleSheet, View } from 'react-native';
-import Animated, { Extrapolation, interpolate, useAnimatedScrollHandler, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Animated, RefreshControl, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Billboard } from '../components/Billboard';
@@ -16,6 +15,7 @@ import { Txt } from '../components/Txt';
 import { moviesChannels, newsChannels, seriesChannels, sportsChannels, type Channel } from '../data/channels';
 import { findEpisode, type Title } from '../data/types';
 import { HOME_ROWS, resolveTitle, useRows } from '../services/catalog';
+import { warmUp } from '../services/playback';
 import { useRootNav, type TabParamList } from '../navigation/types';
 import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
@@ -51,6 +51,11 @@ export default function HomeScreen({ route, navigation }: Props) {
     return heroPool[0] ?? pool[0] ?? null;
   }, [visibleRows]);
 
+  // Find the best server for the featured title in the background so Play starts instantly.
+  useEffect(() => {
+    if (hero) warmUp(hero);
+  }, [hero?.id]);
+
   const continueItems = useMemo<ContinueItem[]>(
     () =>
       profileData.progress
@@ -67,33 +72,22 @@ export default function HomeScreen({ route, navigation }: Props) {
     [profileData.myList, filter, genre],
   );
 
-  const scrollY = useSharedValue(0);
-  const lastY = useSharedValue(0);
-  const chipOffset = useSharedValue(0);
+  const scrollY = useRef(new Animated.Value(0)).current;
+  // The chip row slides away as you scroll down and returns on any upward scroll.
+  const chipOffset = useRef(Animated.diffClamp(scrollY, 0, layout.chipRowHeight)).current;
 
   useEffect(() => {
-    scrollY.value = 0;
-    lastY.value = 0;
-    chipOffset.value = 0;
-  }, [filter, genre, scrollY, lastY, chipOffset]);
+    scrollY.setValue(0);
+  }, [filter, genre, scrollY]);
 
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      const y = e.contentOffset.y;
-      const dy = y - lastY.value;
-      lastY.value = y;
-      scrollY.value = y;
-      chipOffset.value = y <= 0 ? 0 : Math.min(layout.chipRowHeight, Math.max(0, chipOffset.value + dy));
-    },
-  });
+  const onScroll = useRef(Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })).current;
 
   const headerTop = insets.top + layout.headerHeight;
-  const headerStyle = useAnimatedStyle(() => ({ height: headerTop + layout.chipRowHeight - chipOffset.value }));
-  const headerBgStyle = useAnimatedStyle(() => ({ opacity: interpolate(scrollY.value, [0, 160], [0, 0.97], Extrapolation.CLAMP) }));
-  const chipsStyle = useAnimatedStyle(() => ({
-    opacity: 1 - chipOffset.value / layout.chipRowHeight,
-    transform: [{ translateY: -chipOffset.value }],
-  }));
+  const headerBgStyle = { opacity: scrollY.interpolate({ inputRange: [0, 160], outputRange: [0, 0.97], extrapolate: 'clamp' }) };
+  const chipsStyle = {
+    opacity: chipOffset.interpolate({ inputRange: [0, layout.chipRowHeight], outputRange: [1, 0] }),
+    transform: [{ translateY: chipOffset.interpolate({ inputRange: [0, layout.chipRowHeight], outputRange: [0, -layout.chipRowHeight] }) }],
+  };
 
   const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
   const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
@@ -157,8 +151,8 @@ export default function HomeScreen({ route, navigation }: Props) {
         ) : null}
       </Animated.ScrollView>
 
-      <Animated.View style={[styles.header, headerStyle]}>
-        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: shade(hero?.tint ?? '#1A1A1A', 0.6) }, headerBgStyle]} />
+      <View pointerEvents="box-none" style={[styles.header, { height: headerTop + layout.chipRowHeight }]}>
+        <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: shade(hero?.tint ?? '#1A1A1A', 0.6) }, headerBgStyle]} />
         <View style={[styles.headerRow, { marginTop: insets.top }]}>
           <Txt weight="bold" size={22} numberOfLines={1} style={{ flex: 1 }}>
             {heading}
@@ -180,7 +174,7 @@ export default function HomeScreen({ route, navigation }: Props) {
             </>
           )}
         </Animated.View>
-      </Animated.View>
+      </View>
 
       <Sheet visible={menuItem !== null} onClose={() => setMenuItem(null)}>
         {menuItem ? (

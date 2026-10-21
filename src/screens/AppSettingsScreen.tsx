@@ -1,11 +1,17 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, ScrollView, StyleSheet, View } from 'react-native';
+
+import { SheetItem } from '../components/ListItems';
+import { Sheet } from '../components/Sheet';
+import { Txt } from '../components/Txt';
+import { LANGUAGES } from '../services/playback';
 
 import { SectionLabel, SettingRow } from '../components/ListItems';
 import { ScreenHeader } from '../components/ScreenHeader';
 import type { RootStackParamList } from '../navigation/types';
 import { clearPersistentCache } from '../services/cache';
+import { pickDownloadFolder } from '../services/downloads';
 import { useApp } from '../state/AppState';
 import { colors } from '../theme/tokens';
 
@@ -31,34 +37,60 @@ export default function AppSettingsScreen({ navigation }: Props) {
     showToast(`${ok.filter(Boolean).length}/${targets.length} sources online (${((Date.now() - started) / 1000).toFixed(1)}s)`);
   };
 
-  const pickStreamingQuality = () => {
-    Alert.alert('Default Streaming Quality', 'Choose preferred streaming resolution:', [
-      { text: 'Auto', onPress: () => setSetting('defaultStreamingQuality', 'auto') },
-      { text: '1080p (Full HD)', onPress: () => setSetting('defaultStreamingQuality', '1080p') },
-      { text: '720p (HD)', onPress: () => setSetting('defaultStreamingQuality', '720p') },
-      { text: '480p (Data Saver)', onPress: () => setSetting('defaultStreamingQuality', '480p') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+  const [picker, setPicker] = useState<{ title: string; options: { label: string; value: string | number }[]; current: string | number; onSelect: (v: string | number) => void } | null>(null);
+
+  const pickStreamingQuality = () =>
+    setPicker({
+      title: 'Preferred Streaming Quality',
+      current: s.defaultStreamingQuality,
+      options: [
+        { label: 'Auto (highest available)', value: 'auto' },
+        { label: '1080p (Full HD)', value: '1080p' },
+        { label: '720p (HD)', value: '720p' },
+        { label: '480p (Data Saver)', value: '480p' },
+      ],
+      onSelect: (v) => setSetting('defaultStreamingQuality', v as typeof s.defaultStreamingQuality),
+    });
+
+  const pickDownloadQuality = () =>
+    setPicker({
+      title: 'Preferred Download Quality',
+      current: s.defaultDownloadQuality,
+      options: [
+        { label: '1080p (High quality)', value: '1080p' },
+        { label: '720p (Standard HD)', value: '720p' },
+        { label: '480p (Smaller file)', value: '480p' },
+      ],
+      onSelect: (v) => setSetting('defaultDownloadQuality', v as typeof s.defaultDownloadQuality),
+    });
+
+  const chooseFolder = async () => {
+    try {
+      const picked = await pickDownloadFolder();
+      if (picked) {
+        setSetting('downloadDir', picked);
+        showToast(`Downloads will be saved to ${picked.name}`);
+      }
+    } catch {
+      showToast('Could not open the folder picker');
+    }
   };
 
-  const pickDownloadQuality = () => {
-    Alert.alert('Default Download Quality', 'Choose default download video quality:', [
-      { text: '1080p (High Quality)', onPress: () => setSetting('defaultDownloadQuality', '1080p') },
-      { text: '720p (Standard HD)', onPress: () => setSetting('defaultDownloadQuality', '720p') },
-      { text: '480p (Smaller File)', onPress: () => setSetting('defaultDownloadQuality', '480p') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+  const pickThreads = () =>
+    setPicker({
+      title: 'Download Connections',
+      current: s.downloadThreads,
+      options: [1, 2, 4, 6, 8, 12, 16].map((n) => ({ label: n === 1 ? '1 (single stream)' : `${n} parallel connections`, value: n })),
+      onSelect: (v) => setSetting('downloadThreads', Number(v)),
+    });
 
-  const pickLanguage = () => {
-    Alert.alert('Preferred Audio Language', 'Choose preferred audio track for multi-audio titles:', [
-      { text: 'English (Original)', onPress: () => setSetting('preferredLanguage', 'English') },
-      { text: 'Hindi', onPress: () => setSetting('preferredLanguage', 'Hindi') },
-      { text: 'Bengali', onPress: () => setSetting('preferredLanguage', 'Bengali') },
-      { text: 'Spanish', onPress: () => setSetting('preferredLanguage', 'Spanish') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
-  };
+  const pickLanguage = () =>
+    setPicker({
+      title: 'Preferred Language',
+      current: s.preferredLanguage,
+      options: LANGUAGES.map((l) => ({ label: l.label, value: l.label })),
+      onSelect: (v) => setSetting('preferredLanguage', String(v)),
+    });
 
   return (
     <View style={styles.root}>
@@ -87,7 +119,7 @@ export default function AppSettingsScreen({ navigation }: Props) {
         />
         <SettingRow
           icon="language-outline"
-          label="Preferred Audio Language"
+          label="Preferred Language"
           value={s.preferredLanguage}
           onPress={pickLanguage}
         />
@@ -100,7 +132,23 @@ export default function AppSettingsScreen({ navigation }: Props) {
           value={s.defaultDownloadQuality.toUpperCase()}
           onPress={pickDownloadQuality}
         />
-        <SettingRow icon="folder-outline" label="Download Location" value="App storage (offline library)" />
+        <SettingRow
+          icon="folder-outline"
+          label="Download Location"
+          value={s.downloadDir ? s.downloadDir.name : 'App storage (offline library)'}
+          description="Pick any folder on your phone or SD card. Tap again to change it."
+          onPress={chooseFolder}
+        />
+        {s.downloadDir ? (
+          <SettingRow icon="refresh-outline" label="Use App Storage Again" onPress={() => { setSetting('downloadDir', null); showToast('Downloads will use app storage'); }} />
+        ) : null}
+        <SettingRow
+          icon="git-network-outline"
+          label="Download Connections"
+          value={`${s.downloadThreads} parallel connections`}
+          description="More connections finish big files faster on servers that allow them."
+          onPress={pickThreads}
+        />
         <SettingRow
           icon="trash-outline"
           label="Delete All Downloads"
@@ -138,6 +186,24 @@ export default function AppSettingsScreen({ navigation }: Props) {
           }}
         />
       </ScrollView>
+      <Sheet visible={picker !== null} onClose={() => setPicker(null)}>
+        {picker ? (
+          <>
+            <Txt weight="bold" size={16} style={{ paddingHorizontal: 20, paddingVertical: 10 }}>{picker.title}</Txt>
+            {picker.options.map((o) => (
+              <SheetItem
+                key={String(o.value)}
+                label={o.label}
+                icon={o.value === picker.current ? 'checkmark-circle' : 'ellipse-outline'}
+                onPress={() => {
+                  picker.onSelect(o.value);
+                  setPicker(null);
+                }}
+              />
+            ))}
+          </>
+        ) : null}
+      </Sheet>
     </View>
   );
 }

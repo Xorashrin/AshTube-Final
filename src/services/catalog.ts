@@ -9,7 +9,9 @@ import { tintFor, type Title } from '../data/types';
 import { cached } from './cache';
 import * as amaderftp from './sources/amaderftp';
 import * as anilist from './sources/anilist';
+import * as bdix from './sources/bdix';
 import * as cinemeta from './sources/cinemeta';
+import * as stremio from './sources/stremio';
 import { CATEGORY, listPosts, SOUTHFREAK, SOUTHFREAK_18 } from './sources/wordpress';
 
 const NEW_WINDOW = 72 * 3600 * 1000;
@@ -137,9 +139,12 @@ export const NEWHOT_ROWS: RowDef[] = [
   { key: 'cm-series', title: 'Popular Series', load: feed('cm:series', () => cinemeta.catalog('series')) },
 ];
 
-export const ADULT_ROWS: RowDef[] = [
-  { key: 'sa-latest', title: 'Latest', load: feed('sa:latest', () => listPosts(SOUTHFREAK_18, { perPage: 30 })), nsfw: true },
-];
+export const ADULT_ROWS: RowDef[] = stremio.ONLYPORN_CATALOGS.map((c) => ({
+  key: `sx-${c.id}`,
+  title: c.name,
+  load: feed(`sx:${c.id}`, () => stremio.catalog(stremio.ONLYPORN, c.id)),
+  nsfw: true,
+}));
 
 export async function loadAdultPage(page: number): Promise<Title[]> {
   return register(await listPosts(SOUTHFREAK_18, { page, perPage: 30 }));
@@ -159,6 +164,26 @@ function score(t: Title, q: string): number {
   return q.split(' ').every((w) => n.includes(w)) ? 40 : 10;
 }
 
+/** BDIX folders → one title per distinct movie name, with every matching file attached. */
+async function bdixTitles(query: string): Promise<Title[]> {
+  const hits = await bdix.search(query, 8000);
+  const byName = new Map<string, { name: string; year: number; files: { url: string; label: string }[]; server: string }>();
+  for (const { server, files } of hits) {
+    for (const f of files) {
+      const base = f.label.replace(/\.[a-z0-9]{2,4}$/i, '');
+      const cut = /^(.*?)[\s._(\[]+((?:19|20)\d{2})\b/.exec(base);
+      const name = (cut ? cut[1] : base.split(/[\s._]+(?:\d{3,4}p|WEB|BluRay|HDRip)/i)[0]).replace(/[._]+/g, ' ').trim();
+      if (!name) continue;
+      const year = cut ? Number(cut[2]) : new Date().getFullYear();
+      const key = `${norm(name)}-${year}`;
+      const entry = byName.get(key) ?? { name, year, files: [], server: server.name };
+      entry.files.push(f);
+      byName.set(key, entry);
+    }
+  }
+  return [...byName.values()].map((e) => bdix.filesToTitle(e.name, e.year, e.files, e.server));
+}
+
 /** Fans out to every source in parallel; a slow or dead source never blocks the others. */
 export async function searchAll(query: string, includeAdult = false): Promise<Title[]> {
   const q = norm(query);
@@ -169,8 +194,12 @@ export async function searchAll(query: string, includeAdult = false): Promise<Ti
     listPosts(SOUTHFREAK, { search: query, perPage: 15 }),
     anilist.search(query),
     amaderftp.search(query),
+    bdixTitles(query),
   ];
-  if (includeAdult) jobs.push(listPosts(SOUTHFREAK_18, { search: query, perPage: 15 }));
+  if (includeAdult) {
+    jobs.push(listPosts(SOUTHFREAK_18, { search: query, perPage: 15 }));
+    jobs.push(stremio.catalog(stremio.ONLYPORN, 'eporner', { search: query }));
+  }
   const settled = await Promise.allSettled(jobs.map((j) => Promise.race([j, new Promise<Title[]>((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))])));
   const results = settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
   if (results.length === 0) {

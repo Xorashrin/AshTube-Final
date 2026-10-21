@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image } from '../components/Img';
 import React, { useRef, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, Share, StyleSheet, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 

@@ -12,6 +12,10 @@ export interface Playable {
   host: string;
   fileName?: string;
   hls: boolean;
+  /** Real picture height when known (HLS master playlist). */
+  height?: number;
+  /** `url` is an embeddable web player page, not a media file. */
+  embed?: boolean;
 }
 
 interface HostRule {

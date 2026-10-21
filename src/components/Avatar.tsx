@@ -1,8 +1,9 @@
+import { LinearGradient } from 'expo-linear-gradient';
 import React, { memo } from 'react';
-import Svg, { Circle, Defs, LinearGradient, Path, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import { View } from 'react-native';
 
 import type { Profile } from '../data/types';
-import { font } from '../theme/tokens';
+import { Txt } from './Txt';
 
 interface AvatarProps {
   profile: Pick<Profile, 'id' | 'color' | 'kids'>;
@@ -11,30 +12,40 @@ interface AvatarProps {
 }
 
 export const Avatar = memo(function Avatar({ profile, size, radius = 4 }: AvatarProps) {
-  const rx = (radius / size) * 100;
   if (profile.kids) {
     return (
-      <Svg width={size} height={size} viewBox="0 0 100 100">
-        <Defs>
-          <LinearGradient id={`kids-${profile.id}`} x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor="#FF6A3D" />
-            <Stop offset="0.5" stopColor="#E5B80B" />
-            <Stop offset="1" stopColor="#2D6CDF" />
-          </LinearGradient>
-        </Defs>
-        <Rect width="100" height="100" rx={rx} fill={`url(#kids-${profile.id})`} />
-        <SvgText x="50" y="60" fontSize="30" fontFamily={font.black} fill="#FFFFFF" textAnchor="middle">
+      <LinearGradient
+        colors={['#FF6A3D', '#E5B80B', '#2D6CDF']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={{ width: size, height: size, borderRadius: radius, alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Txt weight="black" size={size * 0.3} color="#FFFFFF">
           kids
-        </SvgText>
-      </Svg>
+        </Txt>
+      </LinearGradient>
     );
   }
+  const eye = { position: 'absolute' as const, top: size * 0.34, width: size * 0.12, height: size * 0.12, borderRadius: size * 0.06, backgroundColor: '#FFFFFF' };
   return (
-    <Svg width={size} height={size} viewBox="0 0 100 100">
-      <Rect width="100" height="100" rx={rx} fill={profile.color} />
-      <Circle cx="34" cy="40" r="6" fill="#FFFFFF" />
-      <Circle cx="66" cy="40" r="6" fill="#FFFFFF" />
-      <Path d="M28 60 Q50 80 72 60" stroke="#FFFFFF" strokeWidth="7" strokeLinecap="round" fill="none" />
-    </Svg>
+    <View style={{ width: size, height: size, borderRadius: radius, backgroundColor: profile.color }}>
+      <View style={[eye, { left: size * 0.28 }]} />
+      <View style={[eye, { right: size * 0.28 }]} />
+      <View
+        style={{
+          position: 'absolute',
+          left: size * 0.28,
+          top: size * 0.5,
+          width: size * 0.44,
+          height: size * 0.22,
+          borderBottomWidth: Math.max(2, size * 0.07),
+          borderLeftWidth: Math.max(2, size * 0.07),
+          borderRightWidth: Math.max(2, size * 0.07),
+          borderColor: '#FFFFFF',
+          borderBottomLeftRadius: size * 0.22,
+          borderBottomRightRadius: size * 0.22,
+        }}
+      />
+    </View>
   );
 });

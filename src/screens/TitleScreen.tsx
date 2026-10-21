@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Image } from 'expo-image';
+import { Image } from '../components/Img';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -13,7 +13,8 @@ import { PickerOverlay } from '../components/Sheet';
 import { Txt } from '../components/Txt';
 import { findEpisode, type Episode, type Title } from '../data/types';
 import { loadDetail, resolveTitle } from '../services/catalog';
-import { loadServers, type Server } from '../services/playback';
+import { useSourceSearch } from '../services/playback';
+import { DownloadSheet } from '../components/DownloadSheet';
 import type { RootStackParamList } from '../navigation/types';
 import { downloadFor, progressFor, useApp, type Rating } from '../state/AppState';
 import { colors, radius } from '../theme/tokens';
@@ -76,8 +77,8 @@ export default function TitleScreen({ navigation, route }: Props) {
   const [title, setTitle] = useState<Title>(() => resolveTitle(route.params.id));
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const { profileData, toggleMyList, rate, startDownload, showToast, state } = useApp();
-  const [servers, setServers] = useState<Server[] | null>(null);
+  const { profileData, toggleMyList, rate, startDownload, showToast } = useApp();
+  const [downloadOpen, setDownloadOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,18 +88,6 @@ export default function TitleScreen({ navigation, route }: Props) {
     };
   }, [route.params.id]);
 
-  // Finds every source for this title (own + cross-source + embeds). The Download button depends on it.
-  useEffect(() => {
-    let cancelled = false;
-    setServers(null);
-    loadServers(title, undefined, state.settings.defaultStreamingQuality)
-      .then((list) => !cancelled && setServers(list))
-      .catch(() => !cancelled && setServers([]));
-    return () => {
-      cancelled = true;
-    };
-  }, [title.id, title.detailed, title.tmdbId, state.settings.defaultStreamingQuality]);
-  const downloadable = servers ? servers.some((x) => x.downloadable) : null;
   const [tab, setTab] = useState<Tab>(title.kind === 'series' ? 'episodes' : 'servers');
   const [seasonNumber, setSeasonNumber] = useState(1);
   const [seasonPicker, setSeasonPicker] = useState(false);
@@ -109,6 +98,11 @@ export default function TitleScreen({ navigation, route }: Props) {
   const resume = progress?.episodeId ? findEpisode(title, progress.episodeId) : null;
   const first = findEpisode(title);
   const target = resume ?? first;
+
+  // Starts looking for servers as soon as the screen opens, so Play and Download are instant.
+  const { engine } = useSourceSearch(title, title.kind === 'series' ? target?.episode : undefined);
+  const serverCount = engine.servers.length;
+  const downloadable = engine.downloadable.length > 0 ? true : engine.done ? false : null;
   const inList = profileData.myList.includes(title.id);
   const rating = profileData.ratings[title.id];
   const season = (title.seasons || []).find((s) => s.number === seasonNumber) ?? (title.seasons || [])[0];
@@ -119,7 +113,7 @@ export default function TitleScreen({ navigation, route }: Props) {
   ];
 
   const play = (episodeId?: string) => {
-    if (servers && servers.length === 0) {
+    if (engine.done && engine.results.length === 0 && engine.embeds().length === 0) {
       showToast('No playable source found for this title yet');
       return;
     }
@@ -198,7 +192,7 @@ export default function TitleScreen({ navigation, route }: Props) {
               disabled={!activeDownload && !downloadable}
               onPress={() => {
                 if (activeDownload && activeDownload.status !== 'failed') navigation.navigate('Downloads');
-                else startDownload(title.id);
+                else setDownloadOpen(true);
               }}
               style={styles.cta}
             />
@@ -307,34 +301,52 @@ export default function TitleScreen({ navigation, route }: Props) {
 
         {tab === 'servers' ? (
           <View style={styles.tabBody}>
-            {servers === null ? (
+            {serverCount === 0 && !engine.done ? (
               <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                 <ActivityIndicator color={colors.text} />
                 <Txt size={13} color={colors.textMuted} style={{ marginTop: 10 }}>Finding sources…</Txt>
               </View>
-            ) : servers.length === 0 ? (
+            ) : serverCount === 0 ? (
               <Txt size={14} color={colors.textMuted} style={{ paddingVertical: 20 }}>
                 No source has this title right now. New uploads are checked every time you open the app.
               </Txt>
             ) : (
-              servers.map((sv) => (
-                <Pressable key={sv.id} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
-                  <View style={styles.serverIconWrap}>
-                    <MaterialCommunityIcons name={sv.kind === 'embed' ? 'web' : 'play-network-outline'} size={24} color={colors.red} />
-                  </View>
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Txt weight="semibold" size={14} numberOfLines={1}>{sv.name}</Txt>
-                    <Txt size={12} color={colors.textMuted} style={{ marginTop: 2 }}>
-                      {sv.detail}{sv.downloadable ? ' • downloadable' : ''}
-                    </Txt>
-                  </View>
-                  <Ionicons name="play-circle" size={30} color={colors.text} />
-                </Pressable>
-              ))
+              <>
+                <Txt size={12} color={colors.textDim} style={{ marginBottom: 10 }}>
+                  {engine.results.length} verified of {serverCount} servers{engine.done ? '' : ' • still searching…'}. The best one is picked automatically.
+                </Txt>
+                {[...engine.servers]
+                  .sort((a, b) => (engine.results.findIndex((r) => r.server.id === a.id) + 1 || 999) - (engine.results.findIndex((r) => r.server.id === b.id) + 1 || 999) || b.rank - a.rank)
+                  .slice(0, 40)
+                  .map((sv) => {
+                    const idx = engine.results.findIndex((r) => r.server.id === sv.id);
+                    return (
+                      <Pressable key={sv.id} onPress={() => play(target?.episode.id)} style={styles.serverCard}>
+                        <View style={styles.serverIconWrap}>
+                          <MaterialCommunityIcons name={sv.kind === 'embed' ? 'web' : 'play-network-outline'} size={24} color={idx === 0 ? colors.success : colors.red} />
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 12 }}>
+                          <Txt weight="semibold" size={14} numberOfLines={1}>{sv.name}{idx === 0 ? '  • BEST' : ''}</Txt>
+                          <Txt size={12} color={colors.textMuted} style={{ marginTop: 2 }}>
+                            {[sv.size, sv.detail, sv.downloadable ? 'downloadable' : '', idx >= 0 ? 'verified' : ''].filter(Boolean).join(' • ')}
+                          </Txt>
+                        </View>
+                        <Ionicons name="play-circle" size={30} color={colors.text} />
+                      </Pressable>
+                    );
+                  })}
+              </>
             )}
           </View>
         ) : null}
       </ScrollView>
+
+      <DownloadSheet
+        visible={downloadOpen}
+        onClose={() => setDownloadOpen(false)}
+        title={title}
+        onStart={(serverId) => startDownload(title.id, undefined, serverId)}
+      />
 
       <PickerOverlay visible={seasonPicker} onClose={() => setSeasonPicker(false)}>
         <PickerList

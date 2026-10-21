@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Image } from 'expo-image';
+import { Image } from '../components/Img';
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -146,9 +146,9 @@ export default function DownloadsScreen({ navigation }: Props) {
                     ) : null}
                     <Txt size={12} color={failed ? colors.redLight : colors.textDim} style={{ marginTop: 4 }}>
                       {downloading
-                        ? `Downloading — ${Math.round(d.progress * 100)}% (${sizeLabel})`
+                        ? `${d.server ? `${d.server} • ` : ''}${Math.round(d.progress * 100)}%${d.speed ? ` • ${(d.speed / (1024 * 1024)).toFixed(1)} MB/s` : ''}`
                         : failed
-                          ? 'Download failed • Tap to retry'
+                          ? 'Interrupted • Tap to resume'
                           : detail}
                     </Txt>
                     {downloading ? <ProgressBar value={d.progress} height={3} style={{ marginTop: 6 }} /> : null}

@@ -5,8 +5,7 @@ import { useEvent, useEventListener } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { useVideoPlayer, VideoView, type VideoContentFit } from 'expo-video';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, PanResponder, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { ActivityIndicator, Animated, FlatList, PanResponder, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChannelLogo } from '../components/ChannelLogo';
@@ -105,11 +104,11 @@ export default function LivePlayerScreen({ navigation, route }: Props) {
     return () => clearTimeout(timer);
   }, [visible, isPlaying, drawerOpen, locked]);
 
-  const fade = useSharedValue(1);
+  const fade = useRef(new Animated.Value(1)).current;
   useEffect(() => {
-    fade.value = withTiming(visible && !locked ? 1 : 0, { duration: motion.base });
+    Animated.timing(fade, { toValue: visible && !locked ? 1 : 0, duration: motion.base, useNativeDriver: true }).start();
   }, [visible, locked, fade]);
-  const controlsStyle = useAnimatedStyle(() => ({ opacity: fade.value }));
+  const controlsStyle = { opacity: fade };
 
   const screenWidth = useRef(1);
   const screenHeight = useRef(1);

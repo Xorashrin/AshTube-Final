@@ -1,8 +1,6 @@
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 
 import { MLogo } from '../components/Logo';
 import type { RootStackParamList } from '../navigation/types';
@@ -13,14 +11,28 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Splash'>;
 
 export default function SplashScreen({ navigation }: Props) {
   const { state } = useApp();
-  const scale = useSharedValue(0.7);
-  const opacity = useSharedValue(0);
-  const glow = useSharedValue(0);
+  const scale = useRef(new Animated.Value(0.7)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const glow = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    opacity.value = withSequence(withTiming(1, { duration: 300 }), withDelay(800, withTiming(0, { duration: 350 })));
-    scale.value = withSequence(withTiming(1, { duration: 500, easing: motion.decelerate }), withDelay(600, withTiming(5, { duration: 450, easing: motion.accelerate })));
-    glow.value = withDelay(300, withSequence(withTiming(1, { duration: 500 }), withTiming(0, { duration: 500 })));
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.delay(800),
+        Animated.timing(opacity, { toValue: 0, duration: 350, useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.timing(scale, { toValue: 1, duration: 500, easing: motion.decelerate, useNativeDriver: true }),
+        Animated.delay(600),
+        Animated.timing(scale, { toValue: 5, duration: 450, easing: Easing.bezier(0.4, 0, 1, 1), useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.delay(300),
+        Animated.timing(glow, { toValue: 1, duration: 500, useNativeDriver: true }),
+        Animated.timing(glow, { toValue: 0, duration: 500, useNativeDriver: true }),
+      ]),
+    ]).start();
   }, [opacity, scale, glow]);
 
   useEffect(() => {
@@ -31,23 +43,15 @@ export default function SplashScreen({ navigation }: Props) {
     return () => clearTimeout(timer);
   }, [state.hydrated, state.authReady, state.signedIn, navigation]);
 
-  const logoStyle = useAnimatedStyle(() => ({ opacity: opacity.value, transform: [{ scale: scale.value }] }));
-  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value * 0.55, transform: [{ scale: 0.8 + glow.value * 0.6 }] }));
+  const glowStyle = {
+    opacity: glow.interpolate({ inputRange: [0, 1], outputRange: [0, 0.35] }),
+    transform: [{ scale: glow.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.4] }) }],
+  };
 
   return (
     <View style={styles.root}>
-      <Animated.View style={[styles.glow, glowStyle]}>
-        <Svg width={320} height={320}>
-          <Defs>
-            <RadialGradient id="glow" cx="50%" cy="50%" r="50%">
-              <Stop offset="0" stopColor={colors.red} stopOpacity={0.9} />
-              <Stop offset="1" stopColor={colors.red} stopOpacity={0} />
-            </RadialGradient>
-          </Defs>
-          <Circle cx={160} cy={160} r={160} fill="url(#glow)" />
-        </Svg>
-      </Animated.View>
-      <Animated.View style={logoStyle}>
+      <Animated.View style={[styles.glow, glowStyle]} />
+      <Animated.View style={{ opacity, transform: [{ scale }] }}>
         <MLogo size={120} />
       </Animated.View>
     </View>
@@ -56,5 +60,5 @@ export default function SplashScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
-  glow: { position: 'absolute', width: 320, height: 320 },
+  glow: { position: 'absolute', width: 260, height: 260, borderRadius: 130, backgroundColor: colors.red },
 });

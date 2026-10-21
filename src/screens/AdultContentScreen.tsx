@@ -5,11 +5,12 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, View, useWindowDime
 
 import { ChannelRow } from '../components/ChannelRow';
 import { Poster } from '../components/Poster';
+import { PosterRow, SkeletonRow } from '../components/Rows';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import { adultChannels, type Channel } from '../data/channels';
 import type { Title } from '../data/types';
-import { loadAdultPage } from '../services/catalog';
+import { ADULT_ROWS, loadAdultPage, useRows } from '../services/catalog';
 import type { RootStackParamList } from '../navigation/types';
 import { colors, layout } from '../theme/tokens';
 
@@ -27,6 +28,7 @@ export default function AdultContentScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
   const channels = useMemo(() => adultChannels(), []);
+  const { rows } = useRows(ADULT_ROWS, confirmed);
   const cell = Math.floor((width - layout.gutter * 2 - 8 * 2) / 3);
 
   useEffect(() => {
@@ -107,8 +109,15 @@ export default function AdultContentScreen({ navigation }: Props) {
         ListHeaderComponent={
           <View style={{ paddingBottom: 8 }}>
             {channels.length > 0 ? <ChannelRow title="🔴 Live Channels" items={channels} onPressChannel={openChannel} /> : null}
+            {rows.map((r) =>
+              r.items.length === 0 ? (
+                r.loading ? <SkeletonRow key={r.def.key} title={r.def.title} /> : null
+              ) : (
+                <PosterRow key={r.def.key} title={r.def.title} items={r.items} onPressTitle={(t) => navigation.navigate('Title', { id: t.id })} />
+              ),
+            )}
             <View style={styles.header}>
-              <Txt weight="bold" size={16}>Latest Uploads</Txt>
+              <Txt weight="bold" size={16}>Latest Uploads (southfreak.in)</Txt>
             </View>
           </View>
         }

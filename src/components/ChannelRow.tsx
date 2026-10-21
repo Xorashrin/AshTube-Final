@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image } from './Img';
 import React, { memo } from 'react';
 import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 

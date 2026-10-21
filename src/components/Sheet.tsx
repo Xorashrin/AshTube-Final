@@ -1,6 +1,5 @@
-import React, { useEffect } from 'react';
-import { Modal, Pressable, StyleSheet, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { colors, motion } from '../theme/tokens';
@@ -14,14 +13,15 @@ interface SheetProps {
 /** Bottom sheet with drag handle, scrim and slide-up motion. */
 export function Sheet({ visible, onClose, children }: SheetProps) {
   const insets = useSafeAreaInsets();
-  const progress = useSharedValue(0);
+  const progress = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    progress.value = visible ? withTiming(1, { duration: motion.slow, easing: motion.decelerate }) : 0;
+    if (visible) Animated.timing(progress, { toValue: 1, duration: motion.slow, easing: motion.decelerate, useNativeDriver: true }).start();
+    else progress.setValue(0);
   }, [visible, progress]);
 
-  const sheetStyle = useAnimatedStyle(() => ({ transform: [{ translateY: (1 - progress.value) * 420 }] }));
-  const scrimStyle = useAnimatedStyle(() => ({ opacity: progress.value }));
+  const sheetStyle = { transform: [{ translateY: progress.interpolate({ inputRange: [0, 1], outputRange: [420, 0] }) }] };
+  const scrimStyle = { opacity: progress };
 
   return (
     <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>

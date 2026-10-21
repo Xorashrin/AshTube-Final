@@ -1,4 +1,4 @@
-import { Image } from 'expo-image';
+import { Image } from './Img';
 import React, { memo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
