@@ -29,7 +29,8 @@ export function isKDrama(item: Partial<Title> | null | undefined): boolean {
   // Southfreak Korean category id is 4006 or ref contains 'korean'
   const isWpKorean = (item.genres?.includes('Korean') || item.quality?.includes('Korean')) && item.kind === 'series';
 
-  // Explicit K-Drama ID prefix or language match on series
+  // Explicit K-Drama ID prefix or source or language match on series
+  if (item.source === 'kdrama') return true;
   if (item.id?.startsWith('kd:')) return true;
   if (hasKDramaGenre) return true;
   if (item.kind === 'series' && (isKoreanLang || (hasKoreanTag && isWpKorean))) return true;

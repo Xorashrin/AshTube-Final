@@ -52,22 +52,49 @@ interface TmdbPageResult {
   total_results: number;
 }
 
-function toKDramaTitle(show: TmdbTvShow, isMovie = false): Title {
-  const name = show.name || show.original_name || `K-Drama ${show.id}`;
-  const yearStr = show.first_air_date || '';
+interface TmdbMovieDetail {
+  id: number;
+  title: string;
+  original_title?: string;
+  overview: string;
+  poster_path?: string;
+  backdrop_path?: string;
+  release_date?: string;
+  vote_average?: number;
+  runtime?: number;
+  external_ids?: {
+    imdb_id?: string;
+  };
+  credits?: {
+    cast?: { name: string; character?: string }[];
+    crew?: { name: string; job?: string }[];
+  };
+}
+
+function toKDramaTitle(show: TmdbTvShow & { title?: string; original_title?: string; release_date?: string }, isMovie = false): Title {
+  const name = isMovie
+    ? show.title || show.original_title || show.name || `Korean Movie ${show.id}`
+    : show.name || show.original_name || `K-Drama ${show.id}`;
+  const yearStr = (isMovie ? show.release_date : show.first_air_date) || show.first_air_date || show.release_date || '';
   const year = parseInt(yearStr.slice(0, 4), 10) || new Date().getFullYear();
   const poster = show.poster_path ? `https://image.tmdb.org/t/p/w500${show.poster_path}` : undefined;
   const background = show.backdrop_path ? `https://image.tmdb.org/t/p/w1280${show.backdrop_path}` : poster;
 
+  const aliases: string[] = [];
+  if (show.original_name && show.original_name !== name) aliases.push(show.original_name);
+  if (show.original_title && show.original_title !== name) aliases.push(show.original_title);
+  if (show.title && show.title !== name) aliases.push(show.title);
+  if (show.name && show.name !== name) aliases.push(show.name);
+
   return {
     id: `kd:${show.id}`,
-    source: 'cinemeta',
+    source: 'kdrama',
     ref: String(show.id),
     name,
     kind: isMovie ? 'movie' : 'series',
     year,
     maturity: '16+',
-    runtime: 60,
+    runtime: isMovie ? 120 : 60,
     seasons: [],
     genres: ['K-Drama', 'Korean'],
     synopsis: (show.overview ?? '').trim(),
@@ -81,6 +108,7 @@ function toKDramaTitle(show: TmdbTvShow, isMovie = false): Title {
     imdbRating: show.vote_average ? show.vote_average.toFixed(1) : undefined,
     tmdbId: show.id,
     detailed: false,
+    aliases: aliases.length ? [...new Set(aliases)] : undefined,
   };
 }
 
@@ -102,21 +130,22 @@ export interface KDramaPageResult {
 export async function browseKDramaPage(o: KDramaBrowseOptions = {}): Promise<KDramaPageResult> {
   const page = o.page ?? 1;
   const cat = (o.category ?? '').toLowerCase();
+  const isMovie = cat.includes('movie');
   const genreId = o.genre ? GENRE_MAP[o.genre] : undefined;
 
-  let url = `${TMDB_BASE}/discover/tv?api_key=${TMDB_KEY}&with_origin_country=KR&with_original_language=ko&without_genres=16,10764,10767,10763&page=${page}`;
+  let url = isMovie
+    ? `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&with_origin_country=KR&with_original_language=ko&without_genres=16&sort_by=popularity.desc&page=${page}`
+    : `${TMDB_BASE}/discover/tv?api_key=${TMDB_KEY}&with_origin_country=KR&with_original_language=ko&without_genres=16,10764,10767,10763&page=${page}`;
 
-  if (genreId) {
+  if (genreId && !isMovie) {
     url += `&with_genres=${genreId}`;
   }
 
   if (cat.includes('top')) {
     url += '&sort_by=vote_average.desc&vote_count.gte=30';
-  } else if (cat.includes('airing')) {
+  } else if (cat.includes('airing') && !isMovie) {
     url = `${TMDB_BASE}/tv/on_the_air?api_key=${TMDB_KEY}&page=${page}`;
-  } else if (cat.includes('movie')) {
-    url = `${TMDB_BASE}/discover/movie?api_key=${TMDB_KEY}&with_origin_country=KR&with_original_language=ko&without_genres=16&sort_by=popularity.desc&page=${page}`;
-  } else {
+  } else if (!isMovie) {
     // Trending / Popular
     url += '&sort_by=popularity.desc';
   }
@@ -125,7 +154,6 @@ export async function browseKDramaPage(o: KDramaBrowseOptions = {}): Promise<KDr
   return cached<KDramaPageResult>(cacheKey, { ttl: 2 * 3600 * 1000 }, async () => {
     try {
       const data = await getJson<TmdbPageResult>(url, { timeout: 12000, signal: o.signal, retries: 1 });
-      const isMovie = cat.includes('movie');
       const filtered = (data.results ?? []).filter((r) => {
         if (cat.includes('airing')) {
           return r.origin_country?.includes('KR') || r.original_language === 'ko';
@@ -150,13 +178,25 @@ export async function searchKDrama(query: string, signal?: AbortSignal): Promise
   const q = query.trim();
   if (q.length < 2) return [];
 
-  const url = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`;
+  const tvUrl = `${TMDB_BASE}/search/tv?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`;
+  const movieUrl = `${TMDB_BASE}/search/movie?api_key=${TMDB_KEY}&query=${encodeURIComponent(q)}&page=1`;
   try {
-    const data = await getJson<TmdbPageResult>(url, { timeout: 9000, signal, retries: 1 });
-    const koreanOnly = (data.results ?? []).filter(
+    const [tvData, movieData] = await Promise.all([
+      getJson<TmdbPageResult>(tvUrl, { timeout: 9000, signal, retries: 1 }).catch(() => ({ results: [] })),
+      getJson<TmdbPageResult>(movieUrl, { timeout: 9000, signal, retries: 1 }).catch(() => ({ results: [] })),
+    ]);
+
+    const koreanTv = (tvData.results ?? []).filter(
       (r) => r.origin_country?.includes('KR') || r.original_language === 'ko',
     );
-    return koreanOnly.map((show) => toKDramaTitle(show));
+    const koreanMovies = (movieData.results ?? []).filter(
+      (r) => r.origin_country?.includes('KR') || r.original_language === 'ko',
+    );
+
+    return [
+      ...koreanTv.map((show) => toKDramaTitle(show, false)),
+      ...koreanMovies.map((show) => toKDramaTitle(show, true)),
+    ];
   } catch {
     return [];
   }
@@ -165,6 +205,7 @@ export async function searchKDrama(query: string, signal?: AbortSignal): Promise
 interface TmdbTvDetail {
   id: number;
   name: string;
+  original_name?: string;
   overview: string;
   poster_path?: string;
   backdrop_path?: string;
@@ -188,14 +229,71 @@ interface TmdbTvDetail {
   };
 }
 
-/** Fetches full detail, seasons, episodes, and IMDb ID for a K-Drama */
+export async function detailKDramaById(tmdbId: number, isMovie = false): Promise<Title> {
+  const stubTitle: Title = {
+    id: `kd:${tmdbId}`,
+    source: 'kdrama',
+    ref: String(tmdbId),
+    name: 'Loading K-Drama…',
+    kind: isMovie ? 'movie' : 'series',
+    year: new Date().getFullYear(),
+    maturity: '16+',
+    runtime: isMovie ? 120 : 60,
+    seasons: [],
+    genres: ['K-Drama', 'Korean'],
+    synopsis: '',
+    cast: [],
+    creators: [],
+    tint: tintFor(String(tmdbId)),
+    quality: ['HD', 'K-Drama'],
+    language: 'Korean',
+    tmdbId,
+    detailed: false,
+  };
+  return detailKDrama(stubTitle);
+}
+
+/** Fetches full detail, seasons, episodes, and IMDb ID for a K-Drama with automatic TV/Movie endpoint recovery */
 export async function detailKDrama(title: Title): Promise<Title> {
   const tmdbId = title.tmdbId ?? parseInt(title.ref.replace(/^kd:/, ''), 10);
   if (!tmdbId || isNaN(tmdbId)) return { ...title, detailed: true };
 
-  const url = `${TMDB_BASE}/tv/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=external_ids,credits`;
+  // If title is marked as a movie, or if TV query fails, try movie endpoint
+  if (title.kind === 'movie') {
+    try {
+      const url = `${TMDB_BASE}/movie/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=external_ids,credits`;
+      const d = await getJson<TmdbMovieDetail>(url, { timeout: 10000, retries: 1 });
+      const imdbId = d.external_ids?.imdb_id ?? title.imdbId;
+      const cast = (d.credits?.cast ?? []).slice(0, 10).map((c) => c.name);
+      const creators = (d.credits?.crew ?? [])
+        .filter((c) => c.job === 'Director' || c.job === 'Writer')
+        .map((c) => c.name);
+      const year = d.release_date ? parseInt(d.release_date.slice(0, 4), 10) || title.year : title.year;
+      return {
+        ...title,
+        name: d.title || title.name,
+        year,
+        runtime: d.runtime || title.runtime,
+        synopsis: (d.overview ?? title.synopsis).trim(),
+        poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : title.poster,
+        background: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : title.background,
+        imdbRating: d.vote_average ? d.vote_average.toFixed(1) : title.imdbRating,
+        tmdbId,
+        imdbId,
+        cast,
+        creators,
+        seasons: [],
+        detailed: true,
+      };
+    } catch {
+      // Fall through to TV endpoint if movie failed
+    }
+  }
+
+  // Television Series endpoint
+  const tvUrl = `${TMDB_BASE}/tv/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=external_ids,credits`;
   try {
-    const d = await getJson<TmdbTvDetail>(url, { timeout: 10000, retries: 1 });
+    const d = await getJson<TmdbTvDetail>(tvUrl, { timeout: 10000, retries: 1 });
     const imdbId = d.external_ids?.imdb_id ?? title.imdbId;
     const cast = (d.credits?.cast ?? []).slice(0, 10).map((c) => c.name);
     const creators = (d.credits?.crew ?? [])
@@ -222,6 +320,11 @@ export async function detailKDrama(title: Title): Promise<Title> {
 
     return {
       ...title,
+      name: d.name || title.name,
+      synopsis: (d.overview ?? title.synopsis).trim(),
+      poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : title.poster,
+      background: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : title.background,
+      imdbRating: d.vote_average ? d.vote_average.toFixed(1) : title.imdbRating,
       tmdbId,
       imdbId,
       cast,
@@ -230,6 +333,34 @@ export async function detailKDrama(title: Title): Promise<Title> {
       detailed: true,
     };
   } catch {
+    // If TV endpoint failed and kind wasn't movie, try movie endpoint as fallback
+    if (title.kind !== 'movie') {
+      try {
+        const movieUrl = `${TMDB_BASE}/movie/${tmdbId}?api_key=${TMDB_KEY}&append_to_response=external_ids,credits`;
+        const d = await getJson<TmdbMovieDetail>(movieUrl, { timeout: 10000, retries: 1 });
+        const imdbId = d.external_ids?.imdb_id ?? title.imdbId;
+        const cast = (d.credits?.cast ?? []).slice(0, 10).map((c) => c.name);
+        const creators = (d.credits?.crew ?? [])
+          .filter((c) => c.job === 'Director' || c.job === 'Writer')
+          .map((c) => c.name);
+        return {
+          ...title,
+          name: d.title || title.name,
+          kind: 'movie',
+          runtime: d.runtime || title.runtime,
+          synopsis: (d.overview ?? title.synopsis).trim(),
+          poster: d.poster_path ? `https://image.tmdb.org/t/p/w500${d.poster_path}` : title.poster,
+          background: d.backdrop_path ? `https://image.tmdb.org/t/p/w1280${d.backdrop_path}` : title.background,
+          imdbRating: d.vote_average ? d.vote_average.toFixed(1) : title.imdbRating,
+          tmdbId,
+          imdbId,
+          cast,
+          creators,
+          seasons: [],
+          detailed: true,
+        };
+      } catch {}
+    }
     return { ...title, detailed: true };
   }
 }

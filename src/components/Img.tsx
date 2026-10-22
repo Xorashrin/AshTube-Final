@@ -17,7 +17,12 @@ interface Props extends Omit<ImageProps, 'source' | 'resizeMode'> {
 const MODES: Record<Fit, ImageResizeMode> = { cover: 'cover', contain: 'contain', fill: 'stretch', none: 'center', 'scale-down': 'contain' };
 
 export function Image({ source, contentFit = 'cover', transition = 0, cachePolicy: _cache, recyclingKey: _key, ...rest }: Props) {
-  const src = typeof source === 'string' ? { uri: source } : source;
+  const src =
+    typeof source === 'string'
+      ? { uri: source, cache: 'force-cache' as const }
+      : source && typeof source === 'object' && 'uri' in source
+        ? { cache: 'force-cache' as const, ...source }
+        : source;
   if (!src) return null;
-  return <RNImage {...rest} source={src} resizeMode={MODES[contentFit]} fadeDuration={transition} />;
+  return <RNImage {...rest} source={src as ImageSourcePropType} resizeMode={MODES[contentFit]} fadeDuration={transition} />;
 }

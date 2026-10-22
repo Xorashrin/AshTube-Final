@@ -350,7 +350,8 @@ export default function TitleScreen({ navigation, route }: Props) {
         visible={downloadOpen}
         onClose={() => setDownloadOpen(false)}
         title={title}
-        onStart={(serverId) => startDownload(title.id, undefined, serverId)}
+        episode={title.kind === 'series' ? target?.episode : undefined}
+        onStart={(serverId) => startDownload(title.id, title.kind === 'series' ? target?.episode.id : undefined, serverId)}
       />
 
     </View>

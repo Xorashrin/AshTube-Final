@@ -45,7 +45,7 @@ type GetStreams = (tmdbId: string, mediaType: string, season?: number, episode?:
 
 const DIR = `${FileSystem.cacheDirectory ?? ''}nuvio/`;
 const MANIFEST_TTL = 24 * 3600 * 1000;
-const RUN_TIMEOUT = 18000;
+const RUN_TIMEOUT = 6000;
 const HEALTH_KEY = 'mythtube:nuvio:health:v1';
 // Public TMDB key shipped inside the vetted community plugins; used only for the plugins that ask the host for one.
 export const TMDB_KEY = '439c478a771f35c05022f9feabcca01c';
@@ -154,7 +154,7 @@ async function readScript(p: Provider): Promise<string> {
   } catch {
     // fall through to the network
   }
-  const code = await getTextMirrored(`${p.repo.base}/${p.scraper.filename}`, { timeout: 20000 });
+  const code = await getTextMirrored(`${p.repo.base}/${p.scraper.filename}`, { timeout: 6000 });
   FileSystem.makeDirectoryAsync(DIR, { intermediates: true })
     .then(() => FileSystem.writeAsStringAsync(file, code))
     .catch(() => undefined);

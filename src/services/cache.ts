@@ -67,6 +67,27 @@ export async function cached<T>(key: string, opts: CachedOptions, fetcher: () =>
   return job;
 }
 
+/** Synchronous in-memory cache inspection for instant sub-300ms rendering */
+export function peekMemoryCache<T>(key: string, maxAge?: number): T | null {
+  const hit = memory.get(key) as Entry<T> | undefined;
+  if (!hit) return null;
+  if (maxAge !== undefined && Date.now() - hit.at > maxAge) return null;
+  return hit.value;
+}
+
+/**
+ * Cache source-discovery results with a strict TTL.
+ * Never caches empty results or temporary errors as successful sources.
+ */
+export async function cacheSourceResult<T>(key: string, sources: T, ttlMs = 5 * 60 * 1000): Promise<void> {
+  if (Array.isArray(sources) && sources.length === 0) return;
+  await writeCache(`src:${key}`, sources, true);
+}
+
+export function getCachedSourceResult<T>(key: string, maxAge = 5 * 60 * 1000): T | null {
+  return peekMemoryCache<T>(`src:${key}`, maxAge);
+}
+
 export async function clearPersistentCache(): Promise<void> {
   memory.clear();
   try {

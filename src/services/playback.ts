@@ -153,7 +153,8 @@ export function altNames(title: Title): string[] {
   const full = title.name.trim();
   const short = full.split(/\s*[:–—]\s+|\s+-\s+/)[0].trim();
   const noArticle = full.replace(/^(the|a|an)\s+/i, '');
-  return [...new Set([full, short, noArticle].filter((n) => n.length >= 3))];
+  const aliases = (title.aliases ?? []).map((a) => a.trim()).filter((a) => a.length >= 3);
+  return [...new Set([full, short, noArticle, ...aliases].filter((n) => n.length >= 3))];
 }
 
 const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 30, bdix: 25, wp: 10, nuvio: 0, stremio: 0 };
@@ -343,8 +344,8 @@ interface Gatherer {
 
 const PARALLEL_RESOLVES = 8;
 const GRACE_MS = 600;
-const HARD_CAP_MS = 90000;
-const QUICK_CAP_MS = 30000;
+const HARD_CAP_MS = 20000;
+const QUICK_CAP_MS = 8000;
 
 export class SourceSearch {
   readonly servers: Server[] = [];
@@ -358,6 +359,7 @@ export class SourceSearch {
   private gatherersLeft = 0;
   earlyLeft = 0;
   private listeners = new Set<() => void>();
+  private abortController = new AbortController();
   /** Counters shown on the failure screen, so a "no server" result can be diagnosed. */
   readonly stats = { verified: 0, unreachable: 0, rejected: 0, plugins: 0, pluginsTotal: 0, pluginsWithStreams: 0 };
 
@@ -368,11 +370,24 @@ export class SourceSearch {
     readonly quick = false,
   ) {
     if (quick) {
-      setTimeout(() => this.start(), 200);
+      setTimeout(() => {
+        if (!this.abortController.signal.aborted) this.start();
+      }, 100);
     } else {
       // Start immediately for instant tap-and-play user experience
       this.start();
     }
+  }
+
+  cancel() {
+    this.done = true;
+    this.queue = [];
+    this.abortController.abort();
+    this.emit();
+  }
+
+  get isCancelled(): boolean {
+    return this.abortController.signal.aborted;
   }
 
   subscribe(fn: () => void): () => void {
@@ -385,6 +400,7 @@ export class SourceSearch {
   }
 
   private add = (servers: Server[]) => {
+    if (this.abortController.signal.aborted) return;
     const key = (s: Server) => s.id.replace(/^x:/, '');
     const fresh = servers.filter((s) => !this.seen.has(key(s)));
     if (fresh.length === 0) return;
@@ -397,13 +413,13 @@ export class SourceSearch {
   };
 
   private pump() {
-    while (this.active < PARALLEL_RESOLVES && this.queue.length > 0) {
+    while (this.active < PARALLEL_RESOLVES && this.queue.length > 0 && !this.abortController.signal.aborted) {
       const server = this.queue.shift()!;
       this.active++;
       const t0 = Date.now();
-      withTimeout(server.resolve!(), 40000, server.name)
+      withTimeout(server.resolve!(), 10000, server.name)
         .then((playable) => {
-          if (this.rejected.has(server.id)) return;
+          if (this.rejected.has(server.id) || this.abortController.signal.aborted) return;
           const ms = Date.now() - t0;
           this.results.push({ server, playable, ms, score: score(server, playable, ms, false) });
           this.results.sort((a, b) => b.score - a.score);
@@ -610,8 +626,8 @@ function buildGatherers(title: Title, episode: Episode | undefined, quick: boole
       const ids = await identify(title);
       if (!ids.tmdbId && !ids.imdbId) return;
       const waitedFrom = Date.now();
-      while (engine.earlyLeft > 0 && !engine.hasTop && Date.now() - waitedFrom < 4000) await sleep(200);
-      if (engine.hasTop) return;
+      while (engine.earlyLeft > 0 && !engine.hasTop && Date.now() - waitedFrom < 350) await sleep(50);
+      if (engine.hasTop || engine.isCancelled) return;
 
       const kind = title.kind === 'series' ? 'tv' : 'movie';
       // AniList sequels are separate entries: the mapped TMDB season wins over the entry's own "season 1".
@@ -619,26 +635,30 @@ function buildGatherers(title: Title, episode: Episode | undefined, quick: boole
       const number = episode?.number ?? (kind === 'tv' ? 1 : undefined);
 
       const tasks: Promise<void>[] = [];
-      if (ids.imdbId) {
+      if (ids.imdbId && !engine.isCancelled) {
         const sid = kind === 'tv' ? `${ids.imdbId}:${season}:${number}` : ids.imdbId;
         tasks.push(
           addonStreams(STREMIFY, kind === 'tv' ? 'series' : 'movie', sid)
-            .then((streams) => add(streamServers(ctx, streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: STREMIFY.name, headers: s.behaviorHints?.proxyHeaders?.request })), 'stremio')))
+            .then((streams) => {
+              if (engine.isCancelled) return;
+              add(streamServers(ctx, streams.map((s) => ({ url: s.url!, quality: s.name ?? s.title, provider: STREMIFY.name, headers: s.behaviorHints?.proxyHeaders?.request })), 'stremio'));
+            })
             .catch(() => undefined),
         );
       }
-      if (ids.tmdbId) {
+      if (ids.tmdbId && !engine.isCancelled) {
         const tmdb = String(ids.tmdbId);
         const providers = await rankProviders(await loadProviders(kind), preferredLangs, { anime: title.source === 'anilist' });
         engine.stats.pluginsTotal = providers.length;
         const runBatch = async (batch: typeof providers) => {
           let next = 0;
           const worker = async () => {
-            while (next < batch.length && !engine.done && !engine.hasTop) {
+            while (next < batch.length && !engine.done && !engine.hasTop && !engine.isCancelled) {
               const p = batch[next++];
               engine.stats.plugins++;
               try {
                 const found = await runProvider(p, tmdb, kind, season, number);
+                if (engine.isCancelled) return;
                 if (found.length > 0) engine.stats.pluginsWithStreams++;
                 add(streamServers(ctx, found, 'nuvio'));
               } catch {
@@ -651,9 +671,9 @@ function buildGatherers(title: Title, episode: Episode | undefined, quick: boole
         tasks.push(
           (async () => {
             await runBatch(providers.slice(0, quick ? 8 : 16));
-            if (quick) return;
-            if (engine.results.length === 0) await runBatch(providers.slice(16, 50));
-            if (engine.results.length === 0) await runBatch(providers.slice(50));
+            if (quick || engine.isCancelled) return;
+            if (engine.results.length === 0) await runBatch(providers.slice(16, 40));
+            if (engine.results.length === 0 && !engine.isCancelled) await runBatch(providers.slice(40));
           })(),
         );
       }

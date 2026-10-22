@@ -6,7 +6,7 @@
   "scripts": {
     "start": "expo start",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types tests/content_isolation.test.ts && node --experimental-strip-types tests/performance_and_resilience.test.ts",
+    "test": "node --experimental-strip-types tests/content_isolation.test.ts && node --experimental-strip-types tests/performance_and_resilience.test.ts && node --experimental-strip-types tests/anime_kdrama_and_providers.test.ts",
     "prebuild:android": "expo prebuild --platform android --clean --no-install"
   },
   "dependencies": {

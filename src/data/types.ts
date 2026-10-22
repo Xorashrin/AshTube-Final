@@ -5,7 +5,7 @@ export type Maturity = 'ALL' | '7+' | '13+' | '16+' | '18+';
 export type Badge = 'new' | 'new-episode' | 'airing';
 
 /** Where a title came from. Decides how it is played, downloaded and refreshed. */
-export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'bdix' | 'stremio' | 'cinemeta' | 'anilist' | 'tmdb';
+export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'bdix' | 'stremio' | 'cinemeta' | 'anilist' | 'tmdb' | 'kdrama';
 
 export interface Episode {
   id: string;

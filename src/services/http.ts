@@ -6,11 +6,13 @@ export const UA =
   'Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36';
 
 export class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    readonly url: string,
-  ) {
+  readonly status: number;
+  readonly url: string;
+
+  constructor(status: number, url: string) {
     super(`HTTP ${status}`);
+    this.status = status;
+    this.url = url;
   }
 }
 

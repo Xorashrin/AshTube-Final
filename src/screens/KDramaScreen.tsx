@@ -8,6 +8,7 @@ import { ScreenHeader } from '../components/ScreenHeader';
 import { Txt } from '../components/Txt';
 import type { Title } from '../data/types';
 import { useRootNav } from '../navigation/types';
+import { register } from '../services/catalog';
 import { warmUp } from '../services/playback';
 import { browseKDramaPage, KDRAMA_GENRES } from '../services/sources/kdrama';
 import { useApp } from '../state/AppState';
@@ -74,8 +75,9 @@ export default function KDramaScreen() {
 
         if (reset) {
           seenIds.current.clear();
+          const registered = register(res.items);
           const unique: Title[] = [];
-          for (const item of res.items) {
+          for (const item of registered) {
             if (!seenIds.current.has(item.id)) {
               seenIds.current.add(item.id);
               unique.push(item);
@@ -85,8 +87,9 @@ export default function KDramaScreen() {
           setPage(2);
           setDone(!res.hasNextPage || unique.length === 0);
         } else {
+          const registered = register(res.items);
           const fresh: Title[] = [];
-          for (const item of res.items) {
+          for (const item of registered) {
             if (!seenIds.current.has(item.id)) {
               seenIds.current.add(item.id);
               fresh.push(item);

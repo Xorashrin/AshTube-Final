@@ -75,7 +75,7 @@ export async function catalog(addon: Addon, catalogId: string, opts: { skip?: nu
 }
 
 export async function streams(addon: Addon, type: 'movie' | 'series', id: string): Promise<AddonStream[]> {
-  const data = await getJson<{ streams?: AddonStream[] }>(`${addon.base}/stream/${type}/${enc(id)}.json`, { timeout: 25000, retries: 1 });
+  const data = await getJson<{ streams?: AddonStream[] }>(`${addon.base}/stream/${type}/${enc(id)}.json`, { timeout: 6000, retries: 0 });
   return (data.streams ?? []).filter((s) => typeof s.url === 'string' && /^https?:\/\//i.test(s.url));
 }
 

@@ -118,27 +118,62 @@ export function nextSeason(date = new Date()): { season: AnimeSeason; year: numb
 
 /** Any AniList listing with genuine server-backed pagination via pageInfo.hasNextPage */
 export async function browsePage(o: BrowseOptions): Promise<AnimePageResult> {
-  const d = await gql<{ Page: { pageInfo: { hasNextPage: boolean; currentPage: number; total?: number }; media: Media[] } }>(
-    `query($p:Int,$n:Int,$sort:[MediaSort],$status:MediaStatus,$format:[MediaFormat],$genre:String,$season:MediaSeason,$year:Int,$country:CountryCode,$beforeYear:FuzzyDateInt){
-      Page(page:$p, perPage:$n){
-        pageInfo { hasNextPage currentPage total }
-        media(type:ANIME, sort:$sort, status:$status, format_in:$format, genre:$genre, season:$season, seasonYear:$year, countryOfOrigin:$country, startDate_lesser:$beforeYear, isAdult:false){
-          ${FIELDS}
-        }
+  const varDefs: string[] = ['$p:Int', '$n:Int', '$sort:[MediaSort]'];
+  const args: string[] = ['type:ANIME', 'sort:$sort', 'isAdult:false'];
+  const vars: Record<string, unknown> = {
+    p: o.page ?? 1,
+    n: o.perPage ?? 24,
+    sort: [o.sort || 'POPULARITY_DESC'],
+  };
+
+  if (o.status) {
+    varDefs.push('$status:MediaStatus');
+    args.push('status:$status');
+    vars.status = o.status;
+  }
+  if (o.format && o.format.length > 0) {
+    varDefs.push('$format:[MediaFormat]');
+    args.push('format_in:$format');
+    vars.format = o.format;
+  }
+  if (o.genre) {
+    varDefs.push('$genre:String');
+    args.push('genre:$genre');
+    vars.genre = o.genre;
+  }
+  if (o.season) {
+    varDefs.push('$season:MediaSeason');
+    args.push('season:$season');
+    vars.season = o.season;
+  }
+  if (o.seasonYear) {
+    varDefs.push('$year:Int');
+    args.push('seasonYear:$year');
+    vars.year = o.seasonYear;
+  }
+  if (o.countryOfOrigin) {
+    varDefs.push('$country:CountryCode');
+    args.push('countryOfOrigin:$country');
+    vars.country = o.countryOfOrigin;
+  }
+  if (o.startDate_lesser) {
+    varDefs.push('$beforeYear:FuzzyDateInt');
+    args.push('startDate_lesser:$beforeYear');
+    vars.beforeYear = o.startDate_lesser;
+  }
+
+  const query = `query(${varDefs.join(',')}){
+    Page(page:$p, perPage:$n){
+      pageInfo { hasNextPage currentPage total }
+      media(${args.join(', ')}){
+        ${FIELDS}
       }
-    }`,
-    {
-      p: o.page ?? 1,
-      n: o.perPage ?? 24,
-      sort: [o.sort],
-      status: o.status ?? null,
-      format: o.format ?? null,
-      genre: o.genre ?? null,
-      season: o.season ?? null,
-      year: o.seasonYear ?? null,
-      country: o.countryOfOrigin ?? null,
-      beforeYear: o.startDate_lesser ?? null,
-    },
+    }
+  }`;
+
+  const d = await gql<{ Page: { pageInfo: { hasNextPage: boolean; currentPage: number; total?: number }; media: Media[] } }>(
+    query,
+    vars,
     o.signal,
   );
   return {
@@ -250,11 +285,11 @@ export async function mapIds(title: Title): Promise<{
       const m = zip?.mappings;
       if (m && (m.themoviedb_id || m.imdb_id)) {
         return {
-          tmdbId: m.themoviedb_id,
+          tmdbId: m.themoviedb_id ? Number(m.themoviedb_id) : undefined,
           imdbId: m.imdb_id,
-          season: m.thetvdb_season,
-          malId: m.mal_id,
-          tvdbId: m.thetvdb_id,
+          season: m.thetvdb_season ? Number(m.thetvdb_season) : undefined,
+          malId: m.mal_id ? Number(m.mal_id) : undefined,
+          tvdbId: m.thetvdb_id ? Number(m.thetvdb_id) : undefined,
         };
       }
     } catch {}
@@ -267,10 +302,10 @@ export async function mapIds(title: Title): Promise<{
       );
       if (arm && (arm.themoviedb || arm.imdb)) {
         return {
-          tmdbId: arm.themoviedb ?? undefined,
+          tmdbId: arm.themoviedb ? Number(arm.themoviedb) : undefined,
           imdbId: arm.imdb ?? undefined,
-          season: arm['themoviedb-season'] ?? undefined,
-          malId: arm.myanimelist ?? undefined,
+          season: arm['themoviedb-season'] ? Number(arm['themoviedb-season']) : undefined,
+          malId: arm.myanimelist ? Number(arm.myanimelist) : undefined,
         };
       }
     } catch {}
@@ -288,20 +323,27 @@ interface ZipEpisode {
   airdate?: string;
 }
 
+export async function detailAnimeById(id: number): Promise<Title> {
+  const d = await gql<{ Media: Media }>(`query($id:Int){ Media(id:$id){ ${FIELDS} } }`, { id });
+  if (!d?.Media) throw new Error(`AniList anime ${id} not found`);
+  const base = toTitle(d.Media);
+  return detail(base);
+}
+
 export async function detail(title: Title): Promise<Title> {
   const anilistId = Number(title.ref);
   const [d, zip, ids] = await Promise.all([
-    gql<{ Media: Media }>(`query($id:Int){ Media(id:$id){ ${FIELDS} } }`, { id: anilistId }),
+    gql<{ Media: Media }>(`query($id:Int){ Media(id:$id){ ${FIELDS} } }`, { id: anilistId }).catch(() => null),
     getJson<{ mappings?: ZipMappings; episodes?: Record<string, ZipEpisode> }>(
       `https://api.ani.zip/mappings?anilist_id=${title.ref}`,
       { timeout: 9000, retries: 1 },
     ).catch(() => ({ mappings: undefined, episodes: {} as Record<string, ZipEpisode> })),
     mapIds(title),
   ]);
-  const fresh = toTitle(d.Media);
+  const fresh = d?.Media ? toTitle(d.Media) : title;
   const zipEpisodes = zip.episodes ?? {};
   const numbered = Object.keys(zipEpisodes).filter((k) => /^\d+$/.test(k)).map(Number);
-  const aired = d.Media.nextAiringEpisode ? d.Media.nextAiringEpisode.episode - 1 : (d.Media.episodes ?? (numbered.length ? Math.max(...numbered) : 0));
+  const aired = d?.Media?.nextAiringEpisode ? d.Media.nextAiringEpisode.episode - 1 : (d?.Media?.episodes ?? (numbered.length ? Math.max(...numbered) : 0));
   const count = fresh.kind === 'movie' ? 0 : Math.max(0, aired);
   const episodes: Episode[] = Array.from({ length: count }, (_, i) => {
     const z = zipEpisodes[String(i + 1)];
@@ -317,8 +359,8 @@ export async function detail(title: Title): Promise<Title> {
     };
   });
 
-  const tmdbId = ids.tmdbId ?? zip?.mappings?.themoviedb_id;
-  const tmdbSeason = ids.season ?? zip?.mappings?.thetvdb_season;
+  const tmdbId = ids.tmdbId ?? (zip?.mappings?.themoviedb_id ? Number(zip.mappings.themoviedb_id) : undefined);
+  const tmdbSeason = ids.season ?? (zip?.mappings?.thetvdb_season ? Number(zip.mappings.thetvdb_season) : undefined);
   const imdbId = ids.imdbId ?? zip?.mappings?.imdb_id;
 
   return {

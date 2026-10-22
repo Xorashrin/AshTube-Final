@@ -40,9 +40,26 @@ export function register(titles: Title[]): Title[] {
 }
 
 function stub(id: string): Title {
+  const isKd = id.startsWith('kd:');
+  const isAl = id.startsWith('al:');
+  const isFtp = id.startsWith('ft:');
   return {
-    id, source: 'cinemeta', ref: id, name: 'Unavailable title', kind: 'movie', year: new Date().getFullYear(), maturity: '13+',
-    runtime: 0, seasons: [], genres: [], synopsis: '', cast: [], creators: [], tint: tintFor(id), quality: [],
+    id,
+    source: isKd ? 'kdrama' : isAl ? 'anilist' : isFtp ? 'amaderftp' : 'cinemeta',
+    ref: id.replace(/^(kd:|al:|cm:|ft:)/, ''),
+    name: 'Loading…',
+    kind: isKd || isAl ? 'series' : 'movie',
+    year: new Date().getFullYear(),
+    maturity: '13+',
+    runtime: 0,
+    seasons: [],
+    genres: [],
+    synopsis: '',
+    cast: [],
+    creators: [],
+    tint: tintFor(id),
+    quality: [],
+    detailed: false,
   };
 }
 
@@ -86,21 +103,35 @@ const detailJobs = new Map<string, Promise<Title>>();
 /** Fills in cast, runtime and real episode lists. Safe to call repeatedly. */
 export function loadDetail(id: string): Promise<Title> {
   const base = registry.get(id);
-  if (!base) return Promise.resolve(stub(id));
-  if (base.detailed) return Promise.resolve(base);
+  if (base?.detailed) return Promise.resolve(base);
   const running = detailJobs.get(id);
   if (running) return running;
   const job = (async () => {
     try {
-      const fresh =
-        base.id.startsWith('kd:') ? await kdrama.detailKDrama(base)
-        : base.source === 'cinemeta' ? await cinemeta.detail(base)
-        : base.source === 'anilist' ? await anilist.detail(base)
-        : base.source === 'amaderftp' ? await amaderftp.detail(base)
-        : { ...base, detailed: true };
+      let fresh: Title;
+      if (id.startsWith('kd:')) {
+        const tmdbId = parseInt(id.replace(/^kd:/, ''), 10);
+        fresh = base ? await kdrama.detailKDrama(base) : await kdrama.detailKDramaById(tmdbId);
+      } else if (id.startsWith('al:') || base?.source === 'anilist') {
+        const alId = parseInt((base?.ref ?? id).replace(/^al:/, ''), 10);
+        fresh = base ? await anilist.detail(base) : await anilist.detailAnimeById(alId);
+      } else if (base?.source === 'cinemeta' || id.startsWith('cm:') || id.startsWith('tt')) {
+        const ref = base?.ref ?? id.replace(/^cm:/, '');
+        const titleToDetail = base ?? {
+          id, source: 'cinemeta' as const, ref, name: 'Loading…', kind: 'movie' as const, year: new Date().getFullYear(),
+          maturity: '13+', runtime: 0, seasons: [], genres: [], synopsis: '', cast: [], creators: [], tint: tintFor(id), quality: []
+        };
+        fresh = await cinemeta.detail(titleToDetail);
+      } else if (base?.source === 'amaderftp') {
+        fresh = await amaderftp.detail(base);
+      } else if (base) {
+        fresh = { ...base, detailed: true };
+      } else {
+        return stub(id);
+      }
       return register([fresh])[0];
     } catch {
-      return base;
+      return base ?? stub(id);
     } finally {
       detailJobs.delete(id);
     }
@@ -208,9 +239,11 @@ export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResul
     options.sort = 'TRENDING_DESC';
   } else if (cat.includes('top')) {
     options.sort = 'SCORE_DESC';
-  } else if (cat.includes('airing') || cat.includes('releasing')) {
+  } else if (cat.includes('ongoing') || cat.includes('airing') || cat.includes('releasing')) {
     options.status = 'RELEASING';
     options.sort = 'POPULARITY_DESC';
+  } else if (cat.includes('recently released') || cat.includes('recent')) {
+    options.sort = 'START_DATE_DESC';
   } else if (cat.includes('upcoming')) {
     options.status = 'NOT_YET_RELEASED';
     options.sort = 'POPULARITY_DESC';
@@ -224,7 +257,7 @@ export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResul
     options.sort = 'POPULARITY_DESC';
   } else if (cat.includes('updated')) {
     options.sort = 'UPDATED_AT_DESC';
-  } else if (cat.includes('completed')) {
+  } else if (cat.includes('completed') || cat.includes('finished')) {
     options.status = 'FINISHED';
     options.sort = 'END_DATE_DESC';
   } else if (cat.includes('classic')) {
@@ -232,7 +265,7 @@ export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResul
     options.sort = 'SCORE_DESC';
   } else if (cat.includes('movie')) {
     options.format = ['MOVIE'];
-  } else if (cat === 'tv anime' || cat === 'tv') {
+  } else if (cat === 'tv anime' || cat === 'tv' || cat.includes('series')) {
     options.format = ['TV'];
   } else if (cat.includes('ova')) {
     options.format = ['OVA', 'ONA'];
@@ -242,9 +275,12 @@ export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResul
     options.countryOfOrigin = 'CN';
   }
 
-  const res = await anilist.browsePage(options);
-  const items = register(res.items);
-  return { items, hasNextPage: res.hasNextPage };
+  const cacheKey = `anime:feed:${cat || 'all'}:${q.genre ?? 'all'}:${q.page}`;
+  return cached<AnimeBatchResult>(cacheKey, { ttl: FEED_TTL }, async () => {
+    const res = await anilist.browsePage(options);
+    const items = register(res.items);
+    return { items, hasNextPage: res.hasNextPage };
+  });
 }
 
 /** Paginated anime loader for continuous infinite scrolling */

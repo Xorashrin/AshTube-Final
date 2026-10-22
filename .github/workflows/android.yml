@@ -16,17 +16,20 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v5
+      - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
 
-      - uses: actions/setup-java@v5
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Install dependencies
         run: npm install --no-audit --no-fund
@@ -54,19 +57,29 @@ jobs:
         run: |
           mkdir -p dist
           APK=$(find android/app/build/outputs/apk/release -name "*.apk" | head -n 1)
+          if [ -z "$APK" ] || [ ! -f "$APK" ]; then
+            echo "::error::Release APK was not generated!"
+            exit 1
+          fi
           cp "$APK" dist/AshTube.apk
+          if [ ! -s dist/AshTube.apk ]; then
+            echo "::error::dist/AshTube.apk is empty!"
+            exit 1
+          fi
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner | sort -V | tail -n 1)"
           "$APKSIGNER" verify --verbose dist/AshTube.apk
           AAPT="$(find "$ANDROID_HOME/build-tools" -name aapt | sort -V | tail -n 1)"
           "$AAPT" dump badging dist/AshTube.apk | grep -E "package:|sdkVersion|native-code"
-          ls -l dist/AshTube.apk
+          ls -lh dist/AshTube.apk
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v4
         with:
           name: AshTube-apk
           path: dist/AshTube.apk
+          if-no-files-found: error
 
       - name: Publish release
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,3 +88,4 @@ jobs:
             --repo "${{ github.repository }}" \
             --title "AshTube $TAG" \
             --notes "One APK for every Android phone and tablet (32-bit and 64-bit ARM). Built from ${{ github.sha }}."
+

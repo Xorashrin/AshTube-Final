@@ -102,11 +102,33 @@ export function identify(title: Title): Promise<Ids> {
         };
       }
 
-      // ---- B. Cinemeta titles
+      // ---- B. K-Drama titles (TMDB source)
+      if (title.source === 'kdrama' || title.id.startsWith('kd:')) {
+        const tmdbId = title.tmdbId ?? parseInt(title.ref.replace(/^kd:/, ''), 10);
+        let imdbId = title.imdbId;
+        if (!imdbId && tmdbId) {
+          try {
+            const endpoint = title.kind === 'movie' ? 'movie' : 'tv';
+            const ext = await getJson<{ imdb_id?: string }>(
+              `https://api.themoviedb.org/3/${endpoint}/${tmdbId}/external_ids?api_key=${TMDB_KEY}`,
+              { timeout: 8000, retries: 1 },
+            );
+            imdbId = ext?.imdb_id;
+          } catch {}
+        }
+        return {
+          tmdbId,
+          imdbId,
+          confidence: tmdbId && imdbId ? 'exact' : tmdbId ? 'high' : undefined,
+        };
+      }
+
+      // ---- C. Cinemeta titles
       if (title.source === 'cinemeta') {
         const detailed = await cinemeta.detail(title).catch(() => title);
-        const imdbId = title.imdbId ?? title.ref;
-        const tmdbId = detailed.tmdbId ?? title.tmdbId ?? (await tmdbFindByImdb(imdbId, title.kind === 'series'));
+        const rawImdb = title.imdbId ?? title.ref;
+        const imdbId = /^tt\d+/i.test(rawImdb) ? rawImdb : detailed.imdbId;
+        const tmdbId = detailed.tmdbId ?? title.tmdbId ?? (imdbId ? await tmdbFindByImdb(imdbId, title.kind === 'series') : undefined);
         return {
           tmdbId,
           imdbId,
@@ -117,7 +139,7 @@ export function identify(title: Title): Promise<Ids> {
       // Adult streams or unmapped stremio titles
       if (title.nsfw || title.source === 'stremio') return {};
 
-      // ---- C. Regional / WordPress / BDIX titles
+      // ---- D. Regional / WordPress / BDIX titles
       const wantSeries = title.kind === 'series';
       const results = await cinemeta.search(title.name).catch(() => [] as Title[]);
       const match = results.find(
