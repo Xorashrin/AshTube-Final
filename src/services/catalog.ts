@@ -14,8 +14,10 @@ import * as amaderftp from './sources/amaderftp';
 import * as anilist from './sources/anilist';
 import * as bdix from './sources/bdix';
 import * as cinemeta from './sources/cinemeta';
+import * as kdrama from './sources/kdrama';
 import * as stremio from './sources/stremio';
 import { CATEGORY, listPosts, SOUTHFREAK, SOUTHFREAK_18 } from './sources/wordpress';
+import { filterForHome } from './classifier';
 
 const NEW_WINDOW = 72 * 3600 * 1000;
 const FEED_TTL = 12 * 60 * 1000;
@@ -91,7 +93,8 @@ export function loadDetail(id: string): Promise<Title> {
   const job = (async () => {
     try {
       const fresh =
-        base.source === 'cinemeta' ? await cinemeta.detail(base)
+        base.id.startsWith('kd:') ? await kdrama.detailKDrama(base)
+        : base.source === 'cinemeta' ? await cinemeta.detail(base)
         : base.source === 'anilist' ? await anilist.detail(base)
         : base.source === 'amaderftp' ? await amaderftp.detail(base)
         : { ...base, detailed: true };
@@ -124,20 +127,25 @@ function wp(key: string, category: number | undefined, perPage = 20): RowDef['lo
 
 const byDateDesc = (a: Title, b: Title) => (b.addedAt ?? 0) - (a.addedAt ?? 0);
 
+/** Strictly movies and series only (no anime, no kdrama, no adult, no live TV) for Home Feed */
+export function filterHomeMedia(items: Title[]): Title[] {
+  return filterForHome(items);
+}
+
 export const HOME_ROWS: RowDef[] = [
-  { key: 'sf-latest', title: 'Just Added', load: wp('latest', undefined, 24) },
-  { key: 'cm-movies', title: 'Trending Movies', load: feed('cm:movie', () => cinemeta.catalog('movie')) },
-  { key: 'cm-series', title: 'Trending Series', load: feed('cm:series', () => cinemeta.catalog('series')) },
-  { key: 'ft-latest', title: 'Fast Streams', load: feed('ft:latest', () => amaderftp.latest()) },
-  { key: 'sf-hindi', title: 'Hindi Dubbed', load: wp('hindi', CATEGORY.hindiDubbed) },
-  { key: 'sf-hollywood', title: 'Hollywood', load: wp('hollywood', CATEGORY.hollywood) },
-  { key: 'sf-bollywood', title: 'Bollywood', load: wp('bollywood', CATEGORY.bollywood) },
-  { key: 'sf-south', title: 'South Indian', load: feed('sf:south', async () => (await Promise.all([CATEGORY.telugu, CATEGORY.tamil, CATEGORY.malayalam].map((c) => listPosts(SOUTHFREAK, { category: c, perPage: 10 }).catch(() => [])))).flat().sort((a, b) => (b.addedAt ?? 0) - (a.addedAt ?? 0))) },
-  { key: 'sf-korean', title: 'Korean', load: wp('korean', CATEGORY.korean) },
-  { key: 'al-trending', title: 'Trending Anime', load: feed('al:trending', () => anilist.trending()) },
-  { key: 'sf-scifi', title: 'Sci-Fi', load: wp('scifi', CATEGORY.scifi) },
-  { key: 'sf-horror', title: 'Horror', load: wp('horror', CATEGORY.horror) },
-  { key: 'sf-animation', title: 'Animation', load: wp('animation', CATEGORY.animation) },
+  { key: 'cm-movies-trending', title: 'Trending Movies', load: feed('cm:movie:trending', async () => filterHomeMedia(await cinemeta.catalog('movie'))) },
+  { key: 'cm-series-trending', title: 'Trending Series', load: feed('cm:series:trending', async () => filterHomeMedia(await cinemeta.catalog('series'))) },
+  { key: 'sf-latest', title: 'Recently Added', load: feed('sf:latest', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { perPage: 24 }))) },
+  { key: 'cm-movies-popular', title: 'Popular Movies', load: feed('cm:movie:popular', async () => filterHomeMedia(await cinemeta.catalog('movie', { skip: 50 }))) },
+  { key: 'cm-series-popular', title: 'Popular Series', load: feed('cm:series:popular', async () => filterHomeMedia(await cinemeta.catalog('series', { skip: 50 }))) },
+  { key: 'ft-latest', title: 'Top Rated Fast Streams', load: feed('ft:latest', async () => filterHomeMedia(await amaderftp.latest())) },
+  { key: 'sf-hollywood', title: 'Hollywood', load: feed('sf:hollywood', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.hollywood }))) },
+  { key: 'sf-hindi', title: 'Bollywood & Hindi', load: feed('sf:hindi', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.hindiDubbed }))) },
+  { key: 'sf-south', title: 'South Indian Cinema', load: feed('sf:south', async () => filterHomeMedia((await Promise.all([CATEGORY.telugu, CATEGORY.tamil, CATEGORY.malayalam].map((c) => listPosts(SOUTHFREAK, { category: c, perPage: 10 }).catch(() => [])))).flat().sort(byDateDesc))) },
+  { key: 'sf-dual', title: 'International Cinema', load: feed('sf:dual', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.dualAudio }))) },
+  { key: 'sf-bangla', title: 'Bangladeshi & Natok', load: feed('sf:bangla', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.bengali }))) },
+  { key: 'sf-scifi', title: 'Sci-Fi & Thriller', load: feed('sf:scifi', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.scifi }))) },
+  { key: 'sf-horror', title: 'Horror', load: feed('sf:horror', async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: CATEGORY.horror }))) },
 ];
 
 const anime = (key: string, title: string, o: anilist.BrowseOptions, ttl = FEED_TTL): RowDef => ({
@@ -170,6 +178,94 @@ export const ANIME_ROWS: RowDef[] = [
 
 export async function loadAnimeGenre(genre: string, page: number): Promise<Title[]> {
   return register(await anilist.browse({ sort: 'POPULARITY_DESC', genre, page, perPage: 30 }));
+}
+
+export interface AnimeBatchQuery {
+  page: number;
+  category?: string;
+  genre?: string | null;
+  sort?: string;
+  signal?: AbortSignal;
+}
+
+export interface AnimeBatchResult {
+  items: Title[];
+  hasNextPage: boolean;
+}
+
+/** Paginated anime feed loader with server-backed pageInfo.hasNextPage */
+export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResult> {
+  const options: anilist.BrowseOptions = {
+    sort: q.sort ?? 'POPULARITY_DESC',
+    page: q.page,
+    perPage: 30,
+    genre: q.genre || undefined,
+    signal: q.signal,
+  };
+
+  const cat = (q.category ?? '').toLowerCase();
+  if (cat.includes('trend')) {
+    options.sort = 'TRENDING_DESC';
+  } else if (cat.includes('top')) {
+    options.sort = 'SCORE_DESC';
+  } else if (cat.includes('airing') || cat.includes('releasing')) {
+    options.status = 'RELEASING';
+    options.sort = 'POPULARITY_DESC';
+  } else if (cat.includes('upcoming')) {
+    options.status = 'NOT_YET_RELEASED';
+    options.sort = 'POPULARITY_DESC';
+  } else if (cat.includes('this season') || cat === 'season') {
+    options.season = THIS_SEASON.season;
+    options.seasonYear = THIS_SEASON.year;
+    options.sort = 'POPULARITY_DESC';
+  } else if (cat.includes('next season')) {
+    options.season = NEXT_SEASON.season;
+    options.seasonYear = NEXT_SEASON.year;
+    options.sort = 'POPULARITY_DESC';
+  } else if (cat.includes('updated')) {
+    options.sort = 'UPDATED_AT_DESC';
+  } else if (cat.includes('completed')) {
+    options.status = 'FINISHED';
+    options.sort = 'END_DATE_DESC';
+  } else if (cat.includes('classic')) {
+    options.startDate_lesser = 20050000;
+    options.sort = 'SCORE_DESC';
+  } else if (cat.includes('movie')) {
+    options.format = ['MOVIE'];
+  } else if (cat === 'tv anime' || cat === 'tv') {
+    options.format = ['TV'];
+  } else if (cat.includes('ova')) {
+    options.format = ['OVA', 'ONA'];
+  } else if (cat.includes('special')) {
+    options.format = ['SPECIAL', 'TV_SHORT'];
+  } else if (cat.includes('donghua')) {
+    options.countryOfOrigin = 'CN';
+  }
+
+  const res = await anilist.browsePage(options);
+  const items = register(res.items);
+  return { items, hasNextPage: res.hasNextPage };
+}
+
+/** Paginated anime loader for continuous infinite scrolling */
+export async function loadAnimeBatch(
+  queryOrPage: number | AnimeBatchQuery,
+  genre?: string | null,
+  sort = 'POPULARITY_DESC',
+  signal?: AbortSignal,
+): Promise<Title[]> {
+  if (typeof queryOrPage === 'object') {
+    const res = await loadAnimeFeed(queryOrPage);
+    return res.items;
+  }
+  const titles = await anilist.browse({
+    sort,
+    genre: genre || undefined,
+    page: queryOrPage,
+    perPage: 30,
+    signal,
+  });
+  return register(titles);
 }
 
 export const ADULT_ROWS: RowDef[] = stremio.ONLYPORN_CATALOGS.map((c) => ({
@@ -220,41 +316,47 @@ async function bdixTitles(query: string): Promise<Title[]> {
 }
 
 // ---------------------------------------------------------------- endless feed
-// After the fixed rows, Home keeps producing new rows as you scroll: genres from Cinemeta and AniList and categories
-// from southfreak, each in successive pages. The sequence never ends in practice (page N+1 only stops when a source
-// runs dry, and empty rows are skipped).
+// After the fixed rows, Home keeps producing new rows as you scroll: genres and categories for Movies and Series.
+// (Strictly NO anime on the Home feed - anime discovery is entirely in the Anime tab).
 
-const CM_MOVIE_GENRES = ['Action', 'Comedy', 'Drama', 'Thriller', 'Horror', 'Sci-Fi', 'Romance', 'Animation', 'Crime', 'Adventure', 'Fantasy', 'Mystery', 'Family', 'Documentary', 'War', 'History', 'Music', 'Western', 'Biography', 'Sport'];
-const CM_SERIES_GENRES = ['Drama', 'Comedy', 'Crime', 'Action', 'Sci-Fi', 'Mystery', 'Animation', 'Fantasy', 'Documentary', 'Romance', 'Horror', 'Reality-TV', 'Adventure', 'Family', 'History'];
+const CM_MOVIE_GENRES = ['Action', 'Comedy', 'Drama', 'Thriller', 'Horror', 'Sci-Fi', 'Romance', 'Crime', 'Adventure', 'Fantasy', 'Mystery', 'Family', 'Documentary', 'War', 'History'];
+const CM_SERIES_GENRES = ['Drama', 'Comedy', 'Crime', 'Action', 'Sci-Fi', 'Mystery', 'Fantasy', 'Documentary', 'Romance', 'Horror', 'Adventure', 'Family', 'History'];
 const SF_CATEGORIES: [string, number][] = [
   ['Hindi Dubbed', CATEGORY.hindiDubbed], ['Hollywood', CATEGORY.hollywood], ['Bollywood', CATEGORY.bollywood], ['Dual Audio', CATEGORY.dualAudio],
-  ['Telugu', CATEGORY.telugu], ['Tamil', CATEGORY.tamil], ['Malayalam', CATEGORY.malayalam], ['Korean', CATEGORY.korean], ['Bangla', CATEGORY.bengali],
-  ['Thriller', 8], ['Comedy', 9], ['Action', 3], ['Drama', 10], ['Romance', 6], ['Crime', 7], ['Adventure', 33], ['Animation', CATEGORY.animation],
+  ['Telugu', CATEGORY.telugu], ['Tamil', CATEGORY.tamil], ['Malayalam', CATEGORY.malayalam], ['Bangla', CATEGORY.bengali],
+  ['Thriller', 8], ['Comedy', 9], ['Action', 3], ['Drama', 10], ['Romance', 6], ['Crime', 7], ['Adventure', 33],
 ];
 
-/** Row number `i` of the endless feed. */
+/** Row number `i` of the endless feed (strictly Movies & Series). */
 export function feedRow(i: number): RowDef {
-  const lane = i % 4;
-  const n = Math.floor(i / 4);
+  const lane = i % 3;
+  const n = Math.floor(i / 3);
   const more = (page: number) => (page > 1 ? 'More ' : '');
   if (lane === 0) {
     const genre = CM_MOVIE_GENRES[n % CM_MOVIE_GENRES.length];
     const page = Math.floor(n / CM_MOVIE_GENRES.length);
-    return { key: `feed-${i}`, title: `${more(page + 1)}${genre} Movies`, load: feed(`feed:cm:m:${genre}:${page}`, () => cinemeta.catalog('movie', { genre, skip: page * 50 }), 6 * 3600 * 1000) };
+    return {
+      key: `feed-${i}`,
+      title: `${more(page + 1)}${genre} Movies`,
+      load: feed(`feed:cm:m:${genre}:${page}`, async () => filterHomeMedia(await cinemeta.catalog('movie', { genre, skip: page * 50 })), 6 * 3600 * 1000),
+    };
   }
   if (lane === 1) {
     const [name, id] = SF_CATEGORIES[n % SF_CATEGORIES.length];
     const page = Math.floor(n / SF_CATEGORIES.length) + 1;
-    return { key: `feed-${i}`, title: `${more(page)}${name}`, load: feed(`feed:sf:${id}:${page}`, () => listPosts(SOUTHFREAK, { category: id, perPage: 20, page }), 6 * 3600 * 1000) };
+    return {
+      key: `feed-${i}`,
+      title: `${more(page)}${name}`,
+      load: feed(`feed:sf:${id}:${page}`, async () => filterHomeMedia(await listPosts(SOUTHFREAK, { category: id, perPage: 20, page })), 6 * 3600 * 1000),
+    };
   }
-  if (lane === 2) {
-    const genre = CM_SERIES_GENRES[n % CM_SERIES_GENRES.length];
-    const page = Math.floor(n / CM_SERIES_GENRES.length);
-    return { key: `feed-${i}`, title: `${more(page + 1)}${genre} Series`, load: feed(`feed:cm:s:${genre}:${page}`, () => cinemeta.catalog('series', { genre, skip: page * 50 }), 6 * 3600 * 1000) };
-  }
-  const genre = ANIME_GENRES[n % ANIME_GENRES.length];
-  const page = Math.floor(n / ANIME_GENRES.length) + 1;
-  return { key: `feed-${i}`, title: `${more(page)}${genre} Anime`, load: feed(`feed:al:${genre}:${page}`, () => anilist.browse({ sort: 'POPULARITY_DESC', genre, page, perPage: 20 }), 6 * 3600 * 1000) };
+  const genre = CM_SERIES_GENRES[n % CM_SERIES_GENRES.length];
+  const page = Math.floor(n / CM_SERIES_GENRES.length);
+  return {
+    key: `feed-${i}`,
+    title: `${more(page + 1)}${genre} Series`,
+    load: feed(`feed:cm:s:${genre}:${page}`, async () => filterHomeMedia(await cinemeta.catalog('series', { genre, skip: page * 50 })), 6 * 3600 * 1000),
+  };
 }
 
 /** Grows by a few rows every time the user nears the end of the list. */
@@ -324,32 +426,49 @@ function queryVariants(query: string): string[] {
   return [...new Set([full, beforeColon, noArticle, shorter].filter((v) => v.length >= 2))].slice(0, 3);
 }
 
-async function searchOnce(query: string, includeAdult: boolean): Promise<Title[]> {
+async function searchOnce(query: string, includeAdult: boolean, signal?: AbortSignal): Promise<Title[]> {
+  if (signal?.aborted) return [];
   const jobs: Promise<Title[]>[] = [
-    cinemeta.search(query),
-    listPosts(SOUTHFREAK, { search: query, perPage: 15 }),
-    anilist.search(query),
-    amaderftp.search(query),
+    cinemeta.search(query, signal),
+    listPosts(SOUTHFREAK, { search: query, perPage: 15, signal }),
+    anilist.search(query, signal),
+    kdrama.searchKDrama(query, signal),
+    amaderftp.search(query, signal),
     bdixTitles(query),
   ];
   if (includeAdult) {
-    jobs.push(listPosts(SOUTHFREAK_18, { search: query, perPage: 15 }));
+    jobs.push(listPosts(SOUTHFREAK_18, { search: query, perPage: 15, signal }));
     jobs.push(stremio.catalog(stremio.ONLYPORN, 'eporner', { search: query }));
   }
-  const settled = await Promise.allSettled(jobs.map((j) => Promise.race([j, new Promise<Title[]>((_, rej) => setTimeout(() => rej(new Error('timeout')), 12000))])));
+  const settled = await Promise.allSettled(
+    jobs.map((j) => Promise.race([j, new Promise<Title[]>((_, rej) => setTimeout(() => rej(new Error('timeout')), 10000))]))
+  );
+  if (signal?.aborted) return [];
   return settled.flatMap((r) => (r.status === 'fulfilled' ? r.value : []));
 }
 
-/** Fans out to every source in parallel; a slow or dead source never blocks the others. */
-export async function searchAll(query: string, includeAdult = false): Promise<Title[]> {
+/** Synchronous/instant lookup of previously cached search results for instant UI feedback */
+export async function getCachedSearch(query: string, includeAdult = false): Promise<Title[]> {
   const q = norm(query);
   if (q.length < 2) return [];
   const key = `search:${q}:${includeAdult ? 1 : 0}`;
+  const hit = await cached<Title[] | null>(key, { ttl: 24 * 3600 * 1000 }, async () => null).catch(() => null);
+  if (!hit || !hit.length) return [];
+  return hit.map((t) => registry.get(t.id) ?? t);
+}
+
+/** Fans out to every source in parallel; cancels obsolete queries when a new character is typed. */
+export async function searchAll(query: string, includeAdult = false, signal?: AbortSignal): Promise<Title[]> {
+  const q = norm(query);
+  if (q.length < 2 || signal?.aborted) return [];
+  const key = `search:${q}:${includeAdult ? 1 : 0}`;
   let results: Title[] = [];
   for (const variant of queryVariants(query)) {
-    results = await searchOnce(variant, includeAdult);
+    if (signal?.aborted) return [];
+    results = await searchOnce(variant, includeAdult, signal);
     if (results.length > 0) break;
   }
+  if (signal?.aborted) return [];
   if (results.length === 0) {
     // every source failed: serve the last good result for this query
     return (await cached<Title[]>(key, { ttl: Infinity }, async () => [])).map((t) => registry.get(t.id) ?? t);

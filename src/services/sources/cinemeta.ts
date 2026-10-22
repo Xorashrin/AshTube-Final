@@ -78,11 +78,11 @@ export async function catalog(kind: 'movie' | 'series', opts: { genre?: string; 
   return (data.metas ?? []).map(metaToTitle).filter((t): t is Title => !!t);
 }
 
-export async function search(query: string): Promise<Title[]> {
+export async function search(query: string, signal?: AbortSignal): Promise<Title[]> {
   const q = encodeURIComponent(query.trim());
   const [movies, series] = await Promise.all([
-    getJson<{ metas?: Meta[] }>(`${BASE}/catalog/movie/top/search=${q}.json`, { timeout: 10000 }).catch(() => ({ metas: [] })),
-    getJson<{ metas?: Meta[] }>(`${BASE}/catalog/series/top/search=${q}.json`, { timeout: 10000 }).catch(() => ({ metas: [] })),
+    getJson<{ metas?: Meta[] }>(`${BASE}/catalog/movie/top/search=${q}.json`, { timeout: 10000, signal }).catch(() => ({ metas: [] })),
+    getJson<{ metas?: Meta[] }>(`${BASE}/catalog/series/top/search=${q}.json`, { timeout: 10000, signal }).catch(() => ({ metas: [] })),
   ]);
   return [...(movies.metas ?? []), ...(series.metas ?? [])].map(metaToTitle).filter((t): t is Title => !!t);
 }

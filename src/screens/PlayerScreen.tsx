@@ -417,6 +417,7 @@ export default function PlayerScreen({ navigation, route }: Props) {
   const gestureVolume = useCallback(() => volumeRef.current, []);
   const onTap = useCallback(() => setVisible((v) => !v), []);
 
+  const lastSavedPos = useRef(0);
   useEventListener(player, 'timeUpdate', ({ currentTime, bufferedPosition }) => {
     setPosition(currentTime);
     if (typeof bufferedPosition === 'number' && bufferedPosition >= 0) setBuffered(bufferedPosition);
@@ -424,6 +425,10 @@ export default function PlayerScreen({ navigation, route }: Props) {
     if (player.duration > 0) {
       latest.current.duration = player.duration;
       setDuration(player.duration);
+      if (Math.abs(currentTime - lastSavedPos.current) >= 10 && currentTime > 2) {
+        lastSavedPos.current = currentTime;
+        setProgress({ titleId: title.id, episodeId: episode?.id, position: currentTime, duration: player.duration, updatedAt: Date.now() });
+      }
     }
   });
 
@@ -432,15 +437,18 @@ export default function PlayerScreen({ navigation, route }: Props) {
     else setVisible(true);
   });
 
-  // Save watch progress when leaving the player.
+  // Save watch progress and pause playback when leaving the player.
   useEffect(
     () => () => {
+      try {
+        player.pause();
+      } catch {}
       const { position: pos, duration: dur } = latest.current;
-      if (dur > 0 && pos > 5) {
+      if (dur > 0 && pos > 2) {
         setProgress({ titleId: title.id, episodeId: episode?.id, position: pos, duration: dur, updatedAt: Date.now() });
       }
     },
-    [setProgress, title.id, episode?.id],
+    [player, setProgress, title.id, episode?.id],
   );
 
   // Auto-hide controls while playing.

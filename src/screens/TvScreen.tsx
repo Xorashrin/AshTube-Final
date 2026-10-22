@@ -39,7 +39,7 @@ export default function TvScreen() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="Live TV" actions={['search']} searchScope={{ live: true }} />
+      <ScreenHeader title="Live TV" back actions={['search']} searchScope={{ live: true }} />
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
           {CHANNEL_FILTERS.map((f) => (

@@ -36,47 +36,66 @@ interface PosterProps {
   showBadges?: boolean;
   /** Category pill (search results). */
   label?: string;
+  /** Display the full content title directly underneath the thumbnail. */
+  showTitle?: boolean;
 }
 
-export const Poster = memo(function Poster({ title, width = POSTER.width, height = POSTER.height, onPress, showBadges = true, label }: PosterProps) {
+export const Poster = memo(function Poster({
+  title,
+  width = POSTER.width,
+  height = POSTER.height,
+  onPress,
+  showBadges = true,
+  label,
+  showTitle = true,
+}: PosterProps) {
   const raw = title.poster || title.background;
   const uri = raw ? thumbUri(raw, width) : undefined;
   const titleSize = Math.max(12, Math.round(width / 7));
   return (
     <Pressable
       onPress={onPress ? () => onPress(title) : undefined}
-      style={({ pressed }) => [styles.frame, { width, height, opacity: pressed ? 0.85 : 1, backgroundColor: title.tint }]}
+      style={({ pressed }) => [styles.container, { width, opacity: pressed ? 0.85 : 1 }]}
     >
-      {uri ? (
-        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={title.id} />
-      ) : null}
-      <LinearGradient
-        colors={uri ? ['transparent', 'rgba(0,0,0,0.9)'] : ['transparent', 'transparent']}
-        locations={[0.55, 1]}
-        style={StyleSheet.absoluteFill}
-      />
-      {!uri ? (
-        <View style={styles.fallback}>
-          <Txt weight="display" size={titleSize + 4} lineHeight={titleSize + 4} align="center" numberOfLines={5}>
-            {title.name.toUpperCase()}
+      <View style={[styles.frame, { width, height, backgroundColor: title.tint }]}>
+        {uri ? (
+          <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={title.id} />
+        ) : null}
+        <LinearGradient
+          colors={uri ? ['transparent', 'rgba(0,0,0,0.9)'] : ['transparent', 'transparent']}
+          locations={[0.55, 1]}
+          style={StyleSheet.absoluteFill}
+        />
+        {!uri ? (
+          <View style={styles.fallback}>
+            <Txt weight="display" size={titleSize + 4} lineHeight={titleSize + 4} align="center" numberOfLines={5}>
+              {title.name.toUpperCase()}
+            </Txt>
+          </View>
+        ) : null}
+        {showBadges && title.badge ? (
+          <View style={styles.badge}>
+            <Txt weight="bold" size={10} align="center" numberOfLines={1}>
+              {BADGE_LABEL[title.badge]}
+            </Txt>
+          </View>
+        ) : null}
+        {label ? (
+          <View style={styles.label}>
+            <Txt weight="bold" size={9}>{label.toUpperCase()}</Txt>
+          </View>
+        ) : null}
+        {showBadges && title.imdbRating ? (
+          <View style={styles.rating}>
+            <Txt weight="bold" size={10}>★ {title.imdbRating}</Txt>
+          </View>
+        ) : null}
+      </View>
+      {showTitle && title.name ? (
+        <View style={styles.titleWrap}>
+          <Txt weight="medium" size={12} color={colors.text} style={styles.titleText}>
+            {title.name}
           </Txt>
-        </View>
-      ) : null}
-      {showBadges && title.badge ? (
-        <View style={styles.badge}>
-          <Txt weight="bold" size={10} align="center" numberOfLines={1}>
-            {BADGE_LABEL[title.badge]}
-          </Txt>
-        </View>
-      ) : null}
-      {label ? (
-        <View style={styles.label}>
-          <Txt weight="bold" size={9}>{label.toUpperCase()}</Txt>
-        </View>
-      ) : null}
-      {showBadges && title.imdbRating ? (
-        <View style={styles.rating}>
-          <Txt weight="bold" size={10}>★ {title.imdbRating}</Txt>
         </View>
       ) : null}
     </Pressable>
@@ -84,7 +103,10 @@ export const Poster = memo(function Poster({ title, width = POSTER.width, height
 });
 
 const styles = StyleSheet.create({
+  container: { overflow: 'visible' },
   frame: { borderRadius: radius.sm, overflow: 'hidden', backgroundColor: colors.surface2 },
+  titleWrap: { marginTop: 6, paddingHorizontal: 2 },
+  titleText: { lineHeight: 16 },
   fallback: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center', padding: 8 },
   badge: { position: 'absolute', bottom: 0, left: 0, right: 0, paddingVertical: 3, backgroundColor: colors.red },
   label: { position: 'absolute', top: 4, right: 4, backgroundColor: colors.red, borderRadius: 3, paddingHorizontal: 5, paddingVertical: 1 },

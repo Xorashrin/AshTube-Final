@@ -185,7 +185,7 @@ export default function AppSettingsScreen({ navigation }: Props) {
         />
 
         <SectionLabel>About</SectionLabel>
-        <SettingRow icon="phone-portrait-outline" label="Version" value="MythTube 2.0.0" />
+        <SettingRow icon="phone-portrait-outline" label="Version" value="AshTube 2.0.0" />
         <SettingRow
           icon="log-out-outline"
           label="Sign Out"

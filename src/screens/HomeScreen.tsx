@@ -20,6 +20,8 @@ import { useApp } from '../state/AppState';
 import { colors, layout } from '../theme/tokens';
 import { shade } from '../utils/color';
 
+import { isAnime, isKDrama, isLiveTV } from '../services/classifier';
+
 type Props = BottomTabScreenProps<TabParamList, 'Home'>;
 type HomeFilter = 'all' | 'tv' | 'movies';
 
@@ -29,16 +31,29 @@ type Section =
   | { key: string; kind: 'row'; title: string; items: Title[]; loading: boolean; seeAll?: () => void };
 
 const match = (t: Title, filter: HomeFilter, genre?: string) =>
-  (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) && (!genre || t.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
+  !isAnime(t) &&
+  !isKDrama(t) &&
+  !isLiveTV(t) &&
+  !t.nsfw &&
+  (t.kind === 'movie' || t.kind === 'series') &&
+  (filter === 'all' || (filter === 'tv' ? t.kind === 'series' : t.kind === 'movie')) &&
+  (!genre || t.genres.some((g) => g.toLowerCase() === genre.toLowerCase()));
 
 /** Home: one billboard, your rows, then an endless feed that keeps adding genres and categories as you scroll. */
 export default function HomeScreen({ route, navigation }: Props) {
   const nav = useRootNav();
   const insets = useSafeAreaInsets();
   const { profileData, toggleMyList, rate, removeProgress, showToast } = useApp();
-  const [filter, setFilter] = useState<HomeFilter>('all');
+  const [filter, setFilter] = useState<HomeFilter>(route.params?.filter ?? 'all');
   const [menuItem, setMenuItem] = useState<ContinueItem | null>(null);
   const genre = route.params?.genre;
+
+  useEffect(() => {
+    if (route.params?.filter) {
+      setFilter(route.params.filter);
+    }
+  }, [route.params?.filter]);
+
   const { rows: baseRows, refresh, refreshing } = useRows(HOME_ROWS);
   const feed = useFeedRows();
 

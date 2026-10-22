@@ -110,12 +110,13 @@ export function postToTitle(site: WpSite, p: WpPost): Title {
   const rating = /([\d.]+)\s*\/\s*10/.exec(meta.imdb ?? '')?.[1];
   const stars = (meta.stars ?? meta.star ?? '').split(',').map((s) => s.trim()).filter(Boolean);
   const addedAt = Date.parse(p.date + 'Z') || undefined;
+  const isSeries = /\b(season|s\d{1,2}|series|episodes?)\b/i.test(rawTitle) || (p.categories ?? []).some((c) => c === CATEGORY.natok);
   return {
     id: `${site.id}:${p.id}`,
     source: site.id,
     ref: p.link,
     name,
-    kind: 'movie',
+    kind: isSeries ? 'series' : 'movie',
     year,
     maturity: site.nsfw ? '18+' : /horror|crime|thriller|action/i.test(meta.genre ?? '') ? '16+' : '13+',
     runtime: 0,
@@ -144,7 +145,7 @@ function query(params: Record<string, string | number | undefined>): string {
 
 export async function listPosts(
   site: WpSite,
-  opts: { search?: string; category?: number; page?: number; perPage?: number; orderBy?: 'date' | 'relevance' } = {},
+  opts: { search?: string; category?: number; page?: number; perPage?: number; orderBy?: 'date' | 'relevance'; signal?: AbortSignal } = {},
 ): Promise<Title[]> {
   const qs = query({
     search: opts.search,
@@ -155,7 +156,7 @@ export async function listPosts(
     order: 'desc',
     _fields: LIST_FIELDS,
   });
-  const posts = await getJson<WpPost[]>(`${site.base}/wp-json/wp/v2/posts?${qs}`, { timeout: 14000, retries: 2 });
+  const posts = await getJson<WpPost[]>(`${site.base}/wp-json/wp/v2/posts?${qs}`, { timeout: 14000, retries: 2, signal: opts.signal });
   return posts.map((p) => postToTitle(site, p)).filter((t) => t.name);
 }
 

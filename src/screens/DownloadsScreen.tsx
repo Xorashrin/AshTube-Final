@@ -212,7 +212,7 @@ export default function DownloadsScreen({ navigation }: Props) {
           <View style={{ flex: Math.max(1, freeMB), backgroundColor: colors.surface6 }} />
         </View>
         <View style={styles.storageLegend}>
-          <Txt size={11} color={colors.textMuted}>MythTube • {formatSize(usedMB)}</Txt>
+          <Txt size={11} color={colors.textMuted}>AshTube • {formatSize(usedMB)}</Txt>
           <Txt size={11} color={colors.textMuted}>Free • {freeMB > 0 ? formatSize(freeMB) : '—'}</Txt>
         </View>
       </View>

@@ -73,7 +73,7 @@ export default function LandingScreen({ navigation }: Props) {
       <View style={[styles.top, { paddingTop: insets.top + 8 }]}>
         <Wordmark size={30} />
         <View style={styles.topLinks}>
-          <Pressable hitSlop={8} onPress={() => showToast('MythTube does not collect personal data beyond your sign-in')}>
+          <Pressable hitSlop={8} onPress={() => showToast('AshTube does not collect personal data beyond your sign-in')}>
             <Txt weight="bold" size={13}>PRIVACY</Txt>
           </Pressable>
           <Pressable hitSlop={8} onPress={() => showToast('Sign in or create an account to start watching')}>

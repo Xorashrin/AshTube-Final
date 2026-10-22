@@ -16,6 +16,8 @@ import SignInScreen from '../screens/SignInScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import SplashScreen from '../screens/SplashScreen';
 import TitleScreen from '../screens/TitleScreen';
+import TvScreen from '../screens/TvScreen';
+import KDramaScreen from '../screens/KDramaScreen';
 import { colors } from '../theme/tokens';
 import { Tabs } from './Tabs';
 import type { RootStackParamList } from './types';
@@ -62,6 +64,8 @@ export function RootNavigator() {
       <Stack.Screen name="Notifications" component={NotificationsScreen} />
       <Stack.Screen name="AppSettings" component={AppSettingsScreen} />
       <Stack.Screen name="Profiles" component={ProfilesScreen} options={{ animation: 'fade' }} />
+      <Stack.Screen name="LiveTv" component={TvScreen} />
+      <Stack.Screen name="KDrama" component={KDramaScreen} />
       <Stack.Screen name="AdultContent" component={AdultContentScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );

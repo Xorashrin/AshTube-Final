@@ -43,3 +43,5 @@ yarn-error.*
 # local-only
 docs/rea-evidence/*.txt
 docs/claude-session/
+.gradle/
+*.gradle/

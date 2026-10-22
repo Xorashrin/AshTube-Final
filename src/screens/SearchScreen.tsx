@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import React, { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Keyboard, Pressable, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
+import React, { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, Keyboard, Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions, type ListRenderItem } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ChannelLogo } from '../components/ChannelLogo';
@@ -11,49 +11,78 @@ import { Txt } from '../components/Txt';
 import { searchChannels } from '../data/channels';
 import { findEpisode, type Title } from '../data/types';
 import type { RootStackParamList } from '../navigation/types';
-import { ANIME_ROWS, loadDetail, rowsByKey, searchAll, useRows } from '../services/catalog';
+import { ANIME_ROWS, getCachedSearch, loadDetail, rowsByKey, searchAll, useRows } from '../services/catalog';
+import { isAnime, isKDrama, isGeneralMovie, isGeneralSeries, matchSearchCategory, type SearchCategory } from '../services/classifier';
 import { warmUp } from '../services/playback';
 import { addHistory, clearHistory, getHistory, parseQuery, removeHistory, suggest, type Suggestion } from '../services/searchTools';
 import { colors, font, radius } from '../theme/tokens';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Search'>;
 
+const CATEGORY_TABS: { key: SearchCategory; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'movie', label: 'Movies' },
+  { key: 'series', label: 'Series' },
+  { key: 'anime', label: 'Anime' },
+  { key: 'kdrama', label: 'K-Drama' },
+];
+
 const RECOMMENDED_ROWS = rowsByKey('cm-series', 'cm-movies');
 const ANIME_RECOMMENDED = ANIME_ROWS.slice(1, 3);
-
-function matchKind(t: Title, kind?: 'movie' | 'series' | 'anime') {
-  if (!kind) return true;
-  if (kind === 'anime') return t.source === 'anilist';
-  return t.kind === kind && t.source !== 'anilist';
-}
 
 export default function SearchScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scope = route.params;
+  const [category, setCategory] = useState<SearchCategory>((scope?.kind as SearchCategory) || 'all');
   const [query, setQuery] = useState('');
   // Typing stays responsive; network search runs on the debounced value.
   const deferred = useDeferredValue(query);
-  const [results, setResults] = useState<Title[]>([]);
+  const [rawResults, setRawResults] = useState<Title[]>([]);
   const [searching, setSearching] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [focused, setFocused] = useState(true);
-  const { rows } = useRows(scope?.kind === 'anime' ? ANIME_RECOMMENDED : RECOMMENDED_ROWS);
+  const { rows } = useRows(category === 'anime' ? ANIME_RECOMMENDED : RECOMMENDED_ROWS);
 
   const parsed = useMemo(() => parseQuery(deferred), [deferred]);
-  const scopeLabel = scope?.live ? 'live TV' : scope?.genre ?? (scope?.kind === 'series' ? 'TV shows' : scope?.kind === 'movie' ? 'movies' : scope?.kind === 'anime' ? 'anime' : undefined);
+  const scopeLabel = scope?.live
+    ? 'live TV'
+    : scope?.genre ??
+      (category === 'kdrama'
+        ? 'K-Drama'
+        : category === 'series'
+        ? 'TV shows'
+        : category === 'movie'
+        ? 'movies'
+        : category === 'anime'
+        ? 'anime'
+        : undefined);
 
   const recommended = useMemo(() => {
     const all = rows.flatMap((r) => r.items);
     return all
-      .filter((t) => matchKind(t, scope?.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())))
+      .filter(
+        (t) =>
+          matchSearchCategory(t, category) &&
+          (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())),
+      )
       .slice(0, 30);
-  }, [rows, scope?.kind, scope?.genre]);
+  }, [rows, category, scope?.genre]);
+
+  const results = useMemo(() => {
+    return rawResults.filter(
+      (t) =>
+        matchSearchCategory(t, category) &&
+        (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())),
+    );
+  }, [rawResults, category, scope?.genre]);
 
   useEffect(() => {
     getHistory().then(setHistory);
   }, []);
+
+  const abortRef = useRef<AbortController | null>(null);
 
   // Next-word / full-title suggestions while typing.
   useEffect(() => {
@@ -65,43 +94,54 @@ export default function SearchScreen({ navigation, route }: Props) {
     let cancelled = false;
     const timer = setTimeout(() => {
       suggest(q, history).then((s) => !cancelled && setSuggestions(s));
-    }, 180);
+    }, 150);
     return () => {
       cancelled = true;
       clearTimeout(timer);
     };
   }, [query, history, scope?.live]);
 
-  // Search runs on the title part only, so "bachelor point season 1 ep 10" looks up "bachelor point".
+  // Search runs on the title part only, with instant cache lookup and AbortController cancellation
   useEffect(() => {
     const q = parsed.text;
     if (q.length < 2 || scope?.live) {
-      setResults([]);
+      setRawResults([]);
       setSearching(false);
       return;
     }
-    let cancelled = false;
+
+    if (abortRef.current) abortRef.current.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+
+    // 1. Show cached results instantly if available
+    getCachedSearch(q).then((cachedResults) => {
+      if (ctrl.signal.aborted) return;
+      if (cachedResults.length > 0) {
+        setRawResults(cachedResults);
+      }
+    });
+
+    // 2. Perform live network search with 220ms debounce
     setSearching(true);
     const timer = setTimeout(() => {
-      searchAll(q)
+      searchAll(q, false, ctrl.signal)
         .then((found) => {
-          if (cancelled) return;
-          const scoped = found.filter(
-            (t) => matchKind(t, scope?.kind) && (!scope?.genre || t.genres.some((g) => g.toLowerCase() === scope.genre!.toLowerCase())),
-          );
-          setResults(scoped);
-          if (scoped[0] && !scoped[0].nsfw) warmUp(scoped[0]);
+          if (ctrl.signal.aborted) return;
+          setRawResults(found);
+          if (found[0] && !found[0].nsfw) warmUp(found[0]);
         })
         .catch(() => undefined)
         .finally(() => {
-          if (!cancelled) setSearching(false);
+          if (!ctrl.signal.aborted) setSearching(false);
         });
-    }, 350);
+    }, 220);
+
     return () => {
-      cancelled = true;
+      ctrl.abort();
       clearTimeout(timer);
     };
-  }, [parsed.text, scope?.kind, scope?.genre, scope?.live]);
+  }, [parsed.text, scope?.live]);
 
   const channels = useMemo(() => (scope?.live ? searchChannels(deferred, 24) : []), [deferred, scope?.live]);
   const hasQuery = deferred.trim().length > 0;
@@ -152,9 +192,94 @@ export default function SearchScreen({ navigation, route }: Props) {
     [open, navigation],
   );
 
+  /** Vertically stacked list result card: thumbnail on left, untruncated title & metadata on right */
   const renderResult = useCallback<ListRenderItem<Title>>(
-    ({ item }) => <Poster title={item} width={cell} height={Math.round(cell * 1.45)} label={categoryOf(item)} onPress={(t) => open(t, parsed.season)} />,
-    [cell, open, parsed.season],
+    ({ item }) => {
+      const posterUri = item.poster || item.background;
+      const isAn = isAnime(item);
+      const isKd = isKDrama(item);
+      const badgeLabel = isAn ? 'ANIME' : isKd ? 'K-DRAMA' : item.kind === 'series' ? 'SERIES' : 'MOVIE';
+      const badgeBg = isAn ? '#8A2BE2' : isKd ? '#007ACC' : colors.red;
+      return (
+        <Pressable
+          onPress={() => open(item, parsed.season)}
+          style={({ pressed }) => [styles.resultCard, pressed && styles.resultCardPressed]}
+        >
+          <View style={[styles.resultThumb, { backgroundColor: item.tint }]}>
+            {posterUri ? (
+              <Image source={{ uri: posterUri }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.id} />
+            ) : null}
+            {!posterUri ? (
+              <View style={styles.fallbackThumb}>
+                <Txt weight="bold" size={11} align="center" numberOfLines={2}>
+                  {item.name}
+                </Txt>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.resultInfo}>
+            {/* Complete, untruncated content title directly beside the thumbnail */}
+            <Txt weight="bold" size={15} color={colors.text} style={styles.resultTitle}>
+              {item.name}
+            </Txt>
+            <View style={styles.metaRow}>
+              <View style={[styles.catBadge, { backgroundColor: badgeBg }]}>
+                <Txt weight="bold" size={9} color={colors.text}>
+                  {badgeLabel}
+                </Txt>
+              </View>
+              {item.format ? (
+                <View style={[styles.catBadge, { backgroundColor: colors.surface3, marginLeft: 6 }]}>
+                  <Txt weight="medium" size={9} color={colors.textDim}>
+                    {item.format}
+                  </Txt>
+                </View>
+              ) : null}
+              {item.status ? (
+                <View style={[styles.catBadge, { backgroundColor: colors.surface3, marginLeft: 6 }]}>
+                  <Txt weight="medium" size={9} color={colors.textDim}>
+                    {item.status === 'RELEASING' ? 'AIRING' : item.status === 'FINISHED' ? 'COMPLETED' : item.status}
+                  </Txt>
+                </View>
+              ) : null}
+              {item.year ? (
+                <Txt size={12} color={colors.textDim} style={{ marginLeft: 6 }}>
+                  {item.year}
+                </Txt>
+              ) : null}
+              {item.imdbRating ? (
+                <Txt weight="bold" size={12} color="#FFD700" style={{ marginLeft: 8 }}>
+                  ★ {item.imdbRating}
+                </Txt>
+              ) : null}
+              {item.language ? (
+                <Txt size={12} color={colors.textDim} style={{ marginLeft: 8 }}>
+                  {item.language}
+                </Txt>
+              ) : null}
+            </View>
+            {item.aliases && item.aliases.length > 0 ? (
+              <Txt size={11} color={colors.textDim} numberOfLines={1} style={{ marginTop: 2 }}>
+                {item.aliases[0]}
+              </Txt>
+            ) : null}
+            {item.genres && item.genres.length > 0 ? (
+              <Txt size={12} color={colors.textMuted} numberOfLines={1} style={{ marginTop: 3 }}>
+                {item.genres.slice(0, 3).join(' • ')}
+              </Txt>
+            ) : null}
+          </View>
+          <Pressable
+            hitSlop={8}
+            onPress={() => navigation.navigate('Player', { id: item.id })}
+            style={styles.playBtn}
+          >
+            <Ionicons name="play-circle-outline" size={32} color={colors.red} />
+          </Pressable>
+        </Pressable>
+      );
+    },
+    [open, parsed.season, navigation],
   );
 
   const showSuggestions = focused && suggestions.length > 0 && query.trim().length >= 2;
@@ -198,6 +323,27 @@ export default function SearchScreen({ navigation, route }: Props) {
           </Pressable>
         ) : null}
       </View>
+
+      {!scope?.live ? (
+        <View style={styles.categoryBarWrap}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryBar}>
+            {CATEGORY_TABS.map((tab) => {
+              const active = category === tab.key;
+              return (
+                <Pressable
+                  key={tab.key}
+                  onPress={() => setCategory(tab.key)}
+                  style={[styles.categoryChip, active && styles.categoryChipActive]}
+                >
+                  <Txt weight={active ? 'bold' : 'medium'} size={13} color={active ? '#000000' : colors.textDim}>
+                    {tab.label}
+                  </Txt>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
 
       {showSuggestions ? (
         <View style={styles.suggestions}>
@@ -284,15 +430,16 @@ export default function SearchScreen({ navigation, route }: Props) {
         </View>
       ) : (
         <FlatList
-          key="results-grid"
+          key="results-list"
           data={results}
           keyExtractor={(t) => t.id}
-          numColumns={3}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          columnWrapperStyle={styles.gridRow}
-          contentContainerStyle={styles.grid}
-          initialNumToRender={12}
+          contentContainerStyle={styles.listContainer}
+          initialNumToRender={10}
+          maxToRenderPerBatch={10}
+          windowSize={7}
+          removeClippedSubviews
           ListHeaderComponent={
             <View>
               {series && (parsed.season || parsed.episode) ? (
@@ -344,7 +491,11 @@ export default function SearchScreen({ navigation, route }: Props) {
                   />
                 </>
               ) : null}
-              {results.length > 0 ? <Txt weight="bold" size={18} style={styles.section}>Movies & TV</Txt> : null}
+              {results.length > 0 ? (
+                <Txt weight="bold" size={18} style={styles.section}>
+                  {category === 'all' ? 'All Results' : category === 'kdrama' ? 'Korean Dramas' : category === 'anime' ? 'Anime' : category === 'movie' ? 'Movies' : 'TV Series'}
+                </Txt>
+              ) : null}
             </View>
           }
           renderItem={renderResult}
@@ -358,6 +509,17 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   top: { height: 48, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 12 },
   scope: { backgroundColor: colors.surface5, borderRadius: 14, paddingHorizontal: 10, paddingVertical: 4 },
+  categoryBarWrap: { marginTop: 10, marginBottom: 4 },
+  categoryBar: { paddingHorizontal: 12, gap: 8 },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: colors.surface3,
+  },
+  categoryChipActive: {
+    backgroundColor: colors.text,
+  },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -376,8 +538,40 @@ const styles = StyleSheet.create({
   recThumb: { width: 140, height: 76, backgroundColor: colors.surface2, borderTopRightRadius: radius.sm, borderBottomRightRadius: radius.sm, overflow: 'hidden' },
   recTitle: { flex: 1, marginHorizontal: 12 },
   empty: { paddingHorizontal: 32, paddingTop: 80 },
-  grid: { gap: 8, paddingBottom: 30 },
-  gridRow: { gap: 8, paddingHorizontal: 12 },
+  listContainer: { paddingHorizontal: 12, paddingBottom: 40, gap: 10 },
+  resultCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface1,
+    borderRadius: radius.md,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.surface4,
+  },
+  resultCardPressed: { backgroundColor: colors.surface2 },
+  resultThumb: {
+    width: 68,
+    height: 98,
+    borderRadius: radius.sm,
+    overflow: 'hidden',
+    backgroundColor: colors.surface3,
+  },
+  fallbackThumb: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  resultInfo: { flex: 1, marginLeft: 14, justifyContent: 'center' },
+  resultTitle: { fontSize: 15, lineHeight: 20 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4, flexWrap: 'wrap' },
+  catBadge: {
+    backgroundColor: colors.red,
+    borderRadius: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1.5,
+  },
+  playBtn: { padding: 6, marginLeft: 8 },
   channelRow: { gap: 8, paddingHorizontal: 12 },
   jump: { marginHorizontal: 12, marginTop: 14, padding: 14, borderRadius: radius.md, backgroundColor: colors.surface2 },
   jumpRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 10 },

@@ -342,7 +342,7 @@ interface Gatherer {
 }
 
 const PARALLEL_RESOLVES = 8;
-const GRACE_MS = 2500;
+const GRACE_MS = 600;
 const HARD_CAP_MS = 90000;
 const QUICK_CAP_MS = 30000;
 
@@ -367,8 +367,12 @@ export class SourceSearch {
     /** Quick mode (availability checks): fewer plugins, shorter budget. */
     readonly quick = false,
   ) {
-    // Wait for screen transitions to finish so the search never competes with navigation animations.
-    setTimeout(() => this.start(), 320);
+    if (quick) {
+      setTimeout(() => this.start(), 200);
+    } else {
+      // Start immediately for instant tap-and-play user experience
+      this.start();
+    }
   }
 
   subscribe(fn: () => void): () => void {

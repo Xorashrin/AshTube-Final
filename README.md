@@ -1,4 +1,4 @@
-# MythTube
+# AshTube
 
 A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every row, title, poster and stream is loaded **live** from public sources, so new content shows up without an app update.
 
@@ -6,15 +6,15 @@ A Netflix-style streaming app for Android (React Native + Expo SDK 58). Every ro
 
 | Feature | How it works |
 |---|---|
-| **Home** | A billboard, your Continue Watching and My List, the main rows, then an **endless feed** that keeps adding genre and category rows (Cinemeta, southfreak, AniList, in successive pages) as you scroll. Cached for an instant open. Titles from the last 72 h get a **New** badge. Titles that no source can play are hidden (checked quietly in the background and remembered). |
-| **Anime tab** | AniList discovery: airing this week, trending, this season, popular, top rated, movies, next season and 16 genres with endless scrolling. Playback uses the anime plugins (KickAssAnime, AniZone, AnimePahe, AnimeKai, HiAnime, AllWish, Tokyo Insider and more) with AniList → TMDB season mapping through arm.haglund.dev and api.ani.zip. |
-| **Updates** | On every start the app applies and refreshes `config/sources.json` from this repository (new plugin repos, new BDIX servers, kill-switches), reloads plugin manifests and pre-downloads the best-ranked plugin scripts, so new sources reach installs without a new APK. |
-| **Search** | Fans out to every source in parallel. Opened from a genre, Movies or TV Shows it searches only there; opened from Home it never shows live TV. Keeps your history, completes full titles while you type, and understands `bachelor point season 1 ep 10` (play that episode or open the season). Bangladeshi titles win ties. |
-| **Automatic best server** | Opening a title (or the Home hero, or the top search result) starts looking for servers in the background. Playback starts on the highest-quality, seekable, fastest verified server; no picking needed. A manual override stays in the Servers panel. |
+| **Home** | A billboard, your Continue Watching and My List, the main rows, then an **endless feed** that keeps adding genre and category rows (Cinemeta, Southfreak, International Cinema) as you scroll. Strictly isolated: **zero Anime, zero K-Drama, zero Live TV**. Titles from the last 72 h get a **New** badge. |
+| **Anime tab** | Dedicated Anime ecosystem powered by AniList GraphQL: airing this week, trending, this season, popular, top rated, movies, next season and 16 genres with server-backed endless pagination. Cross-source ID mapping and playback support. |
+| **K-Drama tab** | First-class Korean drama destination powered by TMDB Korean TV discovery (`with_origin_country=KR`, `with_original_language=ko`): trending, currently airing, top rated, genres (romance, thriller, crime, historical, fantasy), and a dedicated Korean Movies subsection. |
+| **Profiles & Live TV** | User accounts, profiles, watch history, downloads management, settings, and the **Live TV hub** (4,400+ free-to-air channels across Bangladesh, India, Sports, News, and Entertainment with instant HLS playback). |
+| **Updates** | On every start the app applies and refreshes remote configuration from this repository (new plugin repos, new BDIX servers, kill-switches), reloads plugin manifests and pre-downloads the best-ranked plugin scripts. |
+| **Search** | Fans out across catalog providers in parallel with category selector pills (**All, Movies, Series, Anime, K-Drama**). Instant cached search with 220ms debounce and AbortController request cancellation. |
+| **Automatic best server** | Opening a title starts looking for servers in the background. Playback starts on the highest-quality, seekable, fastest verified server; no picking needed. A manual override stays in the Servers panel. |
 | **Playback** | ExoPlayer with seek, double-tap seek, smooth swipe brightness / volume / scrub, speed, fit modes, lock, real audio and subtitle tracks, next episode, resume. |
-| **Downloads** | Pick *Automatic* or a specific server, choose the target folder (any folder or SD card via the system picker) and the number of parallel connections. The Download button is disabled when no direct file exists. |
-| **Fallbacks** | Every level falls through to the next without an error screen (see below). |
-| **Live TV** | 4,400+ free-to-air channels (bundled list) with per-channel fallback URLs. |
+| **Downloads** | Pick *Automatic* or a specific server, choose the target folder (any folder or SD card via the system picker) and the number of parallel connections. |
 
 ## Sources
 
@@ -53,11 +53,11 @@ Feeds load three at a time, list posters use smaller image variants, and the sou
 
 ## Stability
 
-A global error handler keeps async failures from closing the app, an error boundary shows a recovery screen for render errors, and tabs/screens freeze when hidden. A single `MythTube.apk` carries both 32-bit and 64-bit ARM code, so the same file installs on every Android phone and tablet (Android 7.0+). Each CI build gets a higher `versionCode`, so a new APK always installs over the previous one.
+A global error handler keeps async failures from closing the app, an error boundary shows a recovery screen for render errors, and tabs/screens freeze when hidden. A single `AshTube.apk` carries both 32-bit and 64-bit ARM code, so the same file installs on every Android phone and tablet (Android 7.0+). Each CI build gets a higher `versionCode`, so a new APK always installs over the previous one.
 
 ## Build
 
-Nothing builds locally. Push to `main` and GitHub Actions does everything (**Actions → Android APK**, or **Run workflow**). Download the **MythTube-apk** artifact or the APK attached to the latest **Release**.
+Nothing builds locally. Push to `main` and GitHub Actions does everything (**Actions → Android APK**, or **Run workflow**). Download the **AshTube-apk** artifact or the APK attached to the latest **Release**.
 
 The workflow runs `npm install`, `expo install --fix`, `tsc --noEmit`, `expo prebuild`, then Gradle `assembleRelease` for arm64-v8a with R8 full mode, resource shrinking, English-only resources and compressed JS bundle. The APK is signed with the stable Expo template keystore, so new builds install over old ones.
 

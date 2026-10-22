@@ -1,4 +1,4 @@
-"""Generate MythTube app icons (original "M" ribbon mark) as PNGs with no dependencies.
+"""Generate AshTube app icons (original "A" ribbon mark) as PNGs with no dependencies.
 
 Usage: python3 -I tools/make_icons.py assets
 """
@@ -7,14 +7,13 @@ import struct
 import sys
 import zlib
 
-# Geometry on a 1024 canvas; shared with src/components/Logo.tsx.
+# Geometry on a 1024 canvas for AshTube ("A" ribbon mark).
 BARS = [
-    [(296, 200), (408, 200), (408, 824), (296, 824)],
-    [(616, 200), (728, 200), (728, 824), (616, 824)],
+    [(456, 200), (568, 200), (372, 824), (260, 824)],
 ]
 DIAGONALS = [
-    [(296, 200), (408, 200), (568, 640), (456, 640)],
-    [(616, 200), (728, 200), (568, 640), (456, 640)],
+    [(456, 200), (568, 200), (764, 824), (652, 824)],
+    [(350, 560), (674, 560), (674, 644), (350, 644)],
 ]
 BAR_RGB = (0xB1, 0x06, 0x0F)
 DIAG_RGB = (0xE5, 0x09, 0x14)

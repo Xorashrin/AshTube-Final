@@ -104,15 +104,16 @@ export async function filesByTmdb(tmdbId: number | string): Promise<FtpFile[]> {
 }
 
 /** The site search resolves a name to a TMDB id; only titles that really have files are returned. */
-export async function search(query: string): Promise<Title[]> {
+export async function search(query: string, signal?: AbortSignal): Promise<Title[]> {
   const q = query.trim();
   if (!q) return [];
-  const html = await getText(`${BASE}/?search=${encodeURIComponent(q)}&search_type=movie`, { timeout: 20000, retries: 1 });
+  const html = await getText(`${BASE}/?search=${encodeURIComponent(q)}&search_type=movie`, { timeout: 15000, retries: 1, signal }).catch(() => '');
+  if (!html) return [];
   const tmdb = /name="tmdb_id" value="(\d+)"/.exec(html)?.[1];
   const needle = q.toLowerCase();
   const local = parseCards(html).filter((t) => t.name.toLowerCase().includes(needle));
   if (!tmdb || local.some((t) => t.ref === tmdb)) return local;
-  const page = await getText(`${BASE}/movies.php?id=${tmdb}&type=movie`, { timeout: 15000 }).catch(() => '');
+  const page = await getText(`${BASE}/movies.php?id=${tmdb}&type=movie`, { timeout: 15000, signal }).catch(() => '');
   const files = filesFrom(page);
   if (files.length === 0) return local;
   const name = decodeEntities(/name="title" value="([^"]*)"/.exec(html)?.[1] ?? q);

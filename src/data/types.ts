@@ -5,7 +5,7 @@ export type Maturity = 'ALL' | '7+' | '13+' | '16+' | '18+';
 export type Badge = 'new' | 'new-episode' | 'airing';
 
 /** Where a title came from. Decides how it is played, downloaded and refreshed. */
-export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'bdix' | 'stremio' | 'cinemeta' | 'anilist';
+export type SourceId = 'southfreak' | 'sfadult' | 'amaderftp' | 'bdix' | 'stremio' | 'cinemeta' | 'anilist' | 'tmdb';
 
 export interface Episode {
   id: string;
@@ -62,6 +62,12 @@ export interface Title {
   /** Stremio addon that owns this title (adult catalogs). */
   addon?: string;
   nsfw?: boolean;
+  /** Alternate titles (romaji, native, synonyms) for search matching */
+  aliases?: string[];
+  /** Airing/release status (e.g. RELEASING, FINISHED) */
+  status?: string;
+  /** Media format (e.g. TV, MOVIE, OVA, ONA) */
+  format?: string;
   /** True once the detail fetch (episodes, cast, full synopsis) has completed. */
   detailed?: boolean;
 }
@@ -76,10 +82,32 @@ export interface Profile {
 export const MAIN_PROFILE_ID = 'main';
 export const PROFILE_COLOR = '#2D6CDF';
 
+export const CONTENT_TYPES = ['All', 'Movies', 'Series', 'Anime'] as const;
+export type ContentTypeFilter = (typeof CONTENT_TYPES)[number];
+
+export const REGIONS = [
+  'Hollywood',
+  'Bollywood',
+  'Bangladeshi',
+  'South Indian',
+  'Korean',
+  'International',
+] as const;
+
 export const GENRES = [
   'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama', 'Family',
   'Fantasy', 'Horror', 'Mystery', 'Romance', 'Sci-Fi', 'Thriller',
 ];
+
+export const DISCOVERY_SECTIONS = [
+  'Trending Movies',
+  'Trending Series',
+  'Popular Movies',
+  'Popular Series',
+  'Top Rated',
+  'Recently Added',
+  'Continue Watching',
+] as const;
 
 export function findEpisode(title: Title, episodeId?: string): { season: Season; episode: Episode } | null {
   for (const season of title.seasons) {

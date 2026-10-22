@@ -54,7 +54,7 @@ function SharedRow({ title, items, onPress, onSeeAll }: { title: string; items: 
           <View style={{ width: POSTER.width }}>
             <Poster title={item} onPress={onPress} />
             <Pressable
-              onPress={() => Share.share({ message: `Check out "${item.name}" on MythTube` }).catch(() => undefined)}
+              onPress={() => Share.share({ message: `Check out "${item.name}" on AshTube` }).catch(() => undefined)}
               style={styles.share}
             >
               <Ionicons name="paper-plane-outline" size={16} color={colors.text} />
@@ -85,7 +85,7 @@ export default function MyNetflixScreen() {
 
   const confirmSignOut = () => {
     setMenu(false);
-    Alert.alert('Sign Out', 'Signing out of this app means you’ll also sign out of all other MythTube apps on this device.', [
+    Alert.alert('Sign Out', 'Signing out of this app means you’ll also sign out of all other AshTube apps on this device.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Sign Out',
@@ -99,7 +99,7 @@ export default function MyNetflixScreen() {
 
   return (
     <View style={styles.root}>
-      <ScreenHeader title="My MythTube" actions={['search', 'menu']} onMenu={() => setMenu(true)} />
+      <ScreenHeader title="My AshTube" actions={['search', 'menu']} onMenu={() => setMenu(true)} />
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false}>
         {activeProfile ? (
           <View style={styles.profile}>
@@ -111,6 +111,28 @@ export default function MyNetflixScreen() {
             </View>
           </View>
         ) : null}
+
+        {/* Prominent Live TV Entry Point */}
+        <Pressable
+          onPress={() => nav.navigate('LiveTv')}
+          style={({ pressed }) => [styles.liveTvCard, pressed && { opacity: 0.85 }]}
+        >
+          <View style={styles.liveTvLeft}>
+            <View style={styles.liveTvIcon}>
+              <Ionicons name="tv" size={24} color="#FFF" />
+              <View style={styles.liveBadge}>
+                <Txt weight="bold" size={9} color="#FFF">LIVE</Txt>
+              </View>
+            </View>
+            <View style={styles.liveTvInfo}>
+              <Txt weight="bold" size={16} color={colors.text}>Live TV Channels</Txt>
+              <Txt size={12} color={colors.textDim} style={{ marginTop: 2 }}>
+                4,400+ Free-to-Air Channels • News, Sports & Entertainment
+              </Txt>
+            </View>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={colors.textDim} />
+        </Pressable>
 
         <MenuRow icon="notifications" color={colors.red} label="Notifications" detail="Live news channels"
           onPress={() => nav.navigate('Notifications')} />
@@ -152,4 +174,37 @@ const styles = StyleSheet.create({
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter + 4, paddingVertical: 12 },
   menuIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   share: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  liveTvCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: layout.gutter,
+    marginBottom: 16,
+    padding: 14,
+    backgroundColor: colors.surface2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.surface4,
+  },
+  liveTvLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
+  liveTvIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    backgroundColor: colors.red,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  liveBadge: {
+    position: 'absolute',
+    bottom: -4,
+    backgroundColor: '#000',
+    borderRadius: 3,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: colors.red,
+  },
+  liveTvInfo: { flex: 1, marginLeft: 14 },
 });

@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "MythTube",
-    "slug": "mythtube",
+    "name": "AshTube",
+    "slug": "ashtube",
     "version": "2.0.0",
     "orientation": "default",
     "icon": "./assets/icon.png",
-    "scheme": "mythtube",
+    "scheme": "ashtube",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#000000",
     "android": {

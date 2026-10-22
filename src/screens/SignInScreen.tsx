@@ -105,7 +105,7 @@ export default function SignInScreen({ navigation }: Props) {
         </Pressable>
         <Pressable onPress={() => navigation.navigate('SignUp')} style={{ marginTop: 28 }}>
           <Txt size={14} color={colors.textDim} align="center">
-            New to MythTube? <Txt weight="bold" size={14}>Sign up now.</Txt>
+            New to AshTube? <Txt weight="bold" size={14}>Sign up now.</Txt>
           </Txt>
         </Pressable>
       </ScrollView>

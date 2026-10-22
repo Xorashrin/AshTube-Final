@@ -5,10 +5,10 @@ import { View } from 'react-native';
 
 import { Avatar } from '../components/Avatar';
 import { CreditPopup } from '../components/CreditPopup';
+import KDramaScreen from '../screens/KDramaScreen';
 import HomeScreen from '../screens/HomeScreen';
 import MyNetflixScreen from '../screens/MyNetflixScreen';
 import AnimeScreen from '../screens/AnimeScreen';
-import TvScreen from '../screens/TvScreen';
 import { useApp } from '../state/AppState';
 import { colors, font } from '../theme/tokens';
 import type { TabParamList } from './types';
@@ -46,19 +46,19 @@ export function Tabs() {
         options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} /> }}
       />
       <Tab.Screen
-        name="TV"
-        component={TvScreen}
-        options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'tv' : 'tv-outline'} size={25} color={color} /> }}
-      />
-      <Tab.Screen
         name="Anime"
         component={AnimeScreen}
         options={{ tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'flash' : 'flash-outline'} size={24} color={color} /> }}
       />
       <Tab.Screen
+        name="KDrama"
+        component={KDramaScreen}
+        options={{ title: 'K-Drama', tabBarIcon: ({ focused, color }) => <Ionicons name={focused ? 'heart' : 'heart-outline'} size={24} color={color} /> }}
+      />
+      <Tab.Screen
         name="MyNetflix"
         component={MyNetflixScreen}
-        options={{ title: 'My MythTube', tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} /> }}
+        options={{ title: 'Profiles', tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} /> }}
       />
     </Tab.Navigator>
     <CreditPopup />

@@ -28,7 +28,7 @@ CATEGORY_MAP = {
 }
 # Keyword detection for Adult-category channels that don't carry the group label.
 ADULT_KW = re.compile(r"\b(adult|xxx|porn|erotic|sex|playboy|hustler|brazzers|redlight|babes|nude|18\+|hot ?club|venus|private tv|dorcel|vivid|music box sexy|pink tv|blue hustler|extreme|babes tv|jasmin tv)\b", re.I)
-UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 14) MythTube/1.0"}
+UA = {"User-Agent": "Mozilla/5.0 (Linux; Android 14) AshTube/2.0"}
 
 
 def parse(path):
