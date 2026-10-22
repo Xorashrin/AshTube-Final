@@ -31,9 +31,6 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
 
-      - name: Align native module versions with the Expo SDK
-        run: npx expo install --fix
-
       - name: Shrink icon fonts to the glyphs in use
         continue-on-error: true
         run: |
