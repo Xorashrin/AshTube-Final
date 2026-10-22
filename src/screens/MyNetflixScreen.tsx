@@ -1,19 +1,20 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { Alert, FlatList, Pressable, ScrollView, Share, StyleSheet, View } from 'react-native';
 
 import { Avatar } from '../components/Avatar';
 import { SheetItem } from '../components/ListItems';
+import { ALogo } from '../components/Logo';
 import { Poster, POSTER } from '../components/Poster';
-import { RowHeader } from '../components/Rows';
+import { ContinueRow, RowHeader, type ContinueItem } from '../components/Rows';
 import { ScreenHeader } from '../components/ScreenHeader';
 import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import type { Title } from '../data/types';
+import { findEpisode, type Title } from '../data/types';
 import { resolveTitle, rowsByKey, useRows } from '../services/catalog';
 import { useRootNav } from '../navigation/types';
 import { useApp } from '../state/AppState';
-import { colors, layout } from '../theme/tokens';
+import { colors, layout, radius } from '../theme/tokens';
 
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -71,11 +72,29 @@ function SharedRow({ title, items, onPress, onSeeAll }: { title: string; items: 
 
 export default function MyNetflixScreen() {
   const nav = useRootNav();
-  const { activeProfile, profileData, signOut, showToast, state } = useApp();
+  const { activeProfile, profileData, removeProgress, signOut, showToast, state } = useApp();
   const [menu, setMenu] = useState(false);
+  const [continueMenuItem, setContinueMenuItem] = useState<ContinueItem | null>(null);
   const { rows } = useRows(RECOMMENDED);
   const recommended = rows.flatMap((r) => r.items).slice(0, 12);
   const open = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
+
+  const continueItems = useMemo<ContinueItem[]>(
+    () =>
+      profileData.progress
+        .map((entry) => {
+          const title = resolveTitle(entry.titleId);
+          const ep = entry.episodeId ? findEpisode(title, entry.episodeId) : null;
+          return { title, entry, label: ep ? `S${ep.season.number}:E${ep.episode.number}` : undefined };
+        })
+        .filter((i) => i.title.name !== 'Unavailable title'),
+    [profileData.progress],
+  );
+
+  const playContinue = useCallback(
+    (i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }),
+    [nav],
+  );
 
   const liked = Object.entries(profileData.ratings)
     .filter(([, r]) => r !== 'down')
@@ -112,6 +131,19 @@ export default function MyNetflixScreen() {
           </View>
         ) : null}
 
+        {/* Continue Watching (Relocated to Profile per requirement 15) */}
+        {continueItems.length > 0 ? (
+          <View style={{ marginBottom: 16 }}>
+            <ContinueRow
+              title="Continue Watching"
+              items={continueItems}
+              onPlay={playContinue}
+              onInfo={open}
+              onMore={setContinueMenuItem}
+            />
+          </View>
+        ) : null}
+
         {/* Prominent Live TV Entry Point */}
         <Pressable
           onPress={() => nav.navigate('LiveTv')}
@@ -143,7 +175,7 @@ export default function MyNetflixScreen() {
           detail={downloadCount > 0 ? `${downloadCount} ${downloadCount === 1 ? 'title' : 'titles'}` : undefined}
           onPress={() => nav.navigate('Downloads')}
         />
-        {/* Adult Content entry point (requirement 9) */}
+        {/* Adult Content entry point */}
         <MenuRow
           icon="flame"
           color="#9B2C5A"
@@ -155,7 +187,71 @@ export default function MyNetflixScreen() {
         {liked.length > 0 ? <SharedRow title="TV Shows & Movies You've Liked" items={liked} onPress={open} /> : null}
         {myList.length > 0 ? <SharedRow title="My List" items={myList} onPress={open} onSeeAll={() => nav.navigate('MyList')} /> : null}
         {recommended.length > 0 ? <SharedRow title="Recommended For You" items={recommended} onPress={open} /> : null}
+
+        {/* About Section with required credits */}
+        <View style={styles.aboutCard}>
+          <View style={styles.aboutHeader}>
+            <ALogo size={26} />
+            <Txt weight="extrabold" size={18} color={colors.red} style={{ marginLeft: 10 }}>
+              ASHTUBE
+            </Txt>
+            <View style={styles.versionBadge}>
+              <Txt size={10} color={colors.textDim} weight="semibold">v2.0.0</Txt>
+            </View>
+          </View>
+          <View style={styles.aboutDivider} />
+          <View style={styles.aboutCredits}>
+            <View style={styles.creditItem}>
+              <Txt size={11} color={colors.textMuted} weight="medium">
+                DEVELOPED BY
+              </Txt>
+              <Txt size={15} color={colors.text} weight="bold" style={{ marginTop: 2 }}>
+                Asraful Islam
+              </Txt>
+            </View>
+            <View style={styles.creditItem}>
+              <Txt size={11} color={colors.textMuted} weight="medium">
+                HELPED BY
+              </Txt>
+              <Txt size={15} color={colors.text} weight="bold" style={{ marginTop: 2 }}>
+                Sazzad Hossain
+              </Txt>
+            </View>
+          </View>
+        </View>
       </ScrollView>
+
+      {/* Continue Watching Item Options Sheet */}
+      <Sheet visible={continueMenuItem !== null} onClose={() => setContinueMenuItem(null)}>
+        {continueMenuItem ? (
+          <>
+            <Txt weight="bold" size={16} style={styles.sheetTitle} numberOfLines={1}>
+              {continueMenuItem.title.name}
+              {continueMenuItem.label ? `  ${continueMenuItem.label}` : ''}
+            </Txt>
+            <SheetItem
+              label="Episodes & Info"
+              icon="information-circle-outline"
+              onPress={() => {
+                const item = continueMenuItem;
+                setContinueMenuItem(null);
+                open(item.title);
+              }}
+            />
+            <SheetItem
+              label="Remove From Continue Watching"
+              icon="close-circle-outline"
+              destructive
+              onPress={() => {
+                const item = continueMenuItem;
+                removeProgress(item.title.id);
+                setContinueMenuItem(null);
+                showToast('Removed from Continue Watching');
+              }}
+            />
+          </>
+        ) : null}
+      </Sheet>
 
       <Sheet visible={menu} onClose={() => setMenu(false)}>
         <SheetItem label="App Settings" icon="settings-outline" onPress={() => { setMenu(false); nav.navigate('AppSettings'); }} />
@@ -174,6 +270,7 @@ const styles = StyleSheet.create({
   menuRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: layout.gutter + 4, paddingVertical: 12 },
   menuIcon: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', marginRight: 14 },
   share: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 8 },
+  sheetTitle: { paddingHorizontal: 20, paddingVertical: 10 },
   liveTvCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -207,4 +304,37 @@ const styles = StyleSheet.create({
     borderColor: colors.red,
   },
   liveTvInfo: { flex: 1, marginLeft: 14 },
+  aboutCard: {
+    marginHorizontal: layout.gutter,
+    marginTop: 32,
+    marginBottom: 16,
+    padding: 18,
+    backgroundColor: colors.surface2,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.surface4,
+  },
+  aboutHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  versionBadge: {
+    marginLeft: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: colors.surface4,
+    borderRadius: 4,
+  },
+  aboutDivider: {
+    height: 1,
+    backgroundColor: colors.surface4,
+    marginVertical: 14,
+  },
+  aboutCredits: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  creditItem: {
+    flex: 1,
+  },
 });

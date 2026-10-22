@@ -7,12 +7,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Billboard } from '../components/Billboard';
 import { Chip } from '../components/Chip';
-import { SheetItem } from '../components/ListItems';
-import { ContinueRow, PosterRow, SkeletonRow, type ContinueItem } from '../components/Rows';
+import { PosterRow, SkeletonRow } from '../components/Rows';
 import { HeaderActions } from '../components/ScreenHeader';
-import { Sheet } from '../components/Sheet';
 import { Txt } from '../components/Txt';
-import { findEpisode, type Title } from '../data/types';
+import type { Title } from '../data/types';
 import { HOME_ROWS, resolveTitle, useFeedRows, useRows, type RowState } from '../services/catalog';
 import { warmUp } from '../services/playback';
 import { useRootNav, type TabParamList } from '../navigation/types';
@@ -27,7 +25,6 @@ type HomeFilter = 'all' | 'tv' | 'movies';
 
 type Section =
   | { key: string; kind: 'hero' }
-  | { key: string; kind: 'continue'; items: ContinueItem[] }
   | { key: string; kind: 'row'; title: string; items: Title[]; loading: boolean; seeAll?: () => void };
 
 const match = (t: Title, filter: HomeFilter, genre?: string) =>
@@ -43,9 +40,8 @@ const match = (t: Title, filter: HomeFilter, genre?: string) =>
 export default function HomeScreen({ route, navigation }: Props) {
   const nav = useRootNav();
   const insets = useSafeAreaInsets();
-  const { profileData, toggleMyList, rate, removeProgress, showToast } = useApp();
+  const { profileData, toggleMyList, showToast } = useApp();
   const [filter, setFilter] = useState<HomeFilter>(route.params?.filter ?? 'all');
-  const [menuItem, setMenuItem] = useState<ContinueItem | null>(null);
   const genre = route.params?.genre;
 
   useEffect(() => {
@@ -89,32 +85,19 @@ export default function HomeScreen({ route, navigation }: Props) {
     if (hero) warmUp(hero);
   }, [hero?.id]);
 
-  const continueItems = useMemo<ContinueItem[]>(
-    () =>
-      profileData.progress
-        .map((entry) => {
-          const title = resolveTitle(entry.titleId);
-          const ep = entry.episodeId ? findEpisode(title, entry.episodeId) : null;
-          return { title, entry, label: ep ? `S${ep.season.number}:E${ep.episode.number}` : undefined };
-        })
-        .filter((i) => i.title.name !== 'Unavailable title' && match(i.title, filter, genre)),
-    [profileData.progress, filter, genre],
-  );
   const myListItems = useMemo(
     () => profileData.myList.map(resolveTitle).filter((t) => t.name !== 'Unavailable title' && match(t, filter, genre)),
     [profileData.myList, filter, genre],
   );
 
   const openTitle = useCallback((t: Title) => nav.navigate('Title', { id: t.id }), [nav]);
-  const playContinue = useCallback((i: ContinueItem) => nav.navigate('Player', { id: i.title.id, episodeId: i.entry.episodeId }), [nav]);
 
   const sections = useMemo<Section[]>(() => {
     const list: Section[] = [{ key: 'hero', kind: 'hero' }];
-    if (continueItems.length > 0) list.push({ key: 'continue', kind: 'continue', items: continueItems });
     if (myListItems.length > 0) list.push({ key: 'mylist', kind: 'row', title: 'My List', items: myListItems, loading: false, seeAll: () => nav.navigate('MyList') });
     for (const r of rows) list.push({ key: r.def.key, kind: 'row', title: r.def.title, items: r.items, loading: r.loading });
     return list;
-  }, [continueItems, myListItems, rows, nav]);
+  }, [myListItems, rows, nav]);
 
   const scrollY = useRef(new Animated.Value(0)).current;
   // The chip row slides away as you scroll down and returns on any upward scroll.
@@ -174,13 +157,11 @@ export default function HomeScreen({ route, navigation }: Props) {
           ) : (
             <View style={styles.heroSkeleton} />
           );
-        case 'continue':
-          return <ContinueRow title="Continue Watching" items={item.items} onPlay={playContinue} onInfo={openTitle} onMore={setMenuItem} />;
         default:
           return item.items.length === 0 ? <SkeletonRow title={item.title} /> : <PosterRow title={item.title} items={item.items} onPressTitle={openTitle} onSeeAll={item.seeAll} />;
       }
     },
-    [hero, inMyList, nav, openTitle, playContinue, showToast, toggleMyList],
+    [hero, inMyList, nav, openTitle, showToast, toggleMyList],
   );
 
   return (
@@ -229,21 +210,6 @@ export default function HomeScreen({ route, navigation }: Props) {
           )}
         </Animated.View>
       </View>
-
-      <Sheet visible={menuItem !== null} onClose={() => setMenuItem(null)}>
-        {menuItem ? (
-          <>
-            <Txt weight="bold" size={16} style={styles.sheetTitle} numberOfLines={1}>
-              {menuItem.title.name}
-              {menuItem.label ? `  ${menuItem.label}` : ''}
-            </Txt>
-            <SheetItem label="Episodes & Info" icon="information-circle-outline" onPress={() => { setMenuItem(null); openTitle(menuItem.title); }} />
-            <SheetItem label="Not for me" icon="thumbs-down-outline" onPress={() => { rate(menuItem.title.id, 'down'); setMenuItem(null); showToast("We won't suggest this again."); }} />
-            <SheetItem label="I like this" icon="thumbs-up-outline" onPress={() => { rate(menuItem.title.id, 'up'); setMenuItem(null); showToast("You'll see more like this."); }} />
-            <SheetItem label="Remove From Row" icon="close-circle-outline" destructive onPress={() => { removeProgress(menuItem.title.id); setMenuItem(null); showToast('Removed from Continue Watching'); }} />
-          </>
-        ) : null}
-      </Sheet>
     </View>
   );
 }

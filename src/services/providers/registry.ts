@@ -238,3 +238,120 @@ export class ProviderRegistry {
 
 export const registry = new ProviderRegistry();
 export const auditCloudstreamRepository = (repoUrl: string) => registry.auditCloudstreamRepository(repoUrl);
+
+function registerDefaultProviders(reg: ProviderRegistry) {
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'bdix-direct', name: 'BDIX Direct Origin', version: '2.0.0' },
+      {
+        contentTypes: ['movie', 'series', 'anime', 'kdrama'],
+        languages: ['en', 'bn', 'hi', 'ja', 'ko'],
+        supportsDirectStreams: true,
+        supportsHls: true,
+        supportsDownloads: true,
+        supportsCustomHeaders: false,
+      },
+      1,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'circleftp-amader', name: 'Circle & AmaderFTP', version: '2.0.0' },
+      {
+        contentTypes: ['movie', 'series', 'anime', 'kdrama'],
+        languages: ['en', 'bn', 'hi', 'ja', 'ko'],
+        supportsDirectStreams: true,
+        supportsHls: false,
+        supportsDownloads: true,
+        supportsCustomHeaders: false,
+      },
+      2,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'southfreak-bdix', name: 'Southfreak BDIX Mirrors', version: '2.0.0' },
+      {
+        contentTypes: ['movie', 'series', 'kdrama'],
+        languages: ['en', 'hi', 'bn', 'ta', 'te'],
+        supportsDirectStreams: true,
+        supportsHls: false,
+        supportsDownloads: true,
+        supportsCustomHeaders: false,
+      },
+      3,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'animepahe-provider', name: 'AnimePahe & AniList Streams', version: '2.0.0' },
+      {
+        contentTypes: ['anime'],
+        languages: ['ja', 'en'],
+        supportsDirectStreams: true,
+        supportsHls: true,
+        supportsDownloads: true,
+        supportsCustomHeaders: true,
+      },
+      4,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'kdrama-hub', name: 'Asian Drama & KDrama Hub', version: '2.0.0' },
+      {
+        contentTypes: ['kdrama', 'series'],
+        languages: ['ko', 'en', 'zh'],
+        supportsDirectStreams: true,
+        supportsHls: true,
+        supportsDownloads: false,
+        supportsCustomHeaders: true,
+      },
+      5,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'stremio-provider', name: 'Stremio Community Addons', version: '2.0.0' },
+      {
+        contentTypes: ['movie', 'series', 'anime', 'kdrama'],
+        languages: ['en', 'multi'],
+        supportsDirectStreams: true,
+        supportsHls: true,
+        supportsDownloads: false,
+        supportsCustomHeaders: true,
+      },
+      6,
+      async () => [],
+    ),
+  );
+
+  reg.register(
+    new BaseProviderAdapter(
+      { id: 'nuvio-provider', name: 'Nuvio Multi-Server Provider', version: '2.0.0' },
+      {
+        contentTypes: ['movie', 'series', 'anime', 'kdrama'],
+        languages: ['en', 'multi'],
+        supportsDirectStreams: true,
+        supportsHls: true,
+        supportsDownloads: false,
+        supportsCustomHeaders: true,
+      },
+      7,
+      async () => [],
+    ),
+  );
+}
+
+registerDefaultProviders(registry);
+

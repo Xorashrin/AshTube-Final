@@ -186,6 +186,8 @@ export default function AppSettingsScreen({ navigation }: Props) {
 
         <SectionLabel>About</SectionLabel>
         <SettingRow icon="phone-portrait-outline" label="Version" value="AshTube 2.0.0" />
+        <SettingRow icon="code-slash-outline" label="Developed by" value="Asraful Islam" />
+        <SettingRow icon="people-outline" label="Helped by" value="Sazzad Hossain" />
         <SettingRow
           icon="log-out-outline"
           label="Sign Out"

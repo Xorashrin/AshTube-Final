@@ -37,19 +37,27 @@ async function tmdbFindByImdb(imdbId: string, series: boolean): Promise<number |
   }
 }
 
-/** Conservative TMDB search by title and release year */
+/** Conservative TMDB search by title and release year, with alias fallback */
 async function tmdbSearch(title: Title): Promise<number | undefined> {
   try {
     const kind = title.kind === 'series' ? 'tv' : 'movie';
     const yearParam = title.kind === 'series' ? 'first_air_date_year' : 'year';
-    const cleanName = title.name.replace(/\s*\([^)]*\)/g, '').trim();
-    const r = await getJson<{ results?: { id: number; name?: string; title?: string; release_date?: string; first_air_date?: string }[] }>(
-      `https://api.themoviedb.org/3/search/${kind}?api_key=${TMDB_KEY}&query=${encodeURIComponent(cleanName)}&${yearParam}=${title.year}`,
-      { timeout: 9000, retries: 1 },
-    );
-    const targetNorm = norm(cleanName);
-    const hit = r.results?.find((x) => norm(x.name ?? x.title ?? '') === targetNorm) ?? r.results?.[0];
-    return hit?.id;
+    const queries = [title.name, ...(title.aliases ?? [])];
+    for (const rawName of queries) {
+      const cleanName = rawName.replace(/\s*\([^)]*\)/g, '').trim();
+      if (!cleanName) continue;
+      const yearQuery = title.year ? `&${yearParam}=${title.year}` : '';
+      const r = await getJson<{ results?: { id: number; name?: string; title?: string; release_date?: string; first_air_date?: string }[] }>(
+        `https://api.themoviedb.org/3/search/${kind}?api_key=${TMDB_KEY}&query=${encodeURIComponent(cleanName)}${yearQuery}`,
+        { timeout: 9000, retries: 1 },
+      ).catch(() => null);
+      if (r?.results?.length) {
+        const targetNorm = norm(cleanName);
+        const hit = r.results.find((x) => norm(x.name ?? x.title ?? '') === targetNorm) ?? r.results[0];
+        if (hit?.id) return hit.id;
+      }
+    }
+    return undefined;
   } catch {
     return undefined;
   }

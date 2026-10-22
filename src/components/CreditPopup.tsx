@@ -3,7 +3,7 @@ import { Animated, Modal, Pressable, StyleSheet, View } from 'react-native';
 
 import { useApp } from '../state/AppState';
 import { colors, motion } from '../theme/tokens';
-import { MLogo } from './Logo';
+import { ALogo } from './Logo';
 import { Txt } from './Txt';
 
 /** Shown once after the first sign-in. No close button: tapping outside the card dismisses it. */
@@ -23,13 +23,20 @@ export function CreditPopup() {
       <Pressable style={styles.backdrop} onPress={markCreditSeen}>
         {/* The card absorbs touches so only taps on the empty area close the popup. */}
         <Animated.View style={[styles.card, cardStyle]} onStartShouldSetResponder={() => true}>
-          <MLogo size={44} />
+          <ALogo size={44} />
           <View style={styles.divider} />
-          <Txt size={13} color={colors.textMuted} spacing={2} align="center">
+          <Txt size={12} color={colors.textMuted} spacing={2} align="center">
             DEVELOPED BY
           </Txt>
-          <Txt weight="black" size={22} align="center" spacing={1} style={{ marginTop: 6 }}>
+          <Txt weight="black" size={20} align="center" spacing={1} style={{ marginTop: 4 }}>
             ASRAFUL ISLAM
+          </Txt>
+          <View style={{ height: 14 }} />
+          <Txt size={12} color={colors.textMuted} spacing={2} align="center">
+            HELPED BY
+          </Txt>
+          <Txt weight="black" size={20} align="center" spacing={1} style={{ marginTop: 4 }}>
+            SAZZAD HOSSAIN
           </Txt>
         </Animated.View>
       </Pressable>

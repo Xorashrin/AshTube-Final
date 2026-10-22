@@ -107,7 +107,7 @@ const MB = 1024 * 1024;
 function minBytes(ctx: Ctx): number {
   const exp = expectedMinutes(ctx);
   const movie = ctx.title.kind === 'movie';
-  return Math.max(movie ? 60 * MB : 25 * MB, exp * (movie ? 1.0 : 0.6) * MB);
+  return Math.max(movie ? 30 * MB : 8 * MB, exp * (movie ? 0.8 : 0.4) * MB);
 }
 
 function checkSize(bytes: number, ctx: Ctx) {
@@ -116,27 +116,65 @@ function checkSize(bytes: number, ctx: Ctx) {
 
 /** Is a measured duration (seconds) believable for what was requested? */
 export function durationPlausible(seconds: number, ctx: Ctx): boolean {
-  if (!Number.isFinite(seconds) || seconds <= 0) return false;
+  if (!Number.isFinite(seconds) || seconds <= 0) return true;
   const exp = expectedMinutes(ctx);
   const movie = ctx.title.kind === 'movie';
-  const floor = Math.max(movie ? 20 : 8, exp ? exp * (movie ? 0.72 : 0.5) : 0) * 60;
-  const ceiling = exp ? (exp * 1.9 + 25) * 60 : Infinity;
+  const floor = (exp > 0 ? exp * (movie ? 0.65 : 0.4) : (movie ? 15 : 2)) * 60;
+  const ceiling = exp > 0 ? (exp * 2.2 + 30) * 60 : (movie ? 300 * 60 : 180 * 60);
   return seconds >= floor && seconds <= ceiling;
 }
 
 /** Name/URL sanity: wrong season/episode, wrong release year, or a file clearly named after something else. */
-function labelOk(label: string, ctx: Ctx): boolean {
+export function labelOk(label: string, ctx: Ctx): boolean {
   const text = safeDecodeText(label);
-  const se = /s(\d{1,2})[\s._-]*e(\d{1,3})/i.exec(text) ?? /\b(\d{1,2})x(\d{2,3})\b/.exec(text);
-  if (ctx.episode && se && (Number(se[1]) !== ctx.episode.season || Number(se[2]) !== ctx.episode.number)) return false;
+
+  // 1. Season and Episode verification
+  if (ctx.episode) {
+    const se = /s(\d{1,2})[\s._-]*e(\d{1,3})/i.exec(text) ?? /\b(\d{1,2})x(\d{2,3})\b/.exec(text);
+    if (se) {
+      if (Number(se[1]) !== ctx.episode.season || Number(se[2]) !== ctx.episode.number) return false;
+    } else {
+      // Episode patterns: "E05", "EP 05", "- 05", "[05]", "Episode 5"
+      const epOnly =
+        /(?:ep|episode|e)[\s._-]*(\d{1,3})\b/i.exec(text) ??
+        /(?:^|[^\w])[-–—]\s*(\d{1,3})(?:[^\w]|$)/.exec(text) ??
+        /\[(\d{1,3})\]/.exec(text);
+      if (epOnly) {
+        const epNum = Number(epOnly[1]);
+        if (epNum > 0 && epNum !== ctx.episode.number) return false;
+      }
+    }
+  }
+
+  // 2. Movie release year verification
   if (ctx.title.kind === 'movie' && ctx.title.year) {
     const years = [...text.matchAll(/(?:^|[^0-9])((?:19|20)\d{2})(?![0-9])/g)].map((m) => Number(m[1]));
     if (years.length > 0 && !years.some((y) => Math.abs(y - ctx.title.year) <= 1)) return false;
   }
+
+  // 3. Name / Token verification across primary name and aliases
   const base = text.split(/[?#]/)[0].split('/').pop() ?? '';
-  const words = base.toLowerCase().replace(/\.[a-z0-9]{2,4}$/, '').split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && !/^(\d+p?|x26[45]|hevc|web|dl|rip|bluray|hdrip|h264|h265|aac|ac3|dts|dual|audio|esub|esubs|hindi|english|bengali|hdr|uhd|mkv|mp4|amzn|nf|netflix|www|com)$/.test(w));
-  const wanted = ctx.title.name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && w !== 'the');
-  if (words.length >= 3 && wanted.length > 0 && !wanted.some((w) => words.includes(w))) return false;
+  const words = base
+    .toLowerCase()
+    .replace(/\.[a-z0-9]{2,4}$/, '')
+    .split(/[^a-z0-9]+/)
+    .filter(
+      (w) =>
+        w.length >= 3 &&
+        !/^(\d+p?|x26[45]|hevc|web|dl|rip|bluray|hdrip|h264|h265|aac|ac3|dts|dual|audio|esub|esubs|hindi|english|bengali|hdr|uhd|mkv|mp4|amzn|nf|netflix|www|com)$/.test(
+          w,
+        ),
+    );
+
+  const wantedNames = [ctx.title.name, ...(ctx.title.aliases ?? [])];
+  const allWantedTokens = wantedNames
+    .map((name) => name.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 3 && w !== 'the'))
+    .filter((tokens) => tokens.length > 0);
+
+  if (words.length >= 3 && allWantedTokens.length > 0) {
+    const matchesAny = allWantedTokens.some((tokens) => tokens.some((w) => words.includes(w)));
+    if (!matchesAny) return false;
+  }
   return true;
 }
 
@@ -157,7 +195,7 @@ export function altNames(title: Title): string[] {
   return [...new Set([full, short, noArticle, ...aliases].filter((n) => n.length >= 3))];
 }
 
-const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 30, bdix: 25, wp: 10, nuvio: 0, stremio: 0 };
+const ORIGIN_BONUS: Record<Origin, number> = { local: 200, ftp: 60, bdix: 50, wp: 20, nuvio: 10, stremio: 5 };
 const ORIGIN_TIER: Record<Origin, number> = { local: 0, ftp: 1, bdix: 1, wp: 2, nuvio: 3, stremio: 3 };
 
 function score(server: Server, p: Playable, ms: number, downloadOnly: boolean): number {
@@ -568,6 +606,7 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 function buildGatherers(title: Title, episode: Episode | undefined, quick: boolean): Gatherer[] {
   const list: Gatherer[] = [];
   const ctx: Ctx = { title, episode };
+  const mainstream = !title.nsfw && title.source !== 'sfadult';
   const early = (run: Gatherer['run']) => list.push({ early: true, run });
   const late = (run: Gatherer['run']) => list.push({ early: false, run });
 
@@ -587,33 +626,58 @@ function buildGatherers(title: Title, episode: Episode | undefined, quick: boole
     }
   });
 
-  const mainstream = !title.nsfw && title.source !== 'stremio';
-
-  // 2. The same movie on other direct sources (every alternative spelling of the name is tried).
-  if (mainstream && title.kind === 'movie') {
+  // 2. Direct fast sources (BDIX-first prioritization across all categories: Movies, Series, Anime, K-Drama)
+  if (mainstream) {
     const names = altNames(title);
+    const isSeries = title.kind === 'series';
+
+    // 2A. BDIX Servers (CircleFTP & curated index hosts)
+    if (title.source !== 'bdix') {
+      early(async (add) => {
+        const query = isSeries && episode
+          ? `${names[0]} S${String(episode.season).padStart(2, '0')}`
+          : `${names[names.length > 1 ? 1 : 0]} ${title.year || ''}`.trim();
+        const found = await bdix.search(query, 9000);
+        found.forEach((f) =>
+          add(
+            f.files
+              .filter((file) => labelOk(file.label, ctx))
+              .slice(0, 8)
+              .map((file, i) => fileServer(ctx, `bx:${f.server.id}:${file.url}:${i}`, f.server.name, file.url, [file.url], file.label, 'bdix')),
+          ),
+        );
+      });
+    }
+
+    // 2B. AmaderFTP BDIX
     if (title.source !== 'amaderftp') {
       early(async (add) => {
-        if (title.tmdbId) return add(ftpServers(ctx, await amaderftp.filesByTmdb(title.tmdbId), 'x:'));
+        if (title.tmdbId && !isSeries) {
+          const files = await amaderftp.filesByTmdb(title.tmdbId);
+          if (files.length) return add(ftpServers(ctx, files, 'x:'));
+        }
         for (const name of names) {
           const hits = (await amaderftp.search(name)).filter((t) => sameTitle(title, t));
-          if (hits.length) return add(ftpServers(ctx, await amaderftp.getFiles(hits[0]), 'x:'));
+          if (hits.length) {
+            const files = await amaderftp.getFiles(hits[0]);
+            const filtered = files.filter((f) => labelOk(f.quality, ctx));
+            if (filtered.length) return add(ftpServers(ctx, filtered, 'x:'));
+          }
         }
       });
     }
+
+    // 2C. Southfreak Mirror Engine
     if (title.source !== 'southfreak') {
       early(async (add) => {
         for (const name of names) {
           const hits = (await listPosts(SOUTHFREAK, { search: name, perPage: 8 })).filter((t) => sameTitle(title, t));
-          for (const h of hits.slice(0, 2)) add(wpServers(ctx, h, await getVariants(SOUTHFREAK, h.ref), 'x:'));
+          for (const h of hits.slice(0, 2)) {
+            const variants = await getVariants(SOUTHFREAK, h.ref);
+            add(wpServers(ctx, h, variants, 'x:'));
+          }
           if (hits.length) return;
         }
-      });
-    }
-    if (title.source !== 'bdix') {
-      early(async (add) => {
-        const found = await bdix.search(`${names[names.length > 1 ? 1 : 0]} ${title.year}`.trim(), 9000);
-        found.forEach((f) => add(f.files.slice(0, 6).map((file, i) => fileServer(ctx, `bx:${f.server.id}:${file.url}:${i}`, f.server.name, file.url, [file.url], file.label, 'bdix'))));
       });
     }
   }

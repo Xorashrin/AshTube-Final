@@ -137,7 +137,7 @@ export const ContinueRow = memo(function ContinueRow({ title, items, onPlay, onI
       <FlatList
         {...listProps}
         data={items}
-        keyExtractor={(i) => i.title.id}
+        keyExtractor={(i) => `${i.title.id}:${i.entry.episodeId ?? ''}`}
         renderItem={renderItem}
         getItemLayout={(_, index) => ({ length: POSTER.width + GAP, offset: (POSTER.width + GAP) * index, index })}
       />

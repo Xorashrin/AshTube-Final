@@ -51,7 +51,7 @@ export default function KDramaScreen() {
   const isGenre = (cat: string) => (KDRAMA_GENRES as readonly string[]).includes(cat);
 
   const loadPage = useCallback(
-    async (p: number, reset = false) => {
+    async (p: number, reset = false, force = false) => {
       if (loadingRef.current || (done && !reset)) return;
       loadingRef.current = true;
       setLoading(true);
@@ -69,6 +69,7 @@ export default function KDramaScreen() {
           category: catParam,
           genre: genreParam,
           signal: ctrl.signal,
+          force,
         });
 
         if (ctrl.signal.aborted) return;
@@ -126,7 +127,7 @@ export default function KDramaScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setDone(false);
-    loadPage(1, true);
+    loadPage(1, true, true);
   }, [loadPage]);
 
   const hero = useMemo(() => {

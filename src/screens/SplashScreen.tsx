@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     height: 240,
     borderRadius: 120,
     backgroundColor: colors.red,
-    filter: 'blur(30px)',
+    opacity: 0.15,
   },
   brandTextWrap: {
     alignItems: 'center',

@@ -117,6 +117,7 @@ export interface KDramaBrowseOptions {
   genre?: string;
   page?: number;
   signal?: AbortSignal;
+  force?: boolean;
 }
 
 export interface KDramaPageResult {
@@ -151,7 +152,7 @@ export async function browseKDramaPage(o: KDramaBrowseOptions = {}): Promise<KDr
   }
 
   const cacheKey = `kdrama:browse:${cat}:${o.genre ?? 'all'}:${page}`;
-  return cached<KDramaPageResult>(cacheKey, { ttl: 2 * 3600 * 1000 }, async () => {
+  return cached<KDramaPageResult>(cacheKey, { ttl: 2 * 3600 * 1000, force: o.force }, async () => {
     try {
       const data = await getJson<TmdbPageResult>(url, { timeout: 12000, signal: o.signal, retries: 1 });
       const filtered = (data.results ?? []).filter((r) => {

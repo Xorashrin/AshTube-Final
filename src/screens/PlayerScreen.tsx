@@ -351,7 +351,11 @@ export default function PlayerScreen({ navigation, route }: Props) {
     if (status === 'readyToPlay') wasReady.current = true;
     if (!current || current.server.origin === 'local' || status !== 'readyToPlay') return;
     const timer = setTimeout(() => {
-      if (!(player.duration > 0) || !Number.isFinite(player.duration)) reject('Skipping a stream with no valid length');
+      // HLS streams or live non-seekable streams may report non-finite duration legitimately
+      const isLiveOrHls = !!(current.playable.hls || !current.playable.seekable);
+      if (!isLiveOrHls && (!(player.duration > 0) || !Number.isFinite(player.duration))) {
+        reject('Skipping a stream with no valid length');
+      }
     }, 12000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -360,13 +364,17 @@ export default function PlayerScreen({ navigation, route }: Props) {
   // Mid-playback stall: move to the next server and keep the position.
   useEffect(() => {
     if (status !== 'loading' || !wasReady.current || !current) return;
+    if (!player.playing) return;
     const timer = setTimeout(() => advance(), 25000);
     return () => clearTimeout(timer);
-  }, [status, current, advance]);
+  }, [status, current, advance, player.playing]);
 
   const seekBy = useCallback(
     (delta: number) => {
-      const target = Math.max(0, Math.min(latest.current.duration || 7200, latest.current.position + delta));
+      const currentPos = Number.isFinite(latest.current.position) ? latest.current.position : 0;
+      const totalDur = Number.isFinite(latest.current.duration) && latest.current.duration > 0 ? latest.current.duration : 7200;
+      const target = Math.max(0, Math.min(totalDur, currentPos + delta));
+      if (!Number.isFinite(target)) return;
       player.currentTime = target;
       setPosition(target);
       latest.current.position = target;
@@ -378,9 +386,12 @@ export default function PlayerScreen({ navigation, route }: Props) {
 
   const seekTo = useCallback(
     (t: number) => {
-      player.currentTime = t;
-      setPosition(t);
-      latest.current.position = t;
+      if (!Number.isFinite(t)) return;
+      const totalDur = Number.isFinite(latest.current.duration) && latest.current.duration > 0 ? latest.current.duration : Infinity;
+      const target = Math.max(0, Math.min(totalDur, t));
+      player.currentTime = target;
+      setPosition(target);
+      latest.current.position = target;
     },
     [player],
   );
@@ -433,6 +444,15 @@ export default function PlayerScreen({ navigation, route }: Props) {
   });
 
   useEventListener(player, 'playToEnd', () => {
+    if (player.duration > 0) {
+      setProgress({
+        titleId: title.id,
+        episodeId: episode?.id,
+        position: player.duration,
+        duration: player.duration,
+        updatedAt: Date.now(),
+      });
+    }
     if (next && state.settings.autoplayNext) navigation.replace('Player', { id: title.id, episodeId: next.id });
     else setVisible(true);
   });
