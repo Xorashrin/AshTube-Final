@@ -52,7 +52,7 @@ export default function AnimeScreen() {
   const isGenre = (cat: string) => (ANIME_GENRES as readonly string[]).includes(cat);
 
   const loadPage = useCallback(
-    async (p: number, reset = false) => {
+    async (p: number, reset = false, force = false) => {
       if (loadingRef.current || (done && !reset)) return;
       loadingRef.current = true;
       setLoading(true);
@@ -70,6 +70,7 @@ export default function AnimeScreen() {
           category: catParam,
           genre: genreParam,
           signal: ctrl.signal,
+          force,
         });
 
         if (ctrl.signal.aborted) return;
@@ -83,9 +84,14 @@ export default function AnimeScreen() {
               unique.push(item);
             }
           }
-          setItems(unique);
-          setPage(2);
-          setDone(!hasNextPage || unique.length === 0);
+          if (unique.length > 0) {
+            setItems(unique);
+            setPage(2);
+            setDone(!hasNextPage);
+          } else if (p === 1 && !force) {
+            setItems([]);
+            setDone(!hasNextPage);
+          }
         } else {
           const fresh: Title[] = [];
           for (const item of batch) {
@@ -125,7 +131,7 @@ export default function AnimeScreen() {
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     setDone(false);
-    loadPage(1, true);
+    loadPage(1, true, true);
   }, [loadPage]);
 
   const hero = useMemo(() => {

@@ -217,6 +217,7 @@ export interface AnimeBatchQuery {
   genre?: string | null;
   sort?: string;
   signal?: AbortSignal;
+  force?: boolean;
 }
 
 export interface AnimeBatchResult {
@@ -276,7 +277,7 @@ export async function loadAnimeFeed(q: AnimeBatchQuery): Promise<AnimeBatchResul
   }
 
   const cacheKey = `anime:feed:${cat || 'all'}:${q.genre ?? 'all'}:${q.page}`;
-  return cached<AnimeBatchResult>(cacheKey, { ttl: FEED_TTL }, async () => {
+  return cached<AnimeBatchResult>(cacheKey, { ttl: FEED_TTL, force: q.force }, async () => {
     const res = await anilist.browsePage(options);
     const items = register(res.items);
     return { items, hasNextPage: res.hasNextPage };

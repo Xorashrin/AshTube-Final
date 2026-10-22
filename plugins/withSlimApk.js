@@ -20,6 +20,12 @@ module.exports = function withSlimApk(config) {
         ? gradle.replace(/androidResources\s*\{/, 'androidResources {\n        localeFilters.addAll(["en"])')
         : gradle.replace(/android\s*\{/, 'android {\n    androidResources {\n        localeFilters.addAll(["en"])\n    }');
     }
+    if (!gradle.includes('v1SigningEnabled')) {
+      gradle = gradle.replace(
+        /(keyPassword\s+['"]android['"])/,
+        '$1\n            v1SigningEnabled true\n            v2SigningEnabled true'
+      );
+    }
     cfg.modResults.contents = gradle;
     return cfg;
   });

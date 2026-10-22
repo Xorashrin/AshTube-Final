@@ -13,8 +13,12 @@ import type {
   ProviderHealthState,
   ProviderMetrics,
   SourceDiscoveryQuery,
-} from './types';
+} from './types.ts';
 import { getJson, hostAvailable } from '../http.ts';
+
+const STREMIFY_BASE = 'https://stremify.hayd.uk';
+const CIRCLE_FTP_BASE = 'http://new.circleftp.net:5000/api';
+const NUVIO_MANIFEST_URL = 'https://raw.githubusercontent.com/NuvioApp/scrapers/main/manifest.json';
 
 export class BaseProviderAdapter implements ProviderAdapter {
   protected metricsData: ProviderMetrics = {
@@ -252,7 +256,34 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: false,
       },
       1,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.title) return [];
+          const clean = query.title.trim();
+          const isSeries = query.kind === 'series' || query.kind === 'kdrama';
+          const q = isSeries && query.season ? `${clean} S${String(query.season).padStart(2, '0')}` : clean;
+          const res = await getJson<{ files?: { name: string; url: string; size?: number }[] }>(
+            `${CIRCLE_FTP_BASE}/search?q=${encodeURIComponent(q)}`,
+            { timeout: 7000 },
+          ).catch(() => null);
+
+          if (!res?.files?.length) return [];
+          return res.files.slice(0, 5).map((f, i) => ({
+            id: `bdix:${i}:${f.url}`,
+            url: f.url,
+            providerId: 'bdix-direct',
+            providerName: 'BDIX Direct Origin',
+            name: f.name,
+            quality: '1080p',
+            rank: 90,
+            seekable: true,
+            downloadable: true,
+            hls: Boolean(f.url.includes('.m3u8')),
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -268,7 +299,31 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: false,
       },
       2,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.title) return [];
+          const res = await getJson<{ files?: { name: string; url: string }[] }>(
+            `${CIRCLE_FTP_BASE}/search?q=${encodeURIComponent(query.title.trim())}`,
+            { timeout: 7000 },
+          ).catch(() => null);
+
+          if (!res?.files?.length) return [];
+          return res.files.slice(0, 5).map((f, i) => ({
+            id: `circle:${i}:${f.url}`,
+            url: f.url,
+            providerId: 'circleftp-amader',
+            providerName: 'Circle & AmaderFTP',
+            name: f.name,
+            quality: '1080p',
+            rank: 95,
+            seekable: true,
+            downloadable: true,
+            hls: false,
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -284,7 +339,31 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: false,
       },
       3,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.title) return [];
+          const res = await getJson<{ id: number; title: { rendered: string }; link: string }[]>(
+            `https://southfreak.club/wp-json/wp/v2/posts?search=${encodeURIComponent(query.title)}&per_page=3`,
+            { timeout: 7000 },
+          ).catch(() => null);
+
+          if (!res?.length) return [];
+          return res.map((p, i) => ({
+            id: `sf:${p.id}:${i}`,
+            url: p.link,
+            providerId: 'southfreak-bdix',
+            providerName: 'Southfreak Mirror',
+            name: p.title?.rendered ?? query.title,
+            quality: 'HD',
+            rank: 80,
+            seekable: true,
+            downloadable: true,
+            hls: false,
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -300,7 +379,28 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: true,
       },
       4,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.imdbId) return [];
+          const sid = query.season ? `${query.imdbId}:${query.season}:${query.episode ?? 1}` : query.imdbId;
+          const url = `${STREMIFY_BASE}/stream/series/${encodeURIComponent(sid)}.json`;
+          const res = await getJson<{ streams?: { url?: string; name?: string; title?: string }[] }>(url, { timeout: 8000 }).catch(() => null);
+
+          return (res?.streams ?? []).filter((s) => Boolean(s.url)).map((s, i) => ({
+            id: `animepahe:${i}:${s.url}`,
+            url: s.url!,
+            providerId: 'animepahe-provider',
+            providerName: s.name ?? 'AnimePahe',
+            quality: s.title ?? s.name ?? 'HD',
+            rank: 70,
+            seekable: true,
+            downloadable: true,
+            hls: Boolean(s.url?.includes('.m3u8')),
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -316,7 +416,28 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: true,
       },
       5,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.imdbId) return [];
+          const sid = query.season ? `${query.imdbId}:${query.season}:${query.episode ?? 1}` : query.imdbId;
+          const url = `${STREMIFY_BASE}/stream/series/${encodeURIComponent(sid)}.json`;
+          const res = await getJson<{ streams?: { url?: string; name?: string; title?: string }[] }>(url, { timeout: 8000 }).catch(() => null);
+
+          return (res?.streams ?? []).filter((s) => Boolean(s.url)).map((s, i) => ({
+            id: `kdrama:${i}:${s.url}`,
+            url: s.url!,
+            providerId: 'kdrama-hub',
+            providerName: s.name ?? 'KDrama Hub',
+            quality: s.title ?? s.name ?? 'HD',
+            rank: 60,
+            seekable: true,
+            downloadable: false,
+            hls: Boolean(s.url?.includes('.m3u8')),
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -332,7 +453,29 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: true,
       },
       6,
-      async () => [],
+      async (query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          if (!query.imdbId) return [];
+          const kind = query.kind === 'series' || query.kind === 'kdrama' ? 'series' : 'movie';
+          const sid = kind === 'series' && query.season ? `${query.imdbId}:${query.season}:${query.episode ?? 1}` : query.imdbId;
+          const url = `${STREMIFY_BASE}/stream/${kind}/${encodeURIComponent(sid)}.json`;
+          const res = await getJson<{ streams?: { url?: string; name?: string; title?: string }[] }>(url, { timeout: 8000 }).catch(() => null);
+
+          return (res?.streams ?? []).filter((s) => Boolean(s.url)).map((s, i) => ({
+            id: `stremio:${i}:${s.url}`,
+            url: s.url!,
+            providerId: 'stremio-provider',
+            providerName: s.name ?? 'Stremify',
+            quality: s.title ?? s.name ?? 'HD',
+            rank: 40,
+            seekable: true,
+            downloadable: false,
+            hls: Boolean(s.url?.includes('.m3u8')),
+          }));
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 
@@ -348,10 +491,21 @@ function registerDefaultProviders(reg: ProviderRegistry) {
         supportsCustomHeaders: true,
       },
       7,
-      async () => [],
+      async (_query: SourceDiscoveryQuery): Promise<DiscoveredSource[]> => {
+        try {
+          const manifest = await getJson<{ scrapers?: { id: string; name: string }[] }>(NUVIO_MANIFEST_URL, { timeout: 6000 }).catch(() => null);
+          if (manifest?.scrapers?.length) {
+            return [];
+          }
+          return [];
+        } catch {
+          return [];
+        }
+      },
     ),
   );
 }
 
 registerDefaultProviders(registry);
+
 
